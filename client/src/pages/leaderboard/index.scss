@@ -1,0 +1,414 @@
+// ==================== 排行榜页面 — Sports Leaderboard Aesthetic ====================
+
+.lb-page {
+  min-height: 100vh;
+  padding-bottom: 120px;
+}
+
+// ── Tabs ───────────────────────────────────────────────
+.lb-tabs {
+  display: flex;
+  margin: 16px 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f0f2f5;
+  padding: 3px;
+}
+
+.lb-tab {
+  flex: 1;
+  padding: 15px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 500;
+  background: transparent;
+  color: #9ca3af;
+  border-radius: 11px;
+  position: relative;
+  transition: all .2s ease;
+
+  &.active {
+    background: #ffffff;
+    color: $green;
+    font-weight: 700;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 3px;
+      background: $green;
+      border-radius: 2px;
+    }
+  }
+}
+
+// ── Controls Row ────────────────────────────────────────
+.lb-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 14px;
+}
+
+.lb-rounds {
+  display: flex;
+  gap: 7px;
+}
+
+.lb-round {
+  flex-shrink: 0;
+  padding: 5px 16px;
+  border-radius: 24px;
+  font-size: 23px;
+  background: transparent;
+  border: 1.5px solid #e5e7eb;
+  color: #6b7280;
+  font-weight: 500;
+  transition: all .15s ease;
+
+  &.active {
+    background: $green;
+    border-color: $green;
+    color: #ffffff;
+    font-weight: 600;
+  }
+}
+
+.lb-sort-bar {
+  display: flex;
+  gap: 6px;
+}
+
+.lb-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 13px;
+  border-radius: 18px;
+  background: transparent;
+  border: 1.5px solid #e5e7eb;
+  color: #9ca3af;
+  font-size: 21px;
+  transition: all .15s ease;
+
+  &.active {
+    background: rgba(16, 185, 129, 0.07);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: $green;
+    font-weight: 600;
+  }
+}
+
+.lb-sort-arrow {
+  font-size: 13px;
+  opacity: .8;
+
+  &.asc { transform: rotate(180deg); }
+}
+
+// ── Human Card ──────────────────────────────────────────
+.human-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  margin: 0 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+}
+
+.human-av {
+  width: 52px;
+  height: 52px;
+  font-size: 26px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, $green, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.human-info { flex: 1; }
+
+.human-name {
+  font-size: 25px;
+  font-weight: 700;
+  color: $text1;
+}
+
+.human-metrics {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.human-votes { text-align: right; }
+
+.human-votes-num {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 33px;
+  font-weight: 900;
+  color: $green;
+}
+
+.human-votes-label {
+  font-size: 19px;
+  color: #9ca3af;
+}
+
+// ── List Container ─────────────────────────────────────
+.lb-list {
+  padding: 0 10px 120px;
+  height: calc(100vh - 290px);
+}
+
+// ── Empty State ─────────────────────────────────────────
+.empty {
+  text-align: center;
+  padding: 70px 28px;
+}
+.empty-icon { font-size: 72px; display: block; margin-bottom: 16px; }
+.empty-text { font-size: 23px; color: #9ca3af; }
+
+// ════════════════════════════════════════════════════════
+// ══ CARD ITEM — Core Visual Unit ═══════════════════════
+// ════════════════════════════════════════════════════════
+
+.lb-item {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 18px 20px;
+  margin: 0 10px 10px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: box-shadow .15s ease;
+
+  &:active {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  // ── Top3 微妙高亮（不再用厚重金底）──
+  &.lb-item-top3 {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10%;
+      bottom: 10%;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+    }
+
+    &:nth-child(1) {
+      &::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
+      border-color: rgba(245, 158, 11, 0.15);
+
+      .lb-rank-badge {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        color: #b45309;
+        font-size: 17px;
+        font-weight: 900;
+        border: none;
+      }
+    }
+
+    &:nth-child(2) {
+      &::before { background: linear-gradient(180deg, #d1d5db, #9ca3af); }
+
+      .lb-rank-badge {
+        background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+        color: #6b7280;
+      }
+    }
+
+    &:nth-child(3) {
+      &::before { background: linear-gradient(180deg, #d97706, #b45309); }
+
+      .lb-rank-badge {
+        background: linear-gradient(135deg, #ffedd5, #fed7aa);
+        color: #c2410c;
+      }
+    }
+  }
+}
+
+// ── Rank Badge (圆形徽章) ─────────────────────────────
+.lb-rank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lb-rank-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #f3f4f6;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 20px;
+  font-weight: 800;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #e5e7eb;
+  transition: all .15s ease;
+}
+
+// ── Avatar ─────────────────────────────────────────────
+.lb-av {
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+  flex-shrink: 0;
+}
+
+.lb-av-top1 {
+  width: 62px;
+  height: 62px;
+  border-radius: 17px;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25);
+}
+
+.lb-av-top3 {
+  width: 59px;
+  height: 59px;
+  border-radius: 16px;
+}
+
+// ── Card Body (名称 + 指标) ───────────────────────────
+.lb-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.lb-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: nowrap;
+}
+
+.lb-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: $text1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -.01em;
+}
+
+.lb-tags {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lb-tag {
+  font-size: 14px;
+  padding: 2px 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.lb-tag-origin {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.lb-tag-style {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+// ── Metrics Row (结构化数据行) ─────────────────────────
+.lb-metrics {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding-top: 2px;
+}
+
+.metric-group {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.metric-text {
+  font-size: 17px;
+  color: #9ca3af;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.metric-num {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+.metric-total {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 17px;
+  color: #9ca3af;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+// ── Metric Colors ──────────────────────────────────────
+.metric-ok     { color: #059669; }       // 胜率：翠绿
+.metric-sub    { color: #2563eb; }       // 比分命中：蓝
+.metric-pending { color: #d1d5db; }     // 待评估：灰
+.metric-none   { color: #f3f4f6; }      // 无数据：极浅灰
+
+// ── 人类用户排行（当前用户高亮 + 分割线）────────────
+.lb-item-me {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  background: linear-gradient(135deg, #ecfdf5, #ffffff) !important;
+  position: relative;
+
+  .lb-rank-badge {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+  }
+
+  .lb-name {
+    color: $green !important;
+  }
+}
+
+.lb-my-rank-divider {
+  text-align: center;
+  padding: 16px 0 8px;
+}
+
+.lb-my-rank-divider-text {
+  font-size: 18px;
+  color: #d1d5db;
+  letter-spacing: 2px;
+}

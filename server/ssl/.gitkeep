@@ -1,0 +1,2 @@
+# SSL 证书目录
+# 生产环境请将 cert.pem 和 key.pem 放置于此

@@ -1,0 +1,376 @@
+// Variables injected globally via sass.data in config
+
+.profile-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  padding-bottom: 40px;
+  position: relative;
+}
+
+// ==================== 头部 — 背景图 ====================
+
+.prof-hd {
+  padding: 56px 40px 44px;
+  text-align: center;
+  background: linear-gradient(180deg, #0d2818 0%, #1a4d2e 100%);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300rpx;
+  isolation: isolate;
+}
+
+.prof-hd-center {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+@keyframes profGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1) rotate(0deg); }
+  50%      { opacity: 0.75; transform: scale(1.08) rotate(2deg); }
+}
+
+// ---- 默认头像圆（展示模式 / 未登录） ----
+
+.prof-av {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  overflow: hidden;
+}
+
+.prof-av-clickable {
+  // 可点击时加个微光提示
+  box-shadow: 0 0 0 0 rgba(255,255,255,0.3);
+  transition: box-shadow .3s;
+}
+
+.prof-av-icon {
+  font-size: 48rpx;
+}
+
+// ---- 微信头像选择按钮 (open-type="chooseAvatar") ----
+
+.prof-avatar-picker {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 130rpx !important;
+  height: 130rpx !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: 3px dashed rgba(255, 255, 255, 0.45) !important;
+  padding: 0 !important;
+  margin-bottom: 24px;
+  line-height: 1.2 !important;
+  color: #fff !important;
+  font-size: 28rpx !important;
+  box-sizing: border-box !important;
+  overflow: hidden;
+  transition: all .25s ease;
+  margin-left: auto !important;
+  margin-right: auto !important;
+
+  &::after {
+    display: none !important;   // 去除微信 button 默认边框/高亮
+    border: none !important;
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.28) !important;
+    transform: scale(0.96);
+  }
+}
+
+.prof-avatar-img {
+  width: 124rpx;
+  height: 124rpx;
+  border-radius: 50%;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.prof-avatar-placeholder {
+  font-size: 56rpx;
+  font-weight: 300;
+  opacity: 0.9;
+  line-height: 1;
+  text-align: center;
+  display: block;
+}
+
+.prof-avatar-label {
+  font-size: 20rpx;
+  opacity: 0.65;
+  margin-top: 2px;
+  text-align: center;
+  display: block;
+}
+
+// ---- 昵称 / 名字 ----
+
+.prof-name {
+  font-size: 36rpx;
+  font-weight: 700;
+  display: block;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.prof-id {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.55);
+  display: block;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.prof-tip {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.5);
+  display: block;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.prof-edit-tip {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.42);
+  display: block;
+  margin-top: 16px;
+  text-align: center;
+}
+
+// ---- 昵称输入框 ----
+
+.prof-nick-input {
+  display: block !important;
+  width: 400rpx !important;
+  height: 76rpx !important;
+  line-height: 76rpx !important;
+  border-radius: 38rpx !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+  padding: 0 32rpx !important;
+  margin-top: 20px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center;
+  color: #fff !important;
+  font-size: 30rpx !important;
+  font-weight: 600;
+  letter-spacing: 1px;
+  box-sizing: border-box !important;
+
+  .input-value {
+    color: #ffffff !important;
+    text-align: center;
+  }
+
+  .placeholder,
+  .prof-nick-ph {
+    color: rgba(255, 255, 255, 0.5) !important;
+    font-size: 26rpx !important;
+  }
+}
+
+// ---- 保存按钮 ----
+
+.prof-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 14rpx 64rpx;
+  border-radius: 40rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+
+  text {
+    font-size: 26rpx;
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  &.ready {
+    background: #ffffff;
+    border-color: #ffffff;
+
+    text {
+      color: #067a5c;
+    }
+  }
+}
+
+// ---- 站队标签 ----
+
+.prof-support {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  padding: 10rpx 28rpx;
+  border-radius: 32rpx;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.prof-support-text {
+  font-size: 23rpx;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+}
+
+// ==================== 统计卡片 ====================
+
+.prof-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 28rpx 28rpx 0;
+  padding: 0 16rpx;
+  background: #ffffff;
+  border-radius: $radius;
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.03);
+}
+
+.prof-stat {
+  flex: 1;
+  text-align: center;
+  padding: 32rpx 0 28rpx;
+}
+
+.prof-stat-divider {
+  width: 1px;
+  height: 52rpx;
+  background: rgba(0,0,0,0.07);
+  flex-shrink: 0;
+}
+
+.prof-stat-num {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 40rpx;
+  font-weight: 900;
+  color: $green;
+  display: block;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.prof-stat-label {
+  font-size: 22rpx;
+  color: $text3;
+  margin-top: 6rpx;
+  display: block;
+  text-align: center;
+}
+
+// ==================== 菜单列表 ====================
+
+.prof-menu {
+  margin: 24rpx 28rpx 0;
+}
+
+.prof-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 24rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.04);
+  margin-bottom: 12rpx;
+  box-shadow: 0 1rpx 6rpx rgba(0,0,0,0.02);
+
+  &:active {
+    background: #fafbfc;
+  }
+}
+
+.prof-menu-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.prof-menu-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  flex-shrink: 0;
+}
+
+.prof-menu-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: $text1;
+}
+
+.prof-menu-arrow {
+  font-size: 24rpx;
+  color: $text3;
+  flex-shrink: 0;
+}
+
+// ==================== 底部趣闻 ====================
+
+.fun-fact {
+  margin: 32rpx 28rpx;
+  padding: 28rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(59,130,246,0.04));
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+.fun-fact-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 10rpx;
+  color: $text1;
+}
+
+.fun-fact-text {
+  font-size: 24rpx;
+  color: $text2;
+  line-height: 1.6;
+}
+
+// ==================== 头像选择遮罩 ====================
+
+.avatar-picker-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  z-index: 9999;
+}

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:www.fifa.com)",
+      "WebFetch(domain:www.football-data.org)",
+      "WebFetch(domain:www.api-football.com)",
+      "WebFetch(domain:openrouter.ai)",
+      "WebFetch(domain:dashboard.api-football.com)",
+      "Bash(curl -s \"https://www.football-data.org/documentation/api\")",
+      "Bash(curl -s \"https://dashboard.api-football.com/\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.reddit.com)",
+      "Bash(curl -s \"https://www.football-data.org/coverage\")",
+      "Bash(sed 's/<[^>]*>//g')",
+      "Bash(curl -s \"https://www.football-data.org/pricing\")",
+      "Bash(curl -s https://openrouter.ai/api/v1/models)",
+      "Bash(grep -oiE '\\(free|tier|plan|request|calls?|per \\(day|month|hour\\)|limit|price|\\\\$[0-9]+|€[0-9]+|competition|world cup|WC|fifa\\)[^<]{0,100}')",
+      "Bash(grep -oiE '\\(world cup|fifa|competition|league|tier|free|premier|champions|euro|copa|serie|bundesliga|la liga|ligue 1\\)[^<]{0,80}')",
+      "Bash(grep -oiE '\\(price-list-title|price-list-price|price-list-feature|calls|minute|hour|day|month|competition|live|delayed|historic|odds|pre-match|lineups|statistics|injuries\\)[^<]{0,120}')",
+      "Bash(curl -s \"https://www.football-data.org/documentation/quickstart\")"
+    ]
+  }
+}

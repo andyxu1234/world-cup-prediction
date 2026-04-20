@@ -1,0 +1,407 @@
+// ============================
+//  🤡 打脸合集 - Face Slap Page
+//  Bold, readable, sporty aesthetic
+// ============================
+
+$red: #ef4444;
+$orange: #f97316;
+$green: #22c55e;
+$text1: #1a1a2e;
+$text2: #4a4a68;
+$text3: #8e8ea0;
+
+.fs-page {
+  min-height: 100vh;
+  padding-bottom: 120px;
+  background:
+    radial-gradient(ellipse at top, rgba($red, 0.06) 0%, transparent 50%),
+    linear-gradient(180deg, #fff5f5 0%, #ffffff 15%);
+}
+
+/* ========== Header ========== */
+.fs-header {
+  padding: 28px 32px 12px;
+}
+
+.fs-title {
+  font-size: 38px;
+  font-weight: 900;
+  color: $text1;
+  letter-spacing: 1px;
+}
+
+.fs-subtitle {
+  display: block;
+  font-size: 24px;
+  color: $text3;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ========== Chips ========== */
+.fs-chips-scroll {
+  white-space: nowrap;
+  width: 100%;
+  padding: 10px 0;
+}
+
+.fs-chips {
+  display: flex;
+  gap: 14px;
+  padding: 0 28px;
+  width: max-content;
+}
+
+.fs-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 13px 26px;
+  border-radius: 40px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  &--active {
+    background: linear-gradient(135deg, $red, #dc2626);
+    border-color: transparent;
+    box-shadow: 0 4px 16px rgba($red, 0.35);
+  }
+}
+
+.fs-chip-icon {
+  font-size: 22px;
+}
+
+.fs-chip-text {
+  font-size: 25px;
+  font-weight: 700;
+  color: $text2;
+
+  .fs-chip--active & {
+    color: #ffffff;
+  }
+}
+
+/* ========== List ========== */
+.fs-list {
+  height: calc(100vh - 280px);
+  padding-bottom: 60px;
+}
+
+.fs-card-wrap {
+  padding: 8px 20px;
+}
+
+/* ========== Card ========== */
+.fs-card {
+  position: relative;
+  margin-bottom: 22px;
+  padding: 28px 24px 24px;
+  border-radius: 20px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.03),
+    0 6px 24px rgba($red, 0.06);
+  border: 1.5px solid rgba($red, 0.08);
+}
+
+/* 顶部红条 */
+.fs-card-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 7px;
+  background: linear-gradient(90deg, $red, $orange, #fbbf24, $orange, $red);
+  background-size: 200% 100%;
+  animation: fsBarShimmer 3s ease-in-out infinite alternate;
+}
+
+@keyframes fsBarShimmer {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+/* ========== Head (模型 + 比赛) ========== */
+.fs-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 6px;
+  margin-bottom: 22px;
+}
+
+/* 头像 */
+.fs-avatar-img {
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  flex-shrink: 0;
+  border: 2px solid rgba(0, 0, 0, 0.05);
+}
+
+.fs-avatar-fb {
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.fs-avatar-letter {
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+/* 模型名 + 比赛信息 */
+.fs-head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.fs-model-name {
+  font-size: 29px;
+  font-weight: 800;
+  color: $text1;
+  display: block;
+  line-height: 1.3;
+}
+
+/* 比赛行：国旗 + 队伍名 + 国旗 */
+.fs-match-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.fs-flag {
+  width: 26px;
+  height: 18px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.fs-match-teams {
+  font-size: 24px;
+  font-weight: 600;
+  color: $text2;
+  line-height: 1.35;
+}
+
+.fs-match-time {
+  display: inline-block;
+  font-size: 21px;
+  color: $text3;
+  margin-top: 4px;
+  padding: 3px 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* 标签（信心/偏差/排名） */
+.fs-tag {
+  padding: 7px 14px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-top: 2px;
+
+  &--red {
+    background: linear-gradient(135deg, rgba($red, 0.1), rgba($red, 0.06));
+    border: 1.5px solid rgba($red, 0.2);
+  }
+
+  &--purple {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(168, 85, 247, 0.06));
+    border: 1.5px solid rgba(168, 85, 247, 0.2);
+  }
+
+  &--gold {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.06));
+    border: 1.5px solid rgba(245, 158, 11, 0.25);
+  }
+}
+
+.fs-tag-text {
+  font-size: 21px;
+  font-weight: 700;
+
+  .fs-tag--red & { color: #dc2626; }
+  .fs-tag--purple & { color: #7c3aed; }
+  .fs-tag--gold & { color: #d97706; }
+}
+
+/* ========== Score Section (预测 vs 实际) ========== */
+.fs-score-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 8px;
+  margin: 0 -8px;
+  background: linear-gradient(90deg, rgba($red, 0.02), transparent 30%, transparent 70%, rgba($green, 0.02));
+  border-top: 1.5px dashed rgba(0, 0, 0, 0.06);
+  border-bottom: 1.5px dashed rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+}
+
+.fs-score-block {
+  text-align: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.fs-score-label {
+  font-size: 22px;
+  color: $text3;
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.fs-score-num {
+  font-family: 'SF Mono', 'Menlo', 'Fira Code', monospace;
+  font-size: 42px;
+  font-weight: 900;
+  display: block;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+
+  &--wrong {
+    color: $red;
+    text-decoration: line-through;
+    text-decoration-thickness: 3px;
+    text-decoration-color: rgba($red, 0.4);
+  }
+
+  &--right {
+    color: $green;
+  }
+}
+
+.fs-score-result-label {
+  font-size: 23px;
+  color: $text2;
+  font-weight: 600;
+  margin-top: 4px;
+  display: block;
+}
+
+/* 箭头 */
+.fs-arrow-box {
+  flex-shrink: 0;
+  padding: 0 12px;
+}
+
+.fs-arrow-icon {
+  font-size: 34px;
+  color: $red;
+  font-weight: 900;
+}
+
+/* ========== Confidence Bar ========== */
+.fs-conf-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.fs-conf-label {
+  font-size: 23px;
+  font-weight: 600;
+  color: $text2;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fs-conf-bar-track {
+  flex: 1;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.fs-conf-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 6px; right: 6px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 2px;
+  }
+}
+
+.fs-conf-value {
+  font-size: 23px;
+  font-weight: 800;
+  color: $text1;
+  flex-shrink: 0;
+  min-width: 48px;
+  text-align: right;
+  font-family: 'SF Mono', Menlo, monospace;
+}
+
+/* ========== Empty State ========== */
+.fs-loading {
+  text-align: center;
+  padding: 100px 40px;
+}
+
+.fs-loading-text {
+  font-size: 26px;
+  color: $text3;
+  animation: fsPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes fsPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* ========== Load More ========== */
+.fs-load-more {
+  text-align: center;
+  padding: 32px 40px;
+}
+
+.fs-load-more-text {
+  font-size: 24px;
+  color: $text3;
+  font-weight: 500;
+}
+
+.fs-empty {
+  text-align: center;
+  padding: 140px 40px;
+}
+
+.fs-empty-icon {
+  font-size: 96px;
+  display: block;
+  margin-bottom: 24px;
+}
+
+.fs-empty-text {
+  font-size: 27px;
+  color: $text3;
+  font-weight: 500;
+}

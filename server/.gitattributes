@@ -1,0 +1,2 @@
+# 确保 shell 脚本在 git checkout 时使用 LF 行尾（即使 Windows 环境也不会变成 CRLF）
+*.sh text eol=lf
