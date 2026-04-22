@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         return (
             f"mysql+asyncmy://{self.DB_USER}:{self.DB_PASSWORD}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?ssl_verify_cert=0"
         )
 
     @property
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
         """Alembic 迁移用的同步连接"""
         return (
             f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?ssl_verify_cert=0"
         )
 
     # OfoxAI 统一 AI 网关
