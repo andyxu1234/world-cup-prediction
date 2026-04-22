@@ -2,12 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# 使用阿里云镜像源加速 apt
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources
+
 # 系统依赖（Pillow 等可能需要）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Python 依赖
+# 安装 Python 依赖（利用缓存层，requirements.txt 不变则不重新安装）
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 

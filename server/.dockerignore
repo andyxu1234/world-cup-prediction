@@ -13,3 +13,8 @@ build
 *.log
 _test_*
 test_*
+alembic/versions/__pycache__
+avatars
+*.jpeg
+*.jpg
+*.png
