@@ -71,3 +71,12 @@ class PredictionSummaryOut(BaseModel):
 class MatchQuery(BaseModel):
     round: Optional[str] = None
     status: Optional[str] = None
+
+
+class HomeStatsOut(BaseModel):
+    """首页 Hero 区域统计数据"""
+    total_matches: int = 0
+    active_ai_models: int = 0
+    total_predictions: int = 0
+    total_users: int = 0
+    total_user_predictions: int = 0

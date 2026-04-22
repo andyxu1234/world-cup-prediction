@@ -157,6 +157,20 @@ export function getMatches(params?: { status?: string; round?: string[] | string
   return request<Match[]>({ url: `/matches${qs}` })
 }
 
+// ==================== 首页统计 ====================
+
+export interface HomeStats {
+  total_matches: number
+  active_ai_models: number
+  total_predictions: number
+  total_users: number
+  total_user_predictions: number
+}
+
+export function getHomeStats() {
+  return request<HomeStats>({ url: '/matches/stats' })
+}
+
 export function getMatchDetail(id: number) {
   return request<Match>({ url: `/matches/${id}` })
 }

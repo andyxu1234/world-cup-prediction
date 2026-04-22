@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
-import type { Match, Prediction, AILeaderboardItem, HumanLeaderboardOut, HumanUserRankItem, MyRankItem, ComparePredictionsOut } from '@/services/api'
+import type { Match, Prediction, AILeaderboardItem, HumanLeaderboardOut, HumanUserRankItem, MyRankItem, ComparePredictionsOut, HomeStats } from '@/services/api'
 import * as api from '@/services/api'
 
 // ==================== 比赛状态 ====================
@@ -9,16 +9,19 @@ interface MatchState {
   matches: Match[]
   currentMatch: Match | null
   predictions: ComparePredictionsOut['predictions']
+  homeStats: HomeStats | null
   loading: boolean
   fetchMatches: (params?: { status?: string; round?: string[] | string; date?: string }) => Promise<void>
   fetchMatchDetail: (id: number) => Promise<void>
   fetchPredictions: (matchId: number) => Promise<void>
+  fetchHomeStats: () => Promise<void>
 }
 
 export const useMatchStore = create<MatchState>((set) => ({
   matches: [],
   currentMatch: null,
   predictions: [],
+  homeStats: null,
   loading: false,
 
   fetchMatches: async (params) => {
@@ -48,7 +51,16 @@ export const useMatchStore = create<MatchState>((set) => ({
     } catch {
       // ignore
     }
-  }
+  },
+
+  fetchHomeStats: async () => {
+    try {
+      const homeStats = await api.getHomeStats()
+      set({ homeStats })
+    } catch {
+      // ignore, keep default
+    }
+  },
 }))
 
 // ==================== 排行榜状态 ====================

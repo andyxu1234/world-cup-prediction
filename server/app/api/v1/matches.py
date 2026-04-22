@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
@@ -13,9 +13,32 @@ from app.deps import DBSession
 from app.models.match import Match, MatchStatus
 from app.models.prediction import Prediction
 from app.models.prediction_summary import PredictionSummary
-from app.schemas.match import MatchListOut, MatchDetailOut, PredictionSummaryOut
+from app.models.ai_model import AIModel
+from app.models.user_vote import UserVote
+from app.schemas.match import MatchListOut, MatchDetailOut, PredictionSummaryOut, HomeStatsOut
 
 router = APIRouter(prefix="/matches", tags=["matches"])
+
+
+@router.get("/stats", response_model=HomeStatsOut)
+async def get_home_stats(db: AsyncSession = Depends(get_db)):
+    """首页 Hero 区域统计数据"""
+    total_matches = (await db.execute(select(func.count(Match.id)))).scalar() or 0
+    active_ai = (await db.execute(
+        select(func.count(AIModel.id)).where(AIModel.is_active == True)
+    )).scalar() or 0
+    total_predictions = (await db.execute(select(func.count(Prediction.id)))).scalar() or 0
+    total_users = (await db.execute(
+        select(func.count(func.distinct(UserVote.user_id)))
+    )).scalar() or 0
+    total_user_predictions = (await db.execute(select(func.count(UserVote.id)))).scalar() or 0
+    return HomeStatsOut(
+        total_matches=total_matches,
+        active_ai_models=active_ai,
+        total_predictions=total_predictions,
+        total_users=total_users,
+        total_user_predictions=total_user_predictions,
+    )
 
 
 @router.get("", response_model=List[MatchListOut])

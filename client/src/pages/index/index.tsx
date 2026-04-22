@@ -5,7 +5,7 @@ import { useMatchStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
 
-const CHIPS = ['今日', '明日', '小组赛', '淘汰赛', '已结束']
+const CHIPS = ['小组赛', '淘汰赛', '今日', '明日', '已结束']
 
 // 默认 fallback 图标（当 flag_url 为空或加载失败时使用）
 const DEFAULT_FLAG_ICON = '⚽'
@@ -43,6 +43,11 @@ function formatMatchTime(timeStr: string | null): string {
   return `${month}月${day}日 ${hour}:${min}`
 }
 
+function formatVoteCount(count: number): string {
+  if (count >= 1000) return `${(count / 1000).toFixed(count % 1000 === 0 ? 0 : 1)}K`
+  return String(count)
+}
+
 function getStatusLabel(status: string) {
   if (status === 'finished') return { text: '已结束', cls: 'badge-red' }
   if (status === 'live') return { text: '进行中', cls: 'badge-green' }
@@ -52,9 +57,15 @@ function getStatusLabel(status: string) {
 export default function Index() {
   // 使用 shallow 浅比较：只有 matches 数组引用变化时才重渲染
   const matches = useMatchStore((s) => s.matches, shallow)
+  const homeStats = useMatchStore((s) => s.homeStats)
   const fetchMatches = useMatchStore((s) => s.fetchMatches)
-  const [activeChip, setActiveChip] = useState('今日')
+  const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
+  const [activeChip, setActiveChip] = useState('小组赛')
   const navigatingRef = useRef<Set<number>>(new Set())
+
+  useEffect(() => {
+    fetchHomeStats()
+  }, [fetchHomeStats])
 
   const goToDetail = useCallback((id: number) => {
     if (navigatingRef.current.has(id)) return
@@ -82,32 +93,30 @@ export default function Index() {
 
   return (
     <View className='index-page'>
-      {/* 导航栏 */}
-      <View className='nav'>
-        <Text className='nav-title'>AI PREDICTOR</Text>
-      </View>
-
       {/* Hero 区域 */}
       <View className='hero'>
         <View className='hero-glow' />
-        <Text className='hero-title'>2026 FIFA WORLD CUP</Text>
-        <Text className='hero-sub'>5 个 AI 模型 · 实时预测 · 人机对决</Text>
+        <View className='hero-title-row'>
+          <Text className='hero-title'>2026 世界杯</Text>
+          <Text className='hero-logo'>🏆</Text>
+        </View>
+        <Text className='hero-sub'>{homeStats?.active_ai_models ?? '--'} 个 AI 模型 · 智能预测 · 人机对决</Text>
         <View className='hero-stats'>
           <View className='hero-stat'>
             <Text className='hero-stat-num'>104</Text>
             <Text className='hero-stat-label'>总场次</Text>
           </View>
           <View className='hero-stat'>
-            <Text className='hero-stat-num'>5</Text>
+            <Text className='hero-stat-num'>{homeStats?.active_ai_models ?? '--'}</Text>
             <Text className='hero-stat-label'>AI 选手</Text>
           </View>
           <View className='hero-stat'>
-            <Text className='hero-stat-num'>520</Text>
-            <Text className='hero-stat-label'>预测总数</Text>
+            <Text className='hero-stat-num'>{homeStats?.total_predictions ?? '--'}</Text>
+            <Text className='hero-stat-label'>AI预测总数</Text>
           </View>
           <View className='hero-stat'>
-            <Text className='hero-stat-num'>12K</Text>
-            <Text className='hero-stat-label'>人类投票</Text>
+            <Text className='hero-stat-num'>{formatVoteCount(homeStats?.total_user_predictions ?? 0)}</Text>
+            <Text className='hero-stat-label'>人类预测总场次</Text>
           </View>
         </View>
       </View>
