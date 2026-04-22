@@ -1,33 +1,10 @@
 services:
-  db:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME:-worldcup_prediction}
-    ports:
-      - "127.0.0.1:3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command: >
-      --innodb-buffer-pool-size=256M
-      --max-connections=50
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 10s
-    mem_limit: 400m
-
   api:
     build: .
     restart: always
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: db
+      DB_HOST: ${DB_HOST:-host.docker.internal}
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:-worldcup_prediction}
       DB_USER: root
@@ -39,9 +16,8 @@ services:
       WECHAT_APP_SECRET: ${WECHAT_APP_SECRET}
     ports:
       - "127.0.0.1:8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     mem_limit: 400m
 
   nginx:
@@ -56,6 +32,3 @@ services:
     depends_on:
       - api
     mem_limit: 50m
-
-volumes:
-  mysql_data:
