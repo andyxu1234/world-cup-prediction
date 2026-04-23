@@ -1,10 +1,8 @@
 import Taro from '@tarojs/taro'
 
-// H5 开发模式通过 devServer proxy 走同域 /api 代理，避免跨域
-// 微信小程序开发模式直连 127.0.0.1:8000（需在微信开发者工具中勾选"不校验合法域名"）
-// 注意：小程序中 localhost 可能解析到 IPv6 ::1 导致连接失败，必须用 127.0.0.1
-// 生产环境需替换为实际后端域名
-const BASE_URL = 'https://marathoninfo.top/api/v1'
+// API 基础地址由 Taro defineConstants 在构建时注入（dev: http://127.0.0.1:8000 / prod: https://marathoninfo.top）
+declare const API_BASE_URL: string
+const BASE_URL = `${API_BASE_URL}/api/v1`
 const REQUEST_TIMEOUT = 15000 // 15 秒超时
 const MAX_RETRY = 1 // 最大重试次数
 
@@ -274,7 +272,6 @@ export function getHumanLeaderboard(userId?: number) {
 
 /** 上传头像文件，返回永久 URL */
 export function uploadAvatar(filePath: string, userId: number) {
-  const BASE_URL = 'https://marathoninfo.top/api/v1'
   return new Promise<{ avatar_url: string }>((resolve, reject) => {
     Taro.uploadFile({
       url: `${BASE_URL}/users/upload-avatar?user_id=${userId}`,
@@ -305,10 +302,11 @@ export interface UserProfile {
   total_votes: number
   correct_results: number
   correct_scores: number
+  profile_setup?: boolean
 }
 
 export function wxLogin(code: string) {
-  return request<{ token: string; user: UserProfile }>({ url: '/users/login', method: 'POST', data: { code } })
+  return request<{ token: string; user: UserProfile; profile_setup: boolean }>({ url: '/users/login', method: 'POST', data: { code } })
 }
 
 export function getUserProfile(userId: number) {

@@ -5,6 +5,7 @@ export default defineAppConfig({
     'pages/leaderboard/index',
     'pages/face-slap/index',
     'pages/profile/index',
+    'pages/profile-setup/index',
     'pages/share-card/index',
     'pages/vote-history/index',
     'pages/about/index'

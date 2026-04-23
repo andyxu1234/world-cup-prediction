@@ -286,6 +286,7 @@ interface UserState {
   user: api.UserProfile | null
   token: string | null
   myVote: api.VoteOut | null
+  profileSetup: boolean
   login: (code: string) => Promise<void>
   fetchProfile: (userId: number) => Promise<void>
   updateProfile: (nickname: string, avatarUrl: string) => Promise<void>
@@ -298,13 +299,17 @@ export const useUserStore = create<UserState>((set, get) => ({
   user: null,
   token: Taro.getStorageSync('token') || null,
   myVote: null,
+  profileSetup: Taro.getStorageSync('profile_setup') || false,
 
   login: async (code) => {
     const res = await api.wxLogin(code)
-    set({ user: res.user, token: res.token })
+    const profileSetup = res.profile_setup ?? false
+    set({ user: res.user, token: res.token, profileSetup })
     Taro.setStorageSync('token', res.token)
+    Taro.setStorageSync('profile_setup', profileSetup)
     // 登录后刷新排行榜（获取我的排名）
     useLeaderboardStore.getState().fetchLeaderboard()
+    return res
   },
 
   fetchProfile: async (userId) => {
@@ -316,7 +321,9 @@ export const useUserStore = create<UserState>((set, get) => ({
     const user = get().user
     if (!user) throw new Error('NOT_LOGGED_IN')
     const updated = await api.updateUserProfile(user.id, nickname, avatarUrl)
-    set({ user: updated })
+    const profileSetup = true
+    set({ user: updated, profileSetup })
+    Taro.setStorageSync('profile_setup', profileSetup)
   },
 
   fetchVote: async (userId, matchId) => {
@@ -336,7 +343,8 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   logout: () => {
-    set({ user: null, token: null })
+    set({ user: null, token: null, profileSetup: false })
     Taro.removeStorageSync('token')
+    Taro.removeStorageSync('profile_setup')
   }
 }))

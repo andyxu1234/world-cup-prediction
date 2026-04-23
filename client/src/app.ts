@@ -18,8 +18,12 @@ function App({ children }: PropsWithChildren) {
       success: async (res) => {
         if (res.code) {
           try {
-            await login(res.code)
+            const loginRes = await login(res.code)
             console.log('Auto login success')
+            // 未完善资料则跳转引导页
+            if (!loginRes.profileSetup) {
+              Taro.navigateTo({ url: '/pages/profile-setup/index' })
+            }
           } catch (err) {
             console.warn('Auto login failed:', err)
           }

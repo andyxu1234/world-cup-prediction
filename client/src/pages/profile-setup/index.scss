@@ -1,0 +1,229 @@
+.setup-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0d2818 0%, #1a4d2e 40%, #f5f7fa 40%);
+  padding: 0 40rpx 60rpx;
+}
+
+// ==================== 顶部标题 ====================
+
+.setup-header {
+  padding: 80rpx 0 60rpx;
+  text-align: center;
+}
+
+.setup-title {
+  display: block;
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.setup-subtitle {
+  display: block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 16rpx;
+}
+
+// ==================== 内容区块 ====================
+
+.setup-section {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 36rpx 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.setup-label {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 24rpx;
+}
+
+// ---- 微信头像选择 ----
+
+.setup-wechat-avatar {
+  display: flex;
+  justify-content: center;
+}
+
+.setup-avatar-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 160rpx !important;
+  height: 160rpx !important;
+  border-radius: 50% !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+  border: 3px dashed rgba(16, 185, 129, 0.4) !important;
+  padding: 0 !important;
+  overflow: hidden;
+
+  &::after {
+    display: none !important;
+    border: none !important;
+  }
+
+  &:active {
+    background: rgba(16, 185, 129, 0.15) !important;
+    transform: scale(0.96);
+  }
+}
+
+.setup-avatar-img {
+  width: 154rpx;
+  height: 154rpx;
+  border-radius: 50%;
+}
+
+.setup-avatar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-avatar-icon {
+  font-size: 48rpx;
+}
+
+.setup-avatar-text {
+  font-size: 20rpx;
+  color: rgba(16, 185, 129, 0.7);
+  margin-top: 4rpx;
+}
+
+.setup-or {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: #94a3b8;
+  margin: 24rpx 0 16rpx;
+}
+
+// ---- 预设头像 ----
+
+.setup-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  justify-content: center;
+}
+
+.setup-preset-item {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #f8f9fa;
+  border: 2.5px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  &.active {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.08);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  }
+}
+
+.setup-preset-emoji {
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.setup-preset-label {
+  font-size: 16rpx;
+  color: #94a3b8;
+  margin-top: 2rpx;
+}
+
+// ---- 昵称输入 ----
+
+.setup-nick-input {
+  display: block !important;
+  width: 100% !important;
+  height: 88rpx !important;
+  line-height: 88rpx !important;
+  border-radius: 20rpx !important;
+  background: #f8f9fa !important;
+  border: 2px solid #e8ecf0 !important;
+  padding: 0 32rpx !important;
+  color: #1a1a2e !important;
+  font-size: 30rpx !important;
+  font-weight: 600;
+  box-sizing: border-box !important;
+  transition: border-color 0.2s;
+
+  &:focus {
+    border-color: #10b981 !important;
+  }
+}
+
+.setup-nick-ph {
+  color: #c0c6d0 !important;
+  font-size: 28rpx !important;
+}
+
+// ==================== 操作按钮 ====================
+
+.setup-actions {
+  margin-top: 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.setup-save-btn {
+  width: 100%;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s;
+
+  text {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 2px;
+  }
+
+  &.ready {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 8rpx 24rpx rgba(16, 185, 129, 0.3);
+
+    text {
+      color: #ffffff;
+    }
+
+    &:active {
+      transform: scale(0.97);
+      box-shadow: 0 4rpx 12rpx rgba(16, 185, 129, 0.2);
+    }
+  }
+}
+
+.setup-skip {
+  display: block;
+  margin-top: 28rpx;
+  font-size: 26rpx;
+  color: #94a3b8;
+  padding: 12rpx 32rpx;
+
+  &:active {
+    color: #64748b;
+  }
+}

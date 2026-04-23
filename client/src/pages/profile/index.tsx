@@ -13,7 +13,7 @@ const MENU_ITEMS = [
 ]
 
 export default function Profile() {
-  const { user, token, fetchProfile, login, updateProfile } = useUserStore()
+  const { user, token, profileSetup, fetchProfile, login, updateProfile } = useUserStore()
   const [avatarUrl, setAvatarUrl] = useState('')
   const [nickname, setNickname] = useState('')
   const [editing, setEditing] = useState(false)
@@ -33,19 +33,23 @@ export default function Profile() {
   }, [user?.id])
 
   useEffect(() => {
-    // 登录后且没有昵称 → 自动进入编辑模式
-    if (user && token && !user.nickname) {
+    // 登录后且未完善资料 → 自动进入编辑模式
+    if (user && token && !profileSetup) {
       setEditing(true)
     }
-  }, [user?.id, user?.nickname])
+  }, [user?.id, profileSetup])
 
   const handleReLogin = () => {
     Taro.login({
       success: async (res) => {
         if (res.code) {
           try {
-            await login(res.code)
+            const loginRes = await login(res.code)
             Taro.showToast({ title: '登录成功', icon: 'success' })
+            // 未完善资料则跳转引导页
+            if (!loginRes.profileSetup) {
+              Taro.navigateTo({ url: '/pages/profile-setup/index' })
+            }
           } catch {
             Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
           }
@@ -142,9 +146,12 @@ export default function Profile() {
   }
 
   const isLoggedIn = !!user && !!token
-  const hasProfile = !!isLoggedIn && !!user?.nickname
+  const hasProfile = !!isLoggedIn && !!profileSetup
   const displayAvatar = hasProfile ? (user!.avatar_url || '') : avatarUrl
   const displayName = hasProfile ? (user!.nickname || '微信用户') : (nickname || '微信用户')
+  // 判断是否为预设头像
+  const isPresetAvatar = displayAvatar && displayAvatar.startsWith('preset://')
+  const presetEmoji = isPresetAvatar ? displayAvatar.replace('preset://', '') : ''
   // 模拟器上 chooseAvatar 会 ENOENT，此时允许仅凭昵称保存（真机不受影响）
   const canSave = nickname.trim().length > 0 && (avatarUrl || avatarErr)
 
@@ -211,7 +218,9 @@ export default function Profile() {
         {isLoggedIn && !editing && (
           <View className='prof-hd-center' onClick={() => setEditing(true)}>
             <View className='prof-av prof-av-clickable'>
-              {displayAvatar ? (
+              {isPresetAvatar ? (
+                <Text className='prof-av-emoji'>{presetEmoji}</Text>
+              ) : displayAvatar ? (
                 <Image className='prof-avatar-img' src={displayAvatar} mode='aspectFill' />
               ) : (
                 <Text className='prof-av-icon'>👤</Text>

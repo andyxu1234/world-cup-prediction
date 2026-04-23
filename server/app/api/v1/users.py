@@ -114,15 +114,22 @@ async def wechat_login(
     user = result.scalar_one_or_none()
 
     if not user:
+        # 创建用户并生成默认昵称
         user = User(openid=openid)
         db.add(user)
         await db.flush()
         await db.refresh(user)
+        # 默认昵称：球迷{后4位id}
+        user.nickname = f"球迷{user.id % 10000:04d}"
+        await db.flush()
 
     # 生成 JWT token
     token = create_token(user.id, settings.SECRET_KEY, settings.TOKEN_EXPIRE_HOURS)
 
-    return LoginOut(token=token, user=UserOut.model_validate(user))
+    # 判断是否已完善资料：有头像且昵称不是默认格式
+    profile_setup = bool(user.avatar_url) and not (user.nickname or "").startswith("球迷")
+
+    return LoginOut(token=token, user=UserOut.model_validate(user), profile_setup=profile_setup)
 
 
 @router.get("/vote", response_model=Optional[VoteOut])
