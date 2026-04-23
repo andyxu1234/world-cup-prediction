@@ -4,11 +4,7 @@ import Taro from '@tarojs/taro'
 // 微信小程序开发模式直连 127.0.0.1:8000（需在微信开发者工具中勾选"不校验合法域名"）
 // 注意：小程序中 localhost 可能解析到 IPv6 ::1 导致连接失败，必须用 127.0.0.1
 // 生产环境需替换为实际后端域名
-const BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://your-domain.com/api/v1'
-  : process.env.TARO_ENV === 'h5'
-    ? '/api/v1'
-    : 'http://127.0.0.1:8000/api/v1'
+const BASE_URL = 'https://marathoninfo.top/api/v1'
 const REQUEST_TIMEOUT = 15000 // 15 秒超时
 const MAX_RETRY = 1 // 最大重试次数
 
@@ -278,11 +274,7 @@ export function getHumanLeaderboard(userId?: number) {
 
 /** 上传头像文件，返回永久 URL */
 export function uploadAvatar(filePath: string, userId: number) {
-  const BASE_URL = process.env.NODE_ENV === 'production'
-    ? 'https://your-domain.com/api/v1'
-    : process.env.TARO_ENV === 'h5'
-      ? '/api/v1'
-      : 'http://127.0.0.1:8000/api/v1'
+  const BASE_URL = 'https://marathoninfo.top/api/v1'
   return new Promise<{ avatar_url: string }>((resolve, reject) => {
     Taro.uploadFile({
       url: `${BASE_URL}/users/upload-avatar?user_id=${userId}`,
