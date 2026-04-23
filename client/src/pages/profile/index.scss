@@ -56,18 +56,12 @@
 }
 
 .prof-av-clickable {
-  // 可点击时加个微光提示
   box-shadow: 0 0 0 0 rgba(255,255,255,0.3);
   transition: box-shadow .3s;
 }
 
 .prof-av-icon {
   font-size: 48rpx;
-}
-
-.prof-av-emoji {
-  font-size: 64rpx;
-  line-height: 1;
 }
 
 // ---- 微信头像选择按钮 (open-type="chooseAvatar") ----

@@ -19,15 +19,12 @@ export default function Profile() {
   const [nickname, setNickname] = useState('')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [avatarErr, setAvatarErr] = useState(false)
   const [pickingAvatar, setPickingAvatar] = useState(false)
-  const [imgLoadErr, setImgLoadErr] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
       fetchProfile(user.id)
     }
-    // 恢复本地暂存（用户选了头像但还没填完昵称就退出再进来）
     const savedAvatar = Taro.getStorageSync('tmp_avatar_url')
     const savedNick = Taro.getStorageSync('tmp_nickname')
     if (savedAvatar) setAvatarUrl(savedAvatar)
@@ -35,7 +32,6 @@ export default function Profile() {
   }, [user?.id])
 
   useEffect(() => {
-    // 登录后且未完善资料 → 自动进入编辑模式
     if (user && token && !profileSetup) {
       setEditing(true)
     }
@@ -48,7 +44,6 @@ export default function Profile() {
           try {
             const loginRes = await login(res.code)
             Taro.showToast({ title: '登录成功', icon: 'success' })
-            // 未完善资料则跳转引导页
             if (!loginRes.profileSetup) {
               Taro.navigateTo({ url: '/pages/profile-setup/index' })
             }
@@ -63,33 +58,23 @@ export default function Profile() {
   const handleChooseAvatar = async (e: any) => {
     const url = e.detail?.avatarUrl
     if (!url || !user?.id) return
-    // 先上传图片到后端获取永久 URL（微信临时路径 http://tmp/xxx 无法被后端直接访问）
     try {
       const res = await api.uploadAvatar(url, user.id)
       if (res.avatar_url) {
         setAvatarUrl(res.avatar_url)
-        setAvatarErr(false)
-        setImgLoadErr(false)
         Taro.setStorageSync('tmp_avatar_url', res.avatar_url)
-        console.log('[Profile] avatar uploaded:', res.avatar_url)
       }
     } catch (err) {
       console.error('[Profile] avatar upload failed:', err)
-      // 上传失败时仍保留本地预览，保存时会用临时 URL（后端会清洗为 null）
       setAvatarUrl(url)
-      setAvatarErr(false)
-      setImgLoadErr(false)
       Taro.setStorageSync('tmp_avatar_url', url)
     } finally {
       setPickingAvatar(false)
     }
   }
 
-  // 兼容模拟器 chooseAvatar ENOENT 错误：允许用户跳过头像直接保存
-  // 真机上此问题不会出现，头像选择会正常工作
   const handleChooseAvatarError = () => {
     console.warn('[chooseAvatar] 模拟器可能不支持头像选择，真机正常')
-    setAvatarErr(true)
     setPickingAvatar(false)
   }
 
@@ -103,7 +88,6 @@ export default function Profile() {
     setNickname(e.detail.value || '')
   }
 
-  /** 提交保存头像+昵称 */
   const handleSaveProfile = async () => {
     if (!nickname.trim()) {
       Taro.showToast({ title: '请先填写昵称', icon: 'none' })
@@ -117,10 +101,8 @@ export default function Profile() {
       Taro.removeStorageSync('tmp_avatar_url')
       Taro.removeStorageSync('tmp_nickname')
       setAvatarUrl('')
-      setAvatarErr(false)
       setEditing(false)
       Taro.showToast({ title: '保存成功！', icon: 'success' })
-      // 刷新完整的用户数据（含投票统计），避免被 updateProfile 的返回值覆盖
       fetchProfile(uid)
     } catch (err) {
       console.error('save profile error:', err)
@@ -153,17 +135,12 @@ export default function Profile() {
   const hasProfile = !!isLoggedIn && !!profileSetup
   const displayAvatar = resolveAvatarUrl(hasProfile ? (user!.avatar_url || '') : avatarUrl)
   const displayName = hasProfile ? (user!.nickname || '微信用户') : (nickname || '微信用户')
-  // 判断是否为预设头像
-  const isPresetAvatar = displayAvatar && displayAvatar.startsWith('preset://')
-  const presetEmoji = isPresetAvatar ? displayAvatar.replace('preset://', '') : ''
-  // 模拟器上 chooseAvatar 会 ENOENT，此时允许仅凭昵称保存（真机不受影响）
-  const canSave = nickname.trim().length > 0 && (avatarUrl || avatarErr)
+  const canSave = nickname.trim().length > 0
 
   return (
     <View className='profile-page'>
-      {/* ====== 头部区域 ====== */}
       <View className='prof-hd'>
-        {/* 状态1：未登录 */}
+        {/* 未登录 */}
         {!isLoggedIn && (
           <View className='prof-hd-center' onClick={handleReLogin}>
             <View className='prof-av'>
@@ -174,10 +151,9 @@ export default function Profile() {
           </View>
         )}
 
-        {/* 状态2：编辑资料中 */}
+        {/* 编辑资料中 */}
         {isLoggedIn && editing && (
           <View className='prof-hd-center'>
-            {/* 微信头像选择按钮 */}
             <Button
               className='prof-avatar-picker'
               openType='chooseAvatar'
@@ -185,35 +161,16 @@ export default function Profile() {
               onError={handleChooseAvatarError}
               onTap={() => setPickingAvatar(true)}
             >
-              {(() => {
-                const isPreset = avatarUrl && avatarUrl.startsWith('preset://')
-                const emoji = isPreset ? avatarUrl.replace('preset://', '') : ''
-                // 有预设头像 → 显示 emoji
-                if (isPreset) {
-                  return <Text className='prof-av-emoji'>{emoji}</Text>
-                }
-                // 有图片 URL 且未加载失败 → 显示图片
-                if (avatarUrl && !imgLoadErr) {
-                  return (
-                    <Image
-                      className='prof-avatar-img'
-                      src={avatarUrl}
-                      mode='aspectFill'
-                      onError={() => setImgLoadErr(true)}
-                    />
-                  )
-                }
-                // 无头像或加载失败 → 显示占位
-                return (
-                  <>
-                    <Text className='prof-avatar-placeholder'>+</Text>
-                    <Text className='prof-avatar-label'>选择头像</Text>
-                  </>
-                )
-              })()}
+              {displayAvatar ? (
+                <Image className='prof-avatar-img' src={displayAvatar} mode='aspectFill' />
+              ) : (
+                <>
+                  <Text className='prof-avatar-placeholder'>+</Text>
+                  <Text className='prof-avatar-label'>选择头像</Text>
+                </>
+              )}
             </Button>
 
-            {/* 昵称输入框 */}
             <Input
               className='prof-nick-input'
               type='nickname'
@@ -224,25 +181,22 @@ export default function Profile() {
               placeholderClass='prof-nick-ph'
             />
 
-            {/* 保存按钮 —— 始终显示，未填完时置灰提示 */}
             <View
               className={`prof-save-btn ${canSave && !saving ? 'ready' : ''}`}
               onClick={canSave && !saving ? handleSaveProfile : undefined}
             >
-              <Text>{saving ? '保存中...' : canSave ? '✓ 保存' : '填写昵称后可保存'}</Text>
+              <Text>{saving ? '保存中...' : canSave ? '✓ 保存' : '请填写昵称'}</Text>
             </View>
 
-            <Text className='prof-edit-tip'>填写昵称即可保存（选头像更佳）</Text>
+            <Text className='prof-edit-tip'>填写昵称即可保存，选择头像更佳</Text>
           </View>
         )}
 
-        {/* 状态3：已完善资料 → 展示模式 */}
+        {/* 已完善资料 → 展示模式 */}
         {isLoggedIn && !editing && (
           <View className='prof-hd-center' onClick={() => setEditing(true)}>
             <View className='prof-av prof-av-clickable'>
-              {isPresetAvatar ? (
-                <Text className='prof-av-emoji'>{presetEmoji}</Text>
-              ) : displayAvatar ? (
+              {displayAvatar ? (
                 <Image className='prof-avatar-img' src={displayAvatar} mode='aspectFill' />
               ) : (
                 <Text className='prof-av-icon'>👤</Text>
@@ -255,7 +209,6 @@ export default function Profile() {
         )}
       </View>
 
-      {/* ====== 统计数据 ====== */}
       <View className='prof-stats'>
         <View className='prof-stat'>
           <Text className='prof-stat-num mono'>{isLoggedIn ? (user?.total_votes ?? 0) : '-'}</Text>
@@ -273,7 +226,6 @@ export default function Profile() {
         </View>
       </View>
 
-      {/* ====== 菜单列表 ====== */}
       <View className='prof-menu'>
         {MENU_ITEMS.map((item) => (
           <View
@@ -292,7 +244,6 @@ export default function Profile() {
         ))}
       </View>
 
-      {/* 底部提示 */}
       <View className='fun-fact'>
         <Text className='fun-fact-title'>🎵 你知道吗？</Text>
         <Text className='fun-fact-text'>
@@ -300,7 +251,6 @@ export default function Profile() {
         </Text>
       </View>
 
-      {/* 选择头像时的全屏遮罩，防止弹窗时底层页面透出 */}
       {pickingAvatar && (
         <View
           className='avatar-picker-mask'

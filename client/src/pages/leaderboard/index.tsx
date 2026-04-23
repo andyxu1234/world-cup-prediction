@@ -81,11 +81,6 @@ function isValidImageUrl(url: string | undefined | null): boolean {
 function UserAvatar({ avatarUrl, nickname }: { avatarUrl?: string | null; nickname?: string }) {
   const [imgErr, setImgErr] = useState(false)
   const fullUrl = resolveAvatarUrl(avatarUrl)
-  // 预设头像：preset://emoji 格式
-  if (fullUrl && fullUrl.startsWith('preset://')) {
-    const emoji = fullUrl.replace('preset://', '')
-    return <View className='model-av lb-av preset-avatar'>{emoji}</View>
-  }
   if (isValidImageUrl(fullUrl) && !imgErr) {
     return <Image className='model-av-img lb-av' src={fullUrl} mode='aspectFill' onError={() => setImgErr(true)} />
   }

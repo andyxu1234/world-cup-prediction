@@ -6,25 +6,9 @@ import * as api from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
 import './index.scss'
 
-const PRESET_AVATARS = [
-  { key: '⚽', label: '足球' },
-  { key: '🏆', label: '奖杯' },
-  { key: '🇧🇷', label: '巴西' },
-  { key: '🇦🇷', label: '阿根廷' },
-  { key: '🇫🇷', label: '法国' },
-  { key: '🇩🇪', label: '德国' },
-  { key: '🇪🇸', label: '西班牙' },
-  { key: '🇬🇧', label: '英格兰' },
-  { key: '🇵🇹', label: '葡萄牙' },
-  { key: '🇳🇱', label: '荷兰' },
-  { key: '🇮🇹', label: '意大利' },
-  { key: '🇯🇵', label: '日本' },
-]
-
 export default function ProfileSetup() {
   const { user, updateProfile } = useUserStore()
-  const [avatarKey, setAvatarKey] = useState('')
-  const [wechatAvatar, setWechatAvatar] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
   const [nickname, setNickname] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -34,21 +18,17 @@ export default function ProfileSetup() {
     try {
       const res = await api.uploadAvatar(url, user.id)
       if (res.avatar_url) {
-        setWechatAvatar(res.avatar_url)
-        setAvatarKey('')
+        setAvatarUrl(res.avatar_url)
       }
     } catch (err) {
       console.error('[ProfileSetup] avatar upload failed:', err)
+      // 上传失败时保留本地临时路径用于预览
+      setAvatarUrl(url)
     }
   }
 
   const handleChooseAvatarError = () => {
     console.warn('[ProfileSetup] chooseAvatar not supported')
-  }
-
-  const handlePresetAvatar = (key: string) => {
-    setAvatarKey(key)
-    setWechatAvatar('')
   }
 
   const handleSave = async () => {
@@ -58,9 +38,7 @@ export default function ProfileSetup() {
     }
     setSaving(true)
     try {
-      // 头像：优先微信头像，其次预设头像编码
-      const finalAvatar = wechatAvatar || (avatarKey ? `preset://${avatarKey}` : '')
-      await updateProfile(nickname.trim(), finalAvatar)
+      await updateProfile(nickname.trim(), avatarUrl || '')
       Taro.showToast({ title: '设置成功！', icon: 'success' })
       setTimeout(() => {
         Taro.switchTab({ url: '/pages/index/index' })
@@ -77,8 +55,7 @@ export default function ProfileSetup() {
     Taro.switchTab({ url: '/pages/index/index' })
   }
 
-  // 当前显示的头像
-  const displayAvatar = resolveAvatarUrl(wechatAvatar)
+  const displayAvatar = resolveAvatarUrl(avatarUrl)
 
   return (
     <View className='setup-page'>
@@ -91,7 +68,6 @@ export default function ProfileSetup() {
       <View className='setup-section'>
         <Text className='setup-label'>选择头像</Text>
 
-        {/* 微信头像选择 */}
         <View className='setup-wechat-avatar'>
           <Button
             className='setup-avatar-btn'
@@ -108,22 +84,6 @@ export default function ProfileSetup() {
               </View>
             )}
           </Button>
-        </View>
-
-        <Text className='setup-or'>或选择一个球队头像</Text>
-
-        {/* 预设头像列表 */}
-        <View className='setup-presets'>
-          {PRESET_AVATARS.map((item) => (
-            <View
-              key={item.key}
-              className={`setup-preset-item ${avatarKey === item.key ? 'active' : ''}`}
-              onClick={() => handlePresetAvatar(item.key)}
-            >
-              <Text className='setup-preset-emoji'>{item.key}</Text>
-              <Text className='setup-preset-label'>{item.label}</Text>
-            </View>
-          ))}
         </View>
       </View>
 
