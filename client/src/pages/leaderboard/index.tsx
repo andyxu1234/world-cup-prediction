@@ -167,10 +167,11 @@ export default function Leaderboard() {
     activeTab, activeRound, sortMode, sortBy, sortOrder, entries, humanData, mixedRank,
     setActiveTab, setActiveRound, setSortMode, setSort, fetchLeaderboard,
   } = useLeaderboardStore()
+  const loginReady = useUserStore((s) => s.loginReady)
 
   useEffect(() => {
-    fetchLeaderboard()
-  }, [])
+    if (loginReady) fetchLeaderboard()
+  }, [loginReady])
 
   /** 切换排序 */
   const handleSortClick = (by: SortByType) => {

@@ -22,13 +22,8 @@ export default function ProfileSetup() {
       }
     } catch (err) {
       console.error('[ProfileSetup] avatar upload failed:', err)
-      // 上传失败时保留本地临时路径用于预览
       setAvatarUrl(url)
     }
-  }
-
-  const handleChooseAvatarError = () => {
-    console.warn('[ProfileSetup] chooseAvatar not supported')
   }
 
   const handleSave = async () => {
@@ -56,59 +51,114 @@ export default function ProfileSetup() {
   }
 
   const displayAvatar = resolveAvatarUrl(avatarUrl)
+  const isReady = nickname.trim().length > 0 && !saving
 
   return (
     <View className='setup-page'>
-      <View className='setup-header'>
-        <Text className='setup-title'>欢迎来到世界杯预测！</Text>
-        <Text className='setup-subtitle'>设置你的昵称和头像，让大家认识你</Text>
+      {/* ===== 背景装饰 ===== */}
+      <View className='setup-bg'>
+        <View className='setup-bg-circle c1' />
+        <View className='setup-bg-circle c2' />
+        <View className='setup-bg-circle c3' />
+        {/* 足球场纹理线条 */}
+        <View className='setup-field-lines'>
+          <View className='field-line center-circle' />
+          <View className='field-line center-line-v' />
+          <View className='field-line center-line-h' />
+        </View>
       </View>
 
-      {/* ====== 头像选择 ====== */}
-      <View className='setup-section'>
-        <Text className='setup-label'>选择头像</Text>
+      {/* ===== 主内容区 ===== */}
+      <View className='setup-content'>
+        {/* 顶部品牌区域 */}
+        <View className='setup-hero'>
+          <View className='hero-badge'>
+            <Text className='badge-icon'>⚽</Text>
+            <Text className='badge-text'>2026</Text>
+          </View>
+          <Text className='hero-title'>加入世界杯预测</Text>
+          <Text className='hero-desc'>选择你的头像和昵称，开启预测之旅</Text>
+        </View>
 
-        <View className='setup-wechat-avatar'>
+        {/* 头像选择 */}
+        <View className='setup-avatar-section'>
+          <View className='section-tag'>
+            <Text className='tag-num'>01</Text>
+            <Text className='tag-label'>头像</Text>
+          </View>
           <Button
-            className='setup-avatar-btn'
+            className={`avatar-picker ${displayAvatar ? 'has-avatar' : ''}`}
             openType='chooseAvatar'
             onChooseAvatar={handleChooseAvatar}
-            onError={handleChooseAvatarError}
           >
             {displayAvatar ? (
-              <Image className='setup-avatar-img' src={displayAvatar} mode='aspectFill' />
+              <>
+                <Image className='avatar-img' src={displayAvatar} mode='aspectFill' />
+                <View className='avatar-edit-overlay'>
+                  <Text className='edit-icon'>✎</Text>
+                </View>
+              </>
             ) : (
-              <View className='setup-avatar-placeholder'>
-                <Text className='setup-avatar-icon'>📷</Text>
-                <Text className='setup-avatar-text'>微信头像</Text>
+              <View className='avatar-empty'>
+                <View className='avatar-ring'>
+                  <Text className='avatar-plus'>+</Text>
+                </View>
+                <Text className='avatar-hint'>点击选择微信头像</Text>
               </View>
             )}
           </Button>
         </View>
-      </View>
 
-      {/* ====== 昵称输入 ====== */}
-      <View className='setup-section'>
-        <Text className='setup-label'>你的昵称</Text>
-        <Input
-          className='setup-nick-input'
-          type='nickname'
-          placeholder='点击获取微信昵称，或自行输入'
-          value={nickname}
-          onInput={(e) => setNickname(e.detail.value || '')}
-          placeholderClass='setup-nick-ph'
-        />
-      </View>
-
-      {/* ====== 操作按钮 ====== */}
-      <View className='setup-actions'>
-        <View
-          className={`setup-save-btn ${nickname.trim() && !saving ? 'ready' : ''}`}
-          onClick={nickname.trim() && !saving ? handleSave : undefined}
-        >
-          <Text>{saving ? '保存中...' : nickname.trim() ? '开始预测' : '请填写昵称'}</Text>
+        {/* 昵称输入 */}
+        <View className='setup-nick-section'>
+          <View className='section-tag'>
+            <Text className='tag-num'>02</Text>
+            <Text className='tag-label'>昵称</Text>
+          </View>
+          <View className='nick-input-wrap'>
+            <Input
+              className='nick-input'
+              type='nickname'
+              placeholder='你的预测代号'
+              value={nickname}
+              onInput={(e) => setNickname(e.detail.value || '')}
+              placeholderClass='nick-ph'
+              maxlength={16}
+              confirmType='done'
+            />
+            {nickname.length > 0 && (
+              <View className='input-counter'>
+                <Text className={`counter-text ${nickname.length > 12 ? 'warn' : ''}`}>{nickname.length}/16</Text>
+              </View>
+            )}
+          </View>
         </View>
-        <Text className='setup-skip' onClick={handleSkip}>稍后再说</Text>
+
+        {/* 操作按钮 */}
+        <View className='setup-actions'>
+          <View
+            className={`submit-btn ${isReady ? 'active' : ''}`}
+            onClick={isReady ? handleSave : undefined}
+          >
+            {saving ? (
+              <View className='btn-loading'>
+                <View className='loading-spinner' />
+                <Text>提交中...</Text>
+              </View>
+            ) : (
+              <Text>{isReady ? '开始预测 →' : '先填写昵称吧'}</Text>
+            )}
+          </View>
+          <View className='skip-row' onClick={handleSkip}>
+            <Text className='skip-text'>稍后再设置</Text>
+            <Text className='skip-arrow'>›</Text>
+          </View>
+        </View>
+
+        {/* 底部装饰文字 */}
+        <View className='setup-footer-deco'>
+          <Text className='deco-text'>WORLD CUP PREDICTION LEAGUE</Text>
+        </View>
       </View>
     </View>
   )

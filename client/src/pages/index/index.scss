@@ -303,6 +303,18 @@
   padding-bottom: 120px;
 }
 
+// 登录中加载态
+.loading-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-text {
+  font-size: 26px;
+  color: $text3;
+}
+
 // 空状态
 .empty {
   text-align: center;

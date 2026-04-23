@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useMatchStore } from '@/stores'
+import { useMatchStore, useUserStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
 
@@ -60,9 +60,20 @@ export default function Index() {
   const homeStats = useMatchStore((s) => s.homeStats)
   const fetchMatches = useMatchStore((s) => s.fetchMatches)
   const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
+  const loginReady = useUserStore((s) => s.loginReady)
   const [activeChip, setActiveChip] = useState('小组赛')
   const navigatingRef = useRef<Set<number>>(new Set())
 
+  // ===== 关键：loginReady 为 false 时直接返回加载页，不渲染任何首页内容 =====
+  if (!loginReady) {
+    return (
+      <View className='index-page loading-page'>
+        <Text className='loading-text'>加载中...</Text>
+      </View>
+    )
+  }
+
+  // 等登录完成后再加载首页数据，确保 login 是第一个请求
   useEffect(() => {
     fetchHomeStats()
   }, [fetchHomeStats])
@@ -137,7 +148,6 @@ export default function Index() {
       </ScrollView>
 
       {/* 比赛列表 */}
-
       <ScrollView scrollY className='match-list'>
         {matches.length === 0 && (
           <View className='empty'>
@@ -176,7 +186,7 @@ export default function Index() {
                 <Text className='m-consensus'>
                   AI 共识：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
                 </Text>
-                <Text 
+                <Text
                   className='m-action'
                   onClick={(e) => {
                     e.stopPropagation()

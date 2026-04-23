@@ -287,6 +287,8 @@ interface UserState {
   token: string | null
   myVote: api.VoteOut | null
   profileSetup: boolean
+  loginReady: boolean
+  setLoginReady: () => void
   login: (code: string) => Promise<void>
   fetchProfile: (userId: number) => Promise<void>
   updateProfile: (nickname: string, avatarUrl: string) => Promise<void>
@@ -300,11 +302,18 @@ export const useUserStore = create<UserState>((set, get) => ({
   token: Taro.getStorageSync('token') || null,
   myVote: null,
   profileSetup: Taro.getStorageSync('profile_setup') || false,
+  loginReady: false, // 每次启动都从 false 开始，等 login 接口返回后再设为 true
+
+  setLoginReady: () => {
+    if (!get().loginReady) {
+      set({ loginReady: true })
+    }
+  },
 
   login: async (code) => {
     const res = await api.wxLogin(code)
     const profileSetup = res.profile_setup ?? false
-    set({ user: res.user, token: res.token, profileSetup })
+    set({ user: res.user, token: res.token, profileSetup, loginReady: true })
     Taro.setStorageSync('token', res.token)
     Taro.setStorageSync('profile_setup', profileSetup)
     // 登录后刷新排行榜（获取我的排名）
@@ -343,7 +352,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   logout: () => {
-    set({ user: null, token: null, profileSetup: false })
+    set({ user: null, token: null, profileSetup: false, loginReady: false })
     Taro.removeStorageSync('token')
     Taro.removeStorageSync('profile_setup')
   }
