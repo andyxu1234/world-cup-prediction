@@ -5,23 +5,19 @@ import { useUserStore } from '@/stores'
 import './styles/global.scss'
 
 function App({ children }: PropsWithChildren) {
-  const { login, token } = useUserStore()
+  const { login, profileSetup } = useUserStore()
 
   useLaunch(() => {
     console.log('App launched.')
 
-    // 已有 token 则跳过静默登录（本地已恢复登录态）
-    if (token) return
-
-    // 微信小程序静默登录
+    // 每次启动都调微信静默登录，后端根据 avatar_url + nickname 判断是否需引导
     Taro.login({
       success: async (res) => {
         if (res.code) {
           try {
             const loginRes = await login(res.code)
-            console.log('Auto login success')
-            // 未完善资料则跳转引导页
-            if (!loginRes.profileSetup) {
+            console.log('Auto login success, profileSetup:', loginRes.profile_setup)
+            if (!loginRes.profile_setup) {
               Taro.navigateTo({ url: '/pages/profile-setup/index' })
             }
           } catch (err) {

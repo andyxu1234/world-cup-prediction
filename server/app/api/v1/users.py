@@ -126,8 +126,8 @@ async def wechat_login(
     # 生成 JWT token
     token = create_token(user.id, settings.SECRET_KEY, settings.TOKEN_EXPIRE_HOURS)
 
-    # 判断是否已完善资料：有头像且昵称不是默认格式
-    profile_setup = bool(user.avatar_url) and not (user.nickname or "").startswith("球迷")
+    # 判断是否已完善资料：头像和昵称都不为空
+    profile_setup = bool(user.avatar_url) and bool(user.nickname)
 
     return LoginOut(token=token, user=UserOut.model_validate(user), profile_setup=profile_setup)
 

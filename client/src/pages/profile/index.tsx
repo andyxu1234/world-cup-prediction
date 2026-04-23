@@ -203,7 +203,6 @@ export default function Profile() {
               )}
             </View>
             <Text className='prof-name'>{displayName}</Text>
-            <Text className='prof-id'>wx_{user?.id}</Text>
             <Text className='prof-tip'>点击修改资料</Text>
           </View>
         )}
