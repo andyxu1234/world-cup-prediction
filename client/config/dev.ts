@@ -5,9 +5,6 @@ export default {
     quiet: false,
     stats: true
   },
-  defineConstants: {
-    API_BASE_URL: '"http://127.0.0.1:8000"'
-  },
   mini: {},
   h5: {
     devServer: {

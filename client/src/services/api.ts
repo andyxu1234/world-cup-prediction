@@ -1,7 +1,9 @@
 import Taro from '@tarojs/taro'
 
-// API 基础地址由 Taro defineConstants 在构建时注入（dev: http://127.0.0.1:8000 / prod: https://marathoninfo.top）
-declare const API_BASE_URL: string
+// dev: http://127.0.0.1:8000 / prod: https://marathoninfo.top
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://marathoninfo.top'
+  : 'http://127.0.0.1:8000'
 const BASE_URL = `${API_BASE_URL}/api/v1`
 const REQUEST_TIMEOUT = 15000 // 15 秒超时
 const MAX_RETRY = 1 // 最大重试次数
