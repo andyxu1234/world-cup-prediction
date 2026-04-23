@@ -59,6 +59,7 @@ class Settings(BaseSettings):
 
     # 头像存储（微信临时 URL 需要下载转存）
     AVATAR_DIR: str = "avatars"  # 相对于项目根目录的子目录
+    AVATAR_BASE_URL: str = ""    # 前端访问头像的完整基础路径，如 https://marathoninfo.top/static/avatars/
 
     @property
     def AVATAR_SAVE_PATH(self) -> Path:
@@ -66,8 +67,11 @@ class Settings(BaseSettings):
         return Path(__file__).resolve().parent.parent / self.AVATAR_DIR
 
     @property
-    def AVATAR_BASE_URL(self) -> str:
-        """前端访问头像的基础路径（FastAPI static 挂载后通过 /static/avatars/ 访问）"""
+    def AVATAR_PUBLIC_URL(self) -> str:
+        """前端访问头像的完整基础路径，优先用 AVATAR_BASE_URL 环境变量，否则自动拼接"""
+        if self.AVATAR_BASE_URL:
+            return self.AVATAR_BASE_URL
+        # 默认根据 DEBUG 自动拼接
         return f"/static/{self.AVATAR_DIR}/"
 
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}

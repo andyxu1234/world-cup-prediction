@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useLeaderboardStore, useUserStore } from '@/stores'
 import type { MixedRankItem } from '@/stores'
+import { resolveAvatarUrl } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -79,13 +80,14 @@ function isValidImageUrl(url: string | undefined | null): boolean {
 
 function UserAvatar({ avatarUrl, nickname }: { avatarUrl?: string | null; nickname?: string }) {
   const [imgErr, setImgErr] = useState(false)
+  const fullUrl = resolveAvatarUrl(avatarUrl)
   // 预设头像：preset://emoji 格式
-  if (avatarUrl && avatarUrl.startsWith('preset://')) {
-    const emoji = avatarUrl.replace('preset://', '')
+  if (fullUrl && fullUrl.startsWith('preset://')) {
+    const emoji = fullUrl.replace('preset://', '')
     return <View className='model-av lb-av preset-avatar'>{emoji}</View>
   }
-  if (isValidImageUrl(avatarUrl) && !imgErr) {
-    return <Image className='model-av-img lb-av' src={avatarUrl} mode='aspectFill' onError={() => setImgErr(true)} />
+  if (isValidImageUrl(fullUrl) && !imgErr) {
+    return <Image className='model-av-img lb-av' src={fullUrl} mode='aspectFill' onError={() => setImgErr(true)} />
   }
   const letter = (nickname || '?').charAt(0).toUpperCase()
   return <View className='model-av lb-av' style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>{letter}</View>

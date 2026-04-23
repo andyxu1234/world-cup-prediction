@@ -3,6 +3,7 @@ import { View, Text, Input, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
+import { resolveAvatarUrl } from '@/services/api'
 import './index.scss'
 
 const MENU_ITEMS = [
@@ -20,6 +21,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [avatarErr, setAvatarErr] = useState(false)
   const [pickingAvatar, setPickingAvatar] = useState(false)
+  const [imgLoadErr, setImgLoadErr] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
@@ -67,6 +69,7 @@ export default function Profile() {
       if (res.avatar_url) {
         setAvatarUrl(res.avatar_url)
         setAvatarErr(false)
+        setImgLoadErr(false)
         Taro.setStorageSync('tmp_avatar_url', res.avatar_url)
         console.log('[Profile] avatar uploaded:', res.avatar_url)
       }
@@ -75,6 +78,7 @@ export default function Profile() {
       // 上传失败时仍保留本地预览，保存时会用临时 URL（后端会清洗为 null）
       setAvatarUrl(url)
       setAvatarErr(false)
+      setImgLoadErr(false)
       Taro.setStorageSync('tmp_avatar_url', url)
     } finally {
       setPickingAvatar(false)
@@ -147,7 +151,7 @@ export default function Profile() {
 
   const isLoggedIn = !!user && !!token
   const hasProfile = !!isLoggedIn && !!profileSetup
-  const displayAvatar = hasProfile ? (user!.avatar_url || '') : avatarUrl
+  const displayAvatar = resolveAvatarUrl(hasProfile ? (user!.avatar_url || '') : avatarUrl)
   const displayName = hasProfile ? (user!.nickname || '微信用户') : (nickname || '微信用户')
   // 判断是否为预设头像
   const isPresetAvatar = displayAvatar && displayAvatar.startsWith('preset://')
@@ -181,14 +185,32 @@ export default function Profile() {
               onError={handleChooseAvatarError}
               onTap={() => setPickingAvatar(true)}
             >
-              {avatarUrl ? (
-                <Image className='prof-avatar-img' src={avatarUrl} mode='aspectFill' />
-              ) : (
-                <>
-                  <Text className='prof-avatar-placeholder'>+</Text>
-                  <Text className='prof-avatar-label'>选择头像</Text>
-                </>
-              )}
+              {(() => {
+                const isPreset = avatarUrl && avatarUrl.startsWith('preset://')
+                const emoji = isPreset ? avatarUrl.replace('preset://', '') : ''
+                // 有预设头像 → 显示 emoji
+                if (isPreset) {
+                  return <Text className='prof-av-emoji'>{emoji}</Text>
+                }
+                // 有图片 URL 且未加载失败 → 显示图片
+                if (avatarUrl && !imgLoadErr) {
+                  return (
+                    <Image
+                      className='prof-avatar-img'
+                      src={avatarUrl}
+                      mode='aspectFill'
+                      onError={() => setImgLoadErr(true)}
+                    />
+                  )
+                }
+                // 无头像或加载失败 → 显示占位
+                return (
+                  <>
+                    <Text className='prof-avatar-placeholder'>+</Text>
+                    <Text className='prof-avatar-label'>选择头像</Text>
+                  </>
+                )
+              })()}
             </Button>
 
             {/* 昵称输入框 */}

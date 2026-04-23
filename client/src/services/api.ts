@@ -27,6 +27,13 @@ function isRetryableError(err: any): boolean {
   return msg.includes('timeout') || msg.includes('network') || msg.includes('econnrefused')
 }
 
+/** 确保头像 URL 是完整路径（后端可能返回相对路径 /static/avatars/xxx） */
+export function resolveAvatarUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('http') || url.startsWith('preset://') || url.startsWith('wxfile://')) return url
+  return `${API_BASE_URL}${url}`
+}
+
 async function request<T = any>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, header = {}, timeout = REQUEST_TIMEOUT, retry = MAX_RETRY } = options
   const fullUrl = `${BASE_URL}${url}`
@@ -274,15 +281,22 @@ export function getHumanLeaderboard(userId?: number) {
 
 /** 上传头像文件，返回永久 URL */
 export function uploadAvatar(filePath: string, userId: number) {
+  const token = Taro.getStorageSync('token')
   return new Promise<{ avatar_url: string }>((resolve, reject) => {
     Taro.uploadFile({
       url: `${BASE_URL}/users/upload-avatar?user_id=${userId}`,
       filePath,
       name: 'file',
+      header: token ? { Authorization: `Bearer ${token}` } : {},
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
-            resolve(JSON.parse(res.data))
+            const data = JSON.parse(res.data)
+            // 确保返回的 avatar_url 是完整 URL（后端可能返回相对路径）
+            if (data.avatar_url && !data.avatar_url.startsWith('http') && !data.avatar_url.startsWith('preset://')) {
+              data.avatar_url = `${API_BASE_URL}${data.avatar_url}`
+            }
+            resolve(data)
           } catch (e) {
             reject(new Error('解析响应失败'))
           }

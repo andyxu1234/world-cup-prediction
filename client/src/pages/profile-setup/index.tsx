@@ -3,6 +3,7 @@ import { View, Text, Input, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
+import { resolveAvatarUrl } from '@/services/api'
 import './index.scss'
 
 const PRESET_AVATARS = [
@@ -77,7 +78,7 @@ export default function ProfileSetup() {
   }
 
   // 当前显示的头像
-  const displayAvatar = wechatAvatar || (avatarKey ? '' : '')
+  const displayAvatar = resolveAvatarUrl(wechatAvatar)
 
   return (
     <View className='setup-page'>
@@ -98,8 +99,8 @@ export default function ProfileSetup() {
             onChooseAvatar={handleChooseAvatar}
             onError={handleChooseAvatarError}
           >
-            {wechatAvatar ? (
-              <Image className='setup-avatar-img' src={wechatAvatar} mode='aspectFill' />
+            {displayAvatar ? (
+              <Image className='setup-avatar-img' src={displayAvatar} mode='aspectFill' />
             ) : (
               <View className='setup-avatar-placeholder'>
                 <Text className='setup-avatar-icon'>📷</Text>

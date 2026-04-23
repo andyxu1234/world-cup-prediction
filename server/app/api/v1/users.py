@@ -53,7 +53,7 @@ async def upload_avatar(
             raise HTTPException(status_code=400, detail="头像大小不能超过 5MB")
         save_path.write_bytes(content)
         logger.info(f"[Avatar] uploaded: {filename} ({len(content)} bytes)")
-        return {"avatar_url": f"{settings.AVATAR_BASE_URL}{filename}"}
+        return {"avatar_url": f"{settings.AVATAR_PUBLIC_URL}{filename}"}
     except HTTPException:
         raise
     except Exception as e:
@@ -74,7 +74,7 @@ async def _download_and_save_avatar(temp_url: str, user_id: int) -> str:
     # 文件已存在则直接返回 URL（幂等）
     if save_path.exists():
         logger.info(f"[Avatar] file exists: {filename}")
-        return f"{settings.AVATAR_BASE_URL}{filename}"
+        return f"{settings.AVATAR_PUBLIC_URL}{filename}"
 
     # 下载临时图片
     try:
@@ -87,7 +87,7 @@ async def _download_and_save_avatar(temp_url: str, user_id: int) -> str:
                 raise ValueError(f"Not an image response, content-type={ct}")
             save_path.write_bytes(resp.content)
         logger.info(f"[Avatar] saved: {filename} ({len(resp.content)} bytes)")
-        return f"{settings.AVATAR_BASE_URL}{filename}"
+        return f"{settings.AVATAR_PUBLIC_URL}{filename}"
     except Exception as e:
         logger.warning(f"[Avatar] download failed for user {user_id}: {e}")
         return ""  # 返回空字符串表示保存失败
