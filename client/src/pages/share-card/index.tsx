@@ -116,6 +116,85 @@ export default function ShareCardPage() {
     })
   }
 
+  /** 长按图片 → 保存到相册 / 转发好友 / 分享小程序 */
+  const handleLongPressSave = (imgUrl: string) => {
+    Taro.showActionSheet({
+      itemList: ['保存图片到相册', '转发给微信好友', '分享小程序'],
+      success: (res) => {
+        // res.tapIndex 返回用户点击的按钮索引，从 0 开始
+        if (res.tapIndex === 0) {
+          // 保存图片到相册
+          Taro.showLoading({ title: '保存中...' })
+          Taro.downloadFile({
+            url: imgUrl,
+            success: (downloadRes) => {
+              if (downloadRes.statusCode === 200) {
+                Taro.saveImageToPhotosAlbum({
+                  filePath: downloadRes.tempFilePath,
+                  success: () => {
+                    Taro.hideLoading()
+                    Taro.showToast({ title: '已保存到相册', icon: 'success' })
+                  },
+                  fail: () => {
+                    Taro.hideLoading()
+                    Taro.showToast({ title: '保存失败，请重试', icon: 'none' })
+                  },
+                })
+              } else {
+                Taro.hideLoading()
+                Taro.showToast({ title: '下载失败', icon: 'none' })
+              }
+            },
+            fail: () => {
+              Taro.hideLoading()
+              Taro.showToast({ title: '下载失败', icon: 'none' })
+            },
+          })
+        } else if (res.tapIndex === 1) {
+          // 转发给微信好友
+          Taro.showToast({ 
+            title: '请点击右上角「...」转发', 
+            icon: 'none',
+            duration: 2000
+          })
+        } else if (res.tapIndex === 2) {
+          // 分享小程序
+          Taro.showToast({ 
+            title: '请点击右上角「...」分享', 
+            icon: 'none',
+            duration: 2000
+          })
+        }
+      },
+      fail: () => {
+        // 用户取消操作
+        console.log('用户取消操作')
+      },
+    })
+  }
+
+  /** 直接转发给微信好友 */
+  const handleForwardToFriend = () => {
+    Taro.showActionSheet({
+      itemList: ['转发给微信好友', '分享小程序'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          Taro.showToast({ 
+            title: '请点击右上角「...」转发', 
+            icon: 'none',
+            duration: 2000
+          })
+        } else if (res.tapIndex === 1) {
+          Taro.showToast({ 
+            title: '请点击右上角「...」分享', 
+            icon: 'none',
+            duration: 2000
+          })
+        }
+      },
+    })
+  }
+
   return (
     <View className='share-page'>
       {/* 导航栏 */}
@@ -135,11 +214,16 @@ export default function ShareCardPage() {
           {/* 卡片预览 */}
           <View className='share-preview invite-preview'>
             {inviteImageUrl && (
-              <Image
-                className='share-image invite-image'
-                src={inviteImageUrl}
-                mode='widthFix'
-              />
+              <View 
+                className='share-image-wrapper'
+                onLongPress={() => handleLongPressSave(inviteImageUrl)}
+              >
+                <Image
+                  className='share-image invite-image'
+                  src={inviteImageUrl}
+                  mode='widthFix'
+                />
+              </View>
             )}
             {!inviteImageUrl && (
               <View className='invite-fallback'>
@@ -193,12 +277,12 @@ export default function ShareCardPage() {
 
           {/* 操作按钮 */}
           <View className='share-actions'>
-            <View className='share-btn-primary' onClick={handleShareFriend}>
-              <Text>发送给朋友</Text>
+            <View className='share-btn-primary' onClick={handleForwardToFriend}>
+              <Text>转发给好友 / 分享</Text>
             </View>
             <View className='share-btn-row'>
-              <View className='share-btn-secondary' onClick={handleSaveImage}>
-                <Text>保存图片</Text>
+              <View className='share-btn-secondary' onClick={() => handleLongPressSave(inviteImageUrl)}>
+                <Text>长按保存图片</Text>
               </View>
               <View className='share-btn-secondary' onClick={handleCopyLink}>
                 <Text>复制文案</Text>
@@ -208,43 +292,21 @@ export default function ShareCardPage() {
         </>
       )}
 
-      /** 长按图片 → 保存到相册 */
-function handleLongPressSave(imgUrl: string) {
-  Taro.showActionSheet({
-    itemList: ['保存图片到相册'],
-    success: () => {
-      Taro.showLoading({ title: '保存中...' })
-      Taro.downloadFile({
-        url: imgUrl,
-        success: (res) => {
-          if (res.statusCode === 200) {
-            Taro.saveImageToPhotosAlbum({
-              filePath: res.tempFilePath,
-              success: () => { Taro.hideLoading(); Taro.showToast({ title: '已保存', icon: 'success' }) },
-              fail: () => { Taro.hideLoading(); Taro.showToast({ title: '保存失败', icon: 'none' }) },
-            })
-          } else {
-            Taro.hideLoading()
-            Taro.showToast({ title: '下载失败', icon: 'none' })
-          }
-        },
-        fail: () => { Taro.hideLoading(); Taro.showToast({ title: '下载失败', icon: 'none' }) },
-      })
-    },
-  })
-}
-
-{/* ======== 比赛对战模式 UI（原有） ======== */}
+      {/* ======== 比赛对战模式 UI ======== */}
       {mode === 'match' && (
         <>
           <View className='share-preview'>
             {imageUrl && (
-              <Image
-                className='share-image'
-                src={imageUrl}
-                mode='widthFix'
+              <View 
+                className='share-image-wrapper'
                 onLongPress={() => handleLongPressSave(imageUrl)}
-              />
+              >
+                <Image
+                  className='share-image'
+                  src={imageUrl}
+                  mode='widthFix'
+                />
+              </View>
             )}
             {!imageUrl && cardData && (
               <View className='share-card'>
@@ -293,12 +355,12 @@ function handleLongPressSave(imgUrl: string) {
           </View>
 
           <View className='share-actions'>
-            <View className='share-btn-primary' onClick={handleShareFriend}>
-              <Text>分享给好友</Text>
+            <View className='share-btn-primary' onClick={handleForwardToFriend}>
+              <Text>转发给好友 / 分享</Text>
             </View>
             <View className='share-btn-row'>
-              <View className='share-btn-secondary' onClick={handleSaveImage}>
-                <Text>保存图片</Text>
+              <View className='share-btn-secondary' onClick={() => handleLongPressSave(imageUrl)}>
+                <Text>长按保存图片</Text>
               </View>
               <View className='share-btn-secondary' onClick={handleSaveImage}>
                 <Text>发朋友圈</Text>
