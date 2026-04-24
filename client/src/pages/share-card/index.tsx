@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
-import { getShareCard, getShareCardImage } from '@/services/api'
+import Taro, { useRouter, useShareAppMessage } from '@tarojs/taro'
+import {
+  getShareCard, getShareCardImage,
+  getInviteCardImageUrl
+} from '@/services/api'
 import type { ShareCard } from '@/services/api'
+import { useUserStore } from '@/stores'
+import { resolveAvatarUrl } from '@/services/api'
 import './index.scss'
 
 const MODEL_COLORS: Record<string, { gradient: string; letter: string }> = {
@@ -19,7 +24,6 @@ function getResultLabel(result: string) {
   return { text: '客胜', cls: 'pred-away' }
 }
 
-/** 格式化时间显示 */
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return '待定'
   const d = new Date(iso)
@@ -36,108 +40,242 @@ const FLAG_MAP: Record<string, string> = {
   'Spain': '🇪🇸', 'Portugal': '🇵🇹', 'Italy': '🇮🇹', 'Netherlands': '🇳🇱',
 }
 
+// AI 排行默认数据（前端兜底）
+const DEFAULT_AI_RANKING = [
+  { name: 'DeepSeek', result_accuracy: 82.3 },
+  { name: 'GPT-4o', result_accuracy: 78.1 },
+  { name: 'Claude', result_accuracy: 75.6 },
+]
+
+type ShareMode = 'match' | 'invite'
+
 export default function ShareCardPage() {
   const router = useRouter()
-  const matchId = Number(router.params.matchId || 1)
+  const mode = (router.params.mode || 'match') as ShareMode
+  const matchId = Number(router.params.matchId || 0)
+  const userStore = useUserStore()
+
+  // --- match 模式状态 ---
   const [cardData, setCardData] = useState<ShareCard | null>(null)
   const [imageUrl, setImageUrl] = useState('')
 
-  useEffect(() => {
-    getShareCard(matchId).then(setCardData).catch(() => {})
-    setImageUrl(getShareCardImage(matchId))
-  }, [matchId])
+  // --- invite 模式状态 ---
+  const [inviteImageUrl, setInviteImageUrl] = useState('')
+  const [nickname, setNickname] = useState('预言家')
+  const [avatarDisplay, setAvatarDisplay] = useState('')
 
-  const handleSave = () => {
-    Taro.showToast({ title: '长按图片保存', icon: 'none' })
+  useEffect(() => {
+    if (mode === 'match' && matchId > 0) {
+      getShareCard(matchId).then(setCardData).catch(() => {})
+      setImageUrl(getShareCardImage(matchId))
+      return
+    }
+
+    if (mode === 'invite') {
+      const u = userStore.user
+      const nick = u?.nickname || '预言家'
+      setNickname(nick)
+      setAvatarDisplay(resolveAvatarUrl(u?.avatar_url || ''))
+
+      const url = getInviteCardImageUrl({
+        nickname: nick,
+        avatarUrl: resolveAvatarUrl(u?.avatar_url || ''),
+        totalVotes: u?.total_votes ?? 0,
+        correctResults: u?.correct_results ?? 0,
+        correctScores: u?.correct_scores ?? 0,
+      })
+      setInviteImageUrl(url)
+    }
+  }, [mode, matchId])
+
+  const currentImageUrl = mode === 'invite' ? inviteImageUrl : imageUrl
+
+  // 微信分享注册
+  useShareAppMessage(() => ({
+    title: mode === 'invite'
+      ? `${nickname} 邀你挑战 AI 世界杯预测！`
+      : cardData
+        ? `${cardData.home_team} vs ${cardData.away_team} · AI 预测对战卡`
+        : 'AI 预测世界杯',
+    path: '/pages/index/index',
+    imageUrl: currentImageUrl,
+  }))
+
+  const handleSaveImage = () => {
+    Taro.showToast({ title: '长按图片保存到相册', icon: 'none' })
   }
 
-  const handleShare = () => {
-    Taro.showShareMenu({ withShareTicket: true })
+  const handleShareFriend = () => {
+    // 触发微信分享菜单
+    Taro.showShareMenu({ withShareTicket: true, showShareItems: { shareAppMessage: true } })
+  }
+
+  const handleCopyLink = () => {
+    Taro.setClipboardData({
+      data: '快来参加 AI 预测世界杯，和 DeepSeek、GPT 一决高下！',
+      success: () => Taro.showToast({ title: '已复制邀请文案', icon: 'success' }),
+    })
   }
 
   return (
     <View className='share-page'>
-      {/* 导航 */}
+      {/* 导航栏 */}
       <View className='nav'>
         <View className='nav-back' onClick={() => Taro.navigateBack()}>
           <Text className='nav-back-icon'>‹</Text>
         </View>
-        <Text className='nav-title'>分享预测</Text>
-        <Text className='nav-save' onClick={handleSave}>保存图片</Text>
+        <Text className='nav-title'>
+          {mode === 'invite' ? '邀请好友' : '分享预测'}
+        </Text>
+        <Text className='nav-save' onClick={handleSaveImage}>保存图片</Text>
       </View>
 
-      {/* 分享卡片预览 */}
-      <View className='share-preview'>
-        {/* 使用服务端生成的图片 */}
-        {imageUrl && (
-          <Image
-            className='share-image'
-            src={imageUrl}
-            mode='widthFix'
-          />
-        )}
+      {/* ======== 邀请模式 UI ======== */}
+      {mode === 'invite' && (
+        <>
+          {/* 卡片预览 */}
+          <View className='share-preview invite-preview'>
+            {inviteImageUrl && (
+              <Image
+                className='share-image invite-image'
+                src={inviteImageUrl}
+                mode='widthFix'
+              />
+            )}
+            {!inviteImageUrl && (
+              <View className='invite-fallback'>
+                <View className='invite-brand'>🏆</View>
+                <Text className='invite-brand-text'>AI 预测世界杯</Text>
+                <View className='invite-avatar-area'>
+                  {avatarDisplay ? (
+                    <Image className='invite-av-img' src={avatarDisplay} mode='aspectFill' />
+                  ) : (
+                    <View className='invite-av-placeholder'><Text>?</Text></View>
+                  )}
+                </View>
+                <Text className='invite-name'>{nickname}</Text>
+                <Text className='invite-tagline'>邀你挑战 AI 预测！</Text>
 
-        {/* 如果图片加载失败，显示本地渲染的卡片 */}
-        {!imageUrl && cardData && (
-          <View className='share-card'>
-            <View className='share-card-top'>
-              <Text className='share-card-logo'>AI PREDICTOR · 2026 WORLD CUP</Text>
-              <View className='share-card-match'>
-                <View className='share-card-team'>
-                  <View className='flag'>{FLAG_MAP[cardData.home_team] || '⚽'}</View>
-                  <Text className='share-card-team-name'>{cardData.home_team}</Text>
-                </View>
-                <Text className='share-card-vs mono'>VS</Text>
-                <View className='share-card-team'>
-                  <View className='flag'>{FLAG_MAP[cardData.away_team] || '⚽'}</View>
-                  <Text className='share-card-team-name'>{cardData.away_team}</Text>
-                </View>
-              </View>
-              <Text className='share-card-meta'>{cardData.round} · {formatTime(cardData.match_time)}</Text>
-            </View>
-            <View className='share-card-body'>
-              {cardData.predictions?.map((pred: any, idx: number) => {
-                const modelInfo = MODEL_COLORS[pred.model_name] || { gradient: 'linear-gradient(135deg, #666, #999)', letter: '?' }
-                const resultInfo = getResultLabel(pred.predicted_result)
-                return (
-                  <View key={idx} className='share-card-model'>
-                    <View className='model-av share-model-av' style={{ background: modelInfo.gradient }}>
-                      {modelInfo.letter}
-                    </View>
-                    <Text className='share-model-name'>{pred.model_name}</Text>
-                    <Text className={`share-model-result ${resultInfo.cls}`}>{resultInfo.text}</Text>
-                    <Text className='share-model-score mono'>{pred.predicted_home_score}:{pred.predicted_away_score}</Text>
+                <View className='invite-stats-row'>
+                  <View className='invite-stat-item'>
+                    <Text className='invite-stat-num'>{userStore.user?.total_votes ?? 0}</Text>
+                    <Text className='invite-stat-label'>已投票</Text>
                   </View>
-                )
-              })}
-            </View>
-            <View className='share-card-btm'>
-              <View className='share-card-slogan'>
-                <Text className='slogan-bold'>AI 预测世界杯</Text>
-                <Text className='slogan-sub'>谁才是最强预言家？</Text>
-              </View>
-              <View className='share-card-qr'>
-                <Text className='qr-text'>小程序码</Text>
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
+                  <View className='invite-stat-item'>
+                    <Text className='invite-stat-num'>{userStore.user?.correct_results ?? 0}</Text>
+                    <Text className='invite-stat-label'>胜负正确</Text>
+                  </View>
+                  <View className='invite-stat-item'>
+                    <Text className='invite-stat-num'>{userStore.user?.correct_scores ?? 0}</Text>
+                    <Text className='invite-stat-label'>比分命中</Text>
+                  </View>
+                </View>
 
-      {/* 操作按钮 */}
-      <View className='share-actions'>
-        <View className='share-btn-primary' onClick={handleShare}>
-          <Text>分享给好友</Text>
-        </View>
-        <View className='share-btn-row'>
-          <View className='share-btn-secondary' onClick={handleSave}>
-            <Text>保存图片</Text>
+                <View className='invite-ai-rank'>
+                  <Text className='invite-ai-title'>🤖 AI 先知排行榜 TOP3</Text>
+                  {DEFAULT_AI_RANKING.map((ai, i) => (
+                    <View key={i} className='invite-ai-row'>
+                      <View className={`invite-ai-rank-badge ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}`}>
+                        <Text>{i + 1}</Text>
+                      </View>
+                      <Text className='invite-ai-name'>{ai.name}</Text>
+                      <Text className='invite-ai-score'>{ai.result_accuracy}%</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View className='invite-cta-btn'>
+                  <Text className='invite-cta-text'>你的预言能打败 AI ？</Text>
+                  <Text className='invite-cta-sub'>立即加入挑战 →</Text>
+                </View>
+              </View>
+            )}
           </View>
-          <View className='share-btn-secondary' onClick={handleShare}>
-            <Text>发朋友圈</Text>
+
+          {/* 操作按钮 */}
+          <View className='share-actions'>
+            <View className='share-btn-primary' onClick={handleShareFriend}>
+              <Text>发送给朋友</Text>
+            </View>
+            <View className='share-btn-row'>
+              <View className='share-btn-secondary' onClick={handleSaveImage}>
+                <Text>保存图片</Text>
+              </View>
+              <View className='share-btn-secondary' onClick={handleCopyLink}>
+                <Text>复制文案</              </View>
+            </View>
           </View>
-        </View>
-      </View>
+        </>
+      )}
+
+      {/* ======== 比赛对战模式 UI（原有） ======== */}
+      {mode === 'match' && (
+        <>
+          <View className='share-preview'>
+            {imageUrl && (
+              <Image className='share-image' src={imageUrl} mode='widthFix' />
+            )}
+            {!imageUrl && cardData && (
+              <View className='share-card'>
+                <View className='share-card-top'>
+                  <Text className='share-card-logo'>AI PREDICTOR · 2026 WORLD CUP</Text>
+                  <View className='share-card-match'>
+                    <View className='share-card-team'>
+                      <View className='flag'>{FLAG_MAP[cardData.home_team] || '⚽'}</View>
+                      <Text className='share-card-team-name'>{cardData.home_team}</Text>
+                    </View>
+                    <Text className='share-card-vs mono'>VS</Text>
+                    <View className='share-card-team'>
+                      <View className='flag'>{FLAG_MAP[cardData.away_team] || '⚽'}</View>
+                      <Text className='share-card-team-name'>{cardData.away_team}</Text>
+                    </View>
+                  </View>
+                  <Text className='share-card-meta'>{cardData.round} · {formatTime(cardData.match_time)}</Text>
+                </View>
+                <View className='share-card-body'>
+                  {cardData.predictions?.map((pred: any, idx: number) => {
+                    const modelInfo = MODEL_COLORS[pred.model_name] || { gradient: 'linear-gradient(135deg, #666, #999)', letter: '?' }
+                    const resultInfo = getResultLabel(pred.result)
+                    return (
+                      <View key={idx} className='share-card-model'>
+                        <View className='model-av share-model-av' style={{ background: modelInfo.gradient }}>
+                          {modelInfo.letter}
+                        </View>
+                        <Text className='share-model-name'>{pred.model_name}</Text>
+                        <Text className={`share-model-result ${resultInfo.cls}`}>{resultInfo.text}</Text>
+                        <Text className='share-model-score mono'>{pred.score_home}:{pred.score_away}</Text>
+                      </View>
+                    )
+                  })}
+                </View>
+                <View className='share-card-btm'>
+                  <View className='share-card-slogan'>
+                    <Text className='slogan-bold'>AI 预测世界杯</Text>
+                    <Text className='slogan-sub'>谁才是最强预言家？</Text>
+                  </View>
+                  <View className='share-card-qr'>
+                    <Text className='qr-text'>小程序码</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <View className='share-actions'>
+            <View className='share-btn-primary' onClick={handleShareFriend}>
+              <Text>分享给好友</Text>
+            </View>
+            <View className='share-btn-row'>
+              <View className='share-btn-secondary' onClick={handleSaveImage}>
+                <Text>保存图片</Text>
+              </View>
+              <View className='share-btn-secondary' onClick={handleSaveImage}>
+                <Text>发朋友圈</Text>
+              </View>
+            </View>
+          </View>
+        </>
+      )}
     </View>
   )
 }

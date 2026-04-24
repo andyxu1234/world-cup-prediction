@@ -100,11 +100,11 @@ export default function About() {
             </View>
             <View className='about-version-item'>
               <Text className='about-version-label'>更新日期</Text>
-              <Text className='about-version-value'>2024年11月</Text>
+              <Text className='about-version-value'>2026年5月</Text>
             </View>
             <View className='about-version-item'>
               <Text className='about-version-label'>技术支持</Text>
-              <Text className='about-version-value'>worldcupai@example.com</Text>
+              <Text className='about-version-value'>andyxu199510@gmail.com</Text>
             </View>
           </View>
         </View>

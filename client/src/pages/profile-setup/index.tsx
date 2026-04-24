@@ -1,16 +1,37 @@
 import { useState } from 'react'
 import { View, Text, Input, Button, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidHide } from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
 import './index.scss'
+
+// 获取导航栏高度（状态栏 + 胶囊按钮区域）
+function getNavHeight() {
+  const sysInfo = Taro.getSystemInfoSync()
+  const statusBarHeight = sysInfo.statusBarHeight || 20
+  // 胶囊按钮信息（基础库 2.1.0+）
+  let menuButtonTop = statusBarHeight + 4
+  let menuButtonHeight = 32
+  try {
+    const menuBtn = Taro.getMenuButtonBoundingClientRect()
+    menuButtonTop = menuBtn.top
+    menuButtonHeight = menuBtn.height
+  } catch {}
+  return statusBarHeight + (menuButtonTop - statusBarHeight) * 2 + menuButtonHeight
+}
 
 export default function ProfileSetup() {
   const { user, updateProfile } = useUserStore()
   const [avatarUrl, setAvatarUrl] = useState('')
   const [nickname, setNickname] = useState('')
   const [saving, setSaving] = useState(false)
+  const navHeight = getNavHeight()
+
+  // 无论用户以何种方式离开此页面（按钮/tabBar/返回），都放行首页
+  useDidHide(() => {
+    useUserStore.getState().setLoginReady()
+  })
 
   const handleChooseAvatar = async (e: any) => {
     const url = e.detail?.avatarUrl
@@ -47,6 +68,7 @@ export default function ProfileSetup() {
   }
 
   const handleSkip = () => {
+    useUserStore.getState().setLoginReady()
     Taro.switchTab({ url: '/pages/index/index' })
   }
 
@@ -55,6 +77,10 @@ export default function ProfileSetup() {
 
   return (
     <View className='setup-page'>
+      {/* 自定义导航栏 */}
+      <View className='custom-nav' style={{ height: `${navHeight}px` }}>
+        <Text className='custom-nav-title'>完善资料</Text>
+      </View>
       {/* ===== 背景装饰 ===== */}
       <View className='setup-bg'>
         <View className='setup-bg-circle c1' />
@@ -73,8 +99,8 @@ export default function ProfileSetup() {
         {/* 顶部品牌区域 */}
         <View className='setup-hero'>
           <View className='hero-badge'>
-            <Text className='badge-icon'>⚽</Text>
             <Text className='badge-text'>2026</Text>
+            <Text className='badge-icon'>🏆</Text>
           </View>
           <Text className='hero-title'>加入世界杯预测</Text>
           <Text className='hero-desc'>选择你的头像和昵称，开启预测之旅</Text>
@@ -92,12 +118,7 @@ export default function ProfileSetup() {
             onChooseAvatar={handleChooseAvatar}
           >
             {displayAvatar ? (
-              <>
-                <Image className='avatar-img' src={displayAvatar} mode='aspectFill' />
-                <View className='avatar-edit-overlay'>
-                  <Text className='edit-icon'>✎</Text>
-                </View>
-              </>
+              <Image className='avatar-img' src={displayAvatar} mode='aspectFill' />
             ) : (
               <View className='avatar-empty'>
                 <View className='avatar-ring'>
@@ -119,7 +140,7 @@ export default function ProfileSetup() {
             <Input
               className='nick-input'
               type='nickname'
-              placeholder='你的预测代号'
+              placeholder='你的昵称'
               value={nickname}
               onInput={(e) => setNickname(e.detail.value || '')}
               placeholderClass='nick-ph'

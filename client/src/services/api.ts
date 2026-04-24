@@ -409,6 +409,24 @@ export function getShareCardImage(matchId: number) {
   return `${BASE_URL}/share/card/${matchId}/image`
 }
 
+export function getInviteCardImageUrl(params: {
+  nickname?: string
+  avatarUrl?: string
+  totalVotes?: number
+  correctResults?: number
+  correctScores?: number
+}) {
+  const { nickname = '预言家', avatarUrl = '', totalVotes = 0, correctResults = 0, correctScores = 0 } = params
+  const qs = [
+    `nickname=${encodeURIComponent(nickname)}`,
+    `avatar_url=${encodeURIComponent(avatarUrl)}`,
+    `total_votes=${totalVotes}`,
+    `correct_results=${correctResults}`,
+    `correct_scores=${correctScores}`,
+  ].join('&')
+  return `${BASE_URL}/share/invite/card/image?${qs}`
+}
+
 // ==================== 长期预测 ====================
 
 export interface LongTermPrediction {

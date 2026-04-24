@@ -114,7 +114,7 @@ export default function Profile() {
 
   const handleMenuClick = (label: string) => {
     if (label === '分享给好友') {
-      Taro.navigateTo({ url: '/pages/share-card/index' })
+      Taro.navigateTo({ url: '/pages/share-card/index?mode=invite' })
       return
     }
     if (label === '我的战绩') {

@@ -249,3 +249,197 @@
   text-align: center;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.03);
 }
+
+// ==================== 邀请模式样式 ====================
+
+.invite-preview {
+  min-height: 520px;
+}
+
+.invite-image {
+  max-width: 630px;
+}
+
+// 邀请卡 fallback（服务端图片加载失败时显示）
+.invite-fallback {
+  width: 100%;
+  max-width: 630px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0d2818 0%, #1a4d2e 60%, #227044 100%);
+  padding: 40px 32px 36px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.invite-brand {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.invite-brand-text {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 3px;
+  display: block;
+  margin-bottom: 24px;
+}
+
+.invite-avatar-area {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 3px solid #fbbf24;
+  overflow: hidden;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.invite-av-img {
+  width: 120rpx;
+  height: 120rpx;
+  display: block;
+}
+
+.invite-av-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text {
+    font-size: 44rpx;
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+.invite-name {
+  font-size: 34px;
+  font-weight: 700;
+  color: #ffffff;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.invite-tagline {
+  font-size: 24px;
+  color: $green;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 28px;
+}
+
+// 战绩行
+.invite-stats-row {
+  display: flex;
+  justify-content: space-around;
+  padding: 20px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 24px;
+}
+
+.invite-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.invite-stat-num {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 30px;
+  font-weight: 900;
+  color: $green;
+}
+
+.invite-stat-label {
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+// AI 排行
+.invite-ai-rank {
+  padding: 20px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 24px;
+}
+
+.invite-ai-title {
+  font-size: 21px;
+  font-weight: 700;
+  color: #ffffff;
+  display: block;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.invite-ai-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.invite-ai-rank-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  flex-shrink: 0;
+
+  &.gold { background: linear-gradient(135deg, #ffd700, #ffb300); color: #333; }
+  &.silver { background: linear-gradient(135deg, #c0c0c0, #a8a8a8); color: #333; }
+  &.bronze { background: linear-gradient(135deg, #cd7f32, #b06925); color: #fff; }
+}
+
+.invite-ai-name {
+  flex: 1;
+  font-size: 22px;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: left;
+}
+
+.invite-ai-score {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+// CTA 按钮
+.invite-cta-btn {
+  padding: 24px 0;
+  border-radius: 40px;
+  background: $green;
+}
+
+.invite-cta-text {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffffff;
+  display: block;
+}
+
+.invite-cta-sub {
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.85);
+  display: block;
+  margin-top: 4px;
+}

@@ -313,7 +313,8 @@ export const useUserStore = create<UserState>((set, get) => ({
   login: async (code) => {
     const res = await api.wxLogin(code)
     const profileSetup = res.profile_setup ?? false
-    set({ user: res.user, token: res.token, profileSetup, loginReady: true })
+    // loginReady 跟随 profileSetup：未完善资料时不放行首页
+    set({ user: res.user, token: res.token, profileSetup, loginReady: profileSetup })
     Taro.setStorageSync('token', res.token)
     Taro.setStorageSync('profile_setup', profileSetup)
     // 登录后刷新排行榜（获取我的排名）
@@ -331,7 +332,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (!user) throw new Error('NOT_LOGGED_IN')
     const updated = await api.updateUserProfile(user.id, nickname, avatarUrl)
     const profileSetup = true
-    set({ user: updated, profileSetup })
+    set({ user: updated, profileSetup, loginReady: true })
     Taro.setStorageSync('profile_setup', profileSetup)
   },
 

@@ -64,19 +64,11 @@ export default function Index() {
   const [activeChip, setActiveChip] = useState('小组赛')
   const navigatingRef = useRef<Set<number>>(new Set())
 
-  // ===== 关键：loginReady 为 false 时直接返回加载页，不渲染任何首页内容 =====
-  if (!loginReady) {
-    return (
-      <View className='index-page loading-page'>
-        <Text className='loading-text'>加载中...</Text>
-      </View>
-    )
-  }
-
-  // 等登录完成后再加载首页数据，确保 login 是第一个请求
+  // 所有 hooks 必须在条件返回之前调用（React Rules of Hooks）
   useEffect(() => {
+    if (!loginReady) return
     fetchHomeStats()
-  }, [fetchHomeStats])
+  }, [fetchHomeStats, loginReady])
 
   const goToDetail = useCallback((id: number) => {
     if (navigatingRef.current.has(id)) return
@@ -89,6 +81,7 @@ export default function Index() {
   }, [])
 
   useEffect(() => {
+    if (!loginReady) return
     const params: any = {}
     if (activeChip === '已结束') params.status = 'finished'
     if (activeChip === '小组赛') params.round = ['Group Stage - 1', 'Group Stage - 2', 'Group Stage - 3']
@@ -100,7 +93,16 @@ export default function Index() {
       params.date = d.toISOString().slice(0, 10)
     }
     fetchMatches(params)
-  }, [activeChip, fetchMatches])
+  }, [activeChip, fetchMatches, loginReady])
+
+  // ===== loginReady 为 false 时返回加载页 =====
+  if (!loginReady) {
+    return (
+      <View className='index-page loading-page'>
+        <Text className='loading-text'>加载中...</Text>
+      </View>
+    )
+  }
 
   return (
     <View className='index-page'>
