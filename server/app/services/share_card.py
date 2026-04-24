@@ -86,14 +86,13 @@ def generate_share_card_image(data: dict) -> bytes:
     import os
     import math
 
-    W, H = 750, 820  # 宽高比接近微信分享卡片标准
+    W, H = 750, 940  # 拉长卡片
 
-    # ===== 配色：体育赛事广播图形风格 =====
-    # 主色：深森林绿（与小程序 match-hero 一致）
-    GREEN_DARK = (8, 56, 36)
-    GREEN_MID = (16, 100, 60)
-    GREEN_ACCENT = (22, 163, 96)     # 亮绿色点缀
-    GOLD = (245, 166, 35)            # 金色（奖杯/冠军感）
+    # ===== 配色（浅化绿色）=====
+    GREEN_DARK = (34, 120, 72)        # 浅森林绿（原8,56,36 太深）
+    GREEN_MID = (52, 160, 96)         # 中绿
+    GREEN_ACCENT = (22, 163, 96)      # 亮绿点缀
+    GOLD = (245, 166, 35)
     BG = (248, 250, 252)             # 浅灰背景
     CARD_WHITE = (255, 255, 255)     # 卡片白
     TEXT_PRIMARY = (15, 23, 42)      # 主文字（近黑）
@@ -164,7 +163,7 @@ def generate_share_card_image(data: dict) -> bytes:
 
     # 品牌 Logo 文字（左）+ 轮次（右）
     draw.text((32, HEADER_H // 2 - 2),
-              "\u26bd AI \u9884\u6d4b\u4e16\u754c\u676f",
+              "AI \u9884\u6d4b\u4e16\u754c\u676f",
               fill=(255, 255, 255), font=f_brand, anchor="lm")
     # 右侧轮次标签（胶囊形背景）
     round_bb = draw.textbbox((0, 0), round_label, font=f_round)
@@ -217,7 +216,7 @@ def generate_share_card_image(data: dict) -> bytes:
                 radius=12, outline=TEXT_MUTED, width=2
             )
             cx, cy = x + FLAG_W // 2, y + FLAG_H // 2
-            draw.text((cx, cy), "\u26bd", fill=TEXT_SECONDARY, font=_load_font(36), anchor="mm")
+            draw.text((cx, cy), "?", fill=TEXT_SECONDARY, font=_load_font(36), anchor="mm")
             return
 
         resized = flag_or_none.resize((FLAG_W, FLAG_H), Image.LANCZOS)
@@ -235,22 +234,19 @@ def generate_share_card_image(data: dict) -> bytes:
     draw = ImageDraw.Draw(img)
 
     # --- VS 圆形徽章 ---
-    # 外环
     draw.ellipse(
         [(vs_cx - vs_r - 4, vs_cy - vs_r - 4), (vs_cx + vs_r + 4, vs_cy + vs_r + 4)],
         fill=GOLD, outline=GOLD
     )
-    # 内圆（白色底）
     draw.ellipse(
         [(vs_cx - vs_r, vs_cy - vs_r), (vs_cx + vs_r, vs_cy + vs_r)],
         fill=CARD_WHITE, outline=GREEN_DARK, width=2
     )
-    # VS 文字
     draw.text((vs_cx, vs_cy + 1), "VS",
               fill=GREEN_DARK, font=f_vs, anchor="mm")
 
-    # --- 队名（国旗下方）---
-    name_y = hero_top + FLAG_H + 14
+    # --- 队名（国旗下方，加大间距避免重叠）---
+    name_y = hero_top + FLAG_H + 26
     draw.text((home_fx + FLAG_W // 2, name_y), home,
               fill=TEXT_PRIMARY, font=f_name, anchor="mm")
     draw.text((away_fx + FLAG_W // 2, name_y), away,
@@ -289,7 +285,7 @@ def generate_share_card_image(data: dict) -> bytes:
         # 区块标题
         title_y = card_top + 28
         draw.text((card_margin + 16, title_y),
-                  "\ud83e\udd16 AI \u9884\u6d4b",
+                  "AI \u9884\u6d4b\u7ed3\u679c",
                   fill=GREEN_ACCENT, font=f_pred_title, anchor="lm")
 
         item_y = title_y + 38
@@ -333,14 +329,14 @@ def generate_share_card_image(data: dict) -> bytes:
             radius=16, outline=DIVIDER, width=1
         )
         draw.text((W // 2, card_top + card_h // 2 - 10),
-                  "\u26a1 \u5feb\u6765\u6311\u6218\u4e00\u4e0b",
+                  "\u5feb\u6765\u6311\u6218\u4e00\u4e0b",
                   fill=GREEN_ACCENT, font=f_slogan, anchor="mm")
         draw.text((W // 2, card_top + card_h // 2 + 22),
                   "\u770b\u770b\u662f\u4f60\u8fd8\u662f AI \u9884\u6d4b\u5f97\u66f4\u51c6\uff01",
                   fill=TEXT_SECONDARY, font=f_meta, anchor="mm")
 
     # =============================================
-    #  [5] 底部深色 Footer（标语 + 小程序码）
+    #  [5] 底部 Footer（标语 + 小程序码）
     # =============================================
     footer_h = 140
     footer_top = H - footer_h
