@@ -62,7 +62,7 @@ def generate_share_card_image(data: dict) -> bytes:
     from PIL import Image, ImageDraw, ImageFont
     import os
 
-    W, H = 750, 1000  # 竖版卡片，更适合手机分享
+    W, H = 750, 1100  # 竖版卡片，更高以容纳更大的元素
 
     # ===== 配色（纯白背景，与小程序码融为一体）=====
     WHITE = (255, 255, 255)
@@ -75,17 +75,19 @@ def generate_share_card_image(data: dict) -> bytes:
     img = Image.new("RGB", (W, H), WHITE)
     draw = ImageDraw.Draw(img)
 
-    # ===== 字体 =====
+    # ===== 字体（增大字号，提升可读性）=====
     try:
-        f_title = ImageFont.truetype("msyh.ttc", 32)    # 标题
-        f_round = ImageFont.truetype("msyh.ttc", 28)     # 轮次
-        f_name = ImageFont.truetype("msyh.ttc", 48)       # 队名
-        f_vs = ImageFont.truetype("msyh.ttc", 40)         # VS
-        f_pred = ImageFont.truetype("msyh.ttc", 24)       # 预测文字
-        f_meta = ImageFont.truetype("msyh.ttc", 22)       # 时间/场地
-        f_qr = ImageFont.truetype("msyh.ttc", 18)         # 小程序码文字
+        f_title = ImageFont.truetype("msyh.ttc", 40)    # 标题（32->40）
+        f_round = ImageFont.truetype("msyh.ttc", 32)     # 轮次（28->32）
+        f_name = ImageFont.truetype("msyh.ttc", 56)       # 队名（48->56）
+        f_vs = ImageFont.truetype("msyh.ttc", 48)         # VS（40->48）
+        f_pred = ImageFont.truetype("msyh.ttc", 32)       # 预测文字（24->32）
+        f_meta = ImageFont.truetype("msyh.ttc", 28)       # 时间/场地（22->28）
+        f_qr = ImageFont.truetype("msyh.ttc", 24)         # 小程序码文字（18->24）
+        f_slogan = ImageFont.truetype("msyh.ttc", 36)     # 标语大字
+        f_slogan_sub = ImageFont.truetype("msyh.ttc", 28) # 标语小字
     except (OSError, IOError):
-        f_title = f_round = f_name = f_vs = f_pred = f_meta = f_qr = ImageFont.load_default()
+        f_title = f_round = f_name = f_vs = f_pred = f_meta = f_qr = f_slogan = f_slogan_sub = ImageFont.load_default()
 
     # ===== 数据 =====
     home = data.get("home_team", "主队")
@@ -123,16 +125,16 @@ def generate_share_card_image(data: dict) -> bytes:
     # =============================================
     #  [1] 标题 + 轮次（顶部）
     # =============================================
-    draw.text((W // 2, 40), "\u26bd 世界杯 AI 预测大赛", fill=ACCENT_GREEN, font=f_title, anchor="mm")
-    draw.text((W // 2, 80), round_label, fill=GRAY, font=f_round, anchor="mm")
+    draw.text((W // 2, 50), "⚽ 世界杯 AI 预测大赛", fill=ACCENT_GREEN, font=f_title, anchor="mm")
+    draw.text((W // 2, 100), round_label, fill=GRAY, font=f_round, anchor="mm")
 
     # =============================================
     #  [2] 国旗 + 队名 + VS
     # =============================================
-    FLAG_W, FLAG_H = 140, 96
-    flag_top = 120
+    FLAG_W, FLAG_H = 160, 110  # 放大国旗（140x96 -> 160x110）
+    flag_top = 140  # 下移（120 -> 140）
     vs_center_x = W // 2
-    gap = 100  # 两旗之间间距
+    gap = 110  # 两旗之间间距（100 -> 110）
 
     home_flag_x = vs_center_x - gap // 2 - FLAG_W // 2
     away_flag_x = vs_center_x + gap // 2 + FLAG_W // 2
@@ -162,7 +164,7 @@ def generate_share_card_image(data: dict) -> bytes:
                 radius=10, outline=GRAY, width=1
             )
             draw.text((x + FLAG_W // 2, y + FLAG_H // 2),
-                      "\u26bd", fill=DARK, font=f_vs, anchor="mm")
+                      "⚽", fill=DARK, font=f_vs, anchor="mm")
             return
 
         resized = flag_img_or_none.resize((FLAG_W, FLAG_H), Image.LANCZOS)
@@ -182,7 +184,7 @@ def generate_share_card_image(data: dict) -> bytes:
     draw = ImageDraw.Draw(img)
 
     # 队名
-    name_y = flag_top + FLAG_H + 16
+    name_y = flag_top + FLAG_H + 20  # 间距增大（16 -> 20）
     draw.text((home_flag_x + FLAG_W // 2, name_y), home,
               fill=DARK, font=f_name, anchor="mm")
     draw.text((away_flag_x + FLAG_W // 2, name_y), away,
@@ -195,7 +197,7 @@ def generate_share_card_image(data: dict) -> bytes:
     # =============================================
     #  [3] 时间（队名下方）
     # =============================================
-    meta_y = name_y + 50
+    meta_y = name_y + 60  # 间距增大（50 -> 60）
     if data.get("match_time"):
         try:
             from datetime import datetime, timedelta, timezone
@@ -212,17 +214,19 @@ def generate_share_card_image(data: dict) -> bytes:
     draw.text((W // 2, meta_y), f"{time_str}", fill=GRAY, font=f_meta, anchor="mm")
 
     # =============================================
-    #  [4] AI 预测结果区
+    #  [4] AI 预测结果区（最多3个）或挑战文案
     # =============================================
-    pred_start_y = meta_y + 60
+    pred_start_y = meta_y + 70  # 间距增大（60 -> 70）
     predictions = data.get("predictions", [])
     
     if predictions:
+        # 有AI预测：显示前3个
         pred_title_y = pred_start_y
-        draw.text((W // 2, pred_title_y), "\ud83e\udd16 AI \u9884\u6d4b\u7ed3\u679c", fill=ACCENT_GREEN, font=f_pred, anchor="mm")
+        draw.text((W // 2, pred_title_y), "🤖 AI 预测结果", fill=ACCENT_GREEN, font=f_pred, anchor="mm")
         
-        pred_item_y = pred_title_y + 40
-        for i, pred in enumerate(predictions[:5]):  # 最多显示5个预测
+        pred_item_y = pred_title_y + 50  # 间距增大（40 -> 50）
+        row_height = 65  # 每行高度增大（50 -> 65）
+        for i, pred in enumerate(predictions[:3]):  # 只取前3个预测
             model_name = pred.get("model_name", "AI")
             result = pred.get("result", "")
             score_h = pred.get("score_home", 0)
@@ -232,33 +236,38 @@ def generate_share_card_image(data: dict) -> bytes:
             result_text = "主胜" if result == "home_win" else ("平局" if result == "draw" else "客胜")
             
             # 模型名（左）
-            draw.text((80, pred_item_y + i * 50), model_name, fill=DARK, font=f_pred, anchor="lm")
+            draw.text((80, pred_item_y + i * row_height), model_name, fill=DARK, font=f_pred, anchor="lm")
             # 预测结果（中）
-            draw.text((W // 2, pred_item_y + i * 50), result_text, fill=ACCENT_GREEN, font=f_pred, anchor="mm")
+            draw.text((W // 2, pred_item_y + i * row_height), result_text, fill=ACCENT_GREEN, font=f_pred, anchor="mm")
             # 比分（右）
-            draw.text((W - 80, pred_item_y + i * 50), f"{score_h}:{score_a}", fill=GRAY, font=f_pred, anchor="rm")
+            draw.text((W - 80, pred_item_y + i * row_height), f"{score_h}:{score_a}", fill=GRAY, font=f_pred, anchor="rm")
             
             # 分隔线
-            if i < len(predictions) - 1 and i < 4:
-                draw.line([(60, pred_item_y + i * 50 + 25), (W - 60, pred_item_y + i * 50 + 25)], 
-                         fill=GRAY, width=1)
+            if i < 2:  # 前两个下面画分隔线
+                draw.line([(60, pred_item_y + i * row_height + 32), (W - 60, pred_item_y + i * row_height + 32)], 
+                         fill=LIGHT_BG, width=2)
+    else:
+        # 无AI预测：显示挑战文案
+        challenge_y = pred_start_y + 60
+        draw.text((W // 2, challenge_y), "⚡ 快来挑战一下", fill=ACCENT_GREEN, font=f_slogan, anchor="mm")
+        draw.text((W // 2, challenge_y + 55), "看看是你还是 AI 预测得更准！", fill=DARK, font=f_pred, anchor="mm")
     
     # =============================================
-    #  [5] 底部区域：标语（左）+ 小程序码（右下角）
+    #  [5] 底部区域：标语（左）+ 小程序码（右下角，放大）
     # =============================================
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     qr_path = os.path.join(base_dir, "avatars", "mini.jpg")
 
-    qrsz = 140          # 放大后尺寸
-    qrm = 28            # 右下边距
+    qrsz = 180          # 大幅放大二维码（140 -> 180）
+    qrm = 32            # 右下边距（28 -> 32）
     qx = W - qrm - qrsz
     qy = H - qrm - qrsz
 
     # 左侧标语（在二维码左边）
-    slogan_cx = qx // 2
+    slogan_cx = (qx - 60) // 2  # 居中偏左
     slogan_y = qy + qrsz // 2
-    draw.text((slogan_cx, slogan_y - 14), "AI \u9884\u6d4b\u4e16\u754c\u676f", fill=DARK, font=f_pred, anchor="mm")
-    draw.text((slogan_cx, slogan_y + 14), "\u8c01\u624d\u662f\u6700\u5f3a\u8a00\u5bb6\uff1f", fill=GRAY, font=f_qr, anchor="mm")
+    draw.text((slogan_cx, slogan_y - 20), "AI 预测世界杯", fill=DARK, font=f_slogan, anchor="mm")
+    draw.text((slogan_cx, slogan_y + 24), "谁才是最强预言家？", fill=GRAY, font=f_slogan_sub, anchor="mm")
 
     qr_loaded = False
     try:
@@ -276,9 +285,9 @@ def generate_share_card_image(data: dict) -> bytes:
             radius=12, outline=GRAY, width=2
         )
         draw.text((qx + qrsz // 2, qy + qrsz // 2 - 10),
-                  "\u626b\u7801", fill=GRAY, font=f_qr, anchor="mm")
+                  "扫码", fill=GRAY, font=f_qr, anchor="mm")
         draw.text((qx + qrsz // 2, qy + qrsz // 2 + 14),
-                  "\u4f53\u9a8c", fill=GRAY, font=f_qr, anchor="mm")
+                  "体验", fill=GRAY, font=f_qr, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", quality=95)
