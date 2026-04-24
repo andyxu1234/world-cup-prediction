@@ -146,15 +146,19 @@ def generate_share_card_image(data: dict) -> bytes:
     draw.text((W // 2, 100), round_label, fill=GRAY, font=f_round, anchor="mm")
 
     # =============================================
-    #  [2] 国旗 + 队名 + VS
+    #  [2] 国旗 + 队名 + VS（整体居中布局）
     # =============================================
-    FLAG_W, FLAG_H = 160, 110  # 放大国旗（140x96 -> 160x110）
-    flag_top = 140  # 下移（120 -> 140）
+    FLAG_W, FLAG_H = 150, 100
+    flag_top = 140
     vs_center_x = W // 2
-    gap = 110  # 两旗之间间距（100 -> 110）
+    gap_vs = 70          # 两旗之间间距（放VS的空间）
 
-    home_flag_x = vs_center_x - gap // 2 - FLAG_W // 2
-    away_flag_x = vs_center_x + gap // 2 + FLAG_W // 2
+    # 整体区块宽度，确保居中
+    total_w = FLAG_W * 2 + gap_vs
+    block_start_x = (W - total_w) // 2
+
+    home_flag_x = block_start_x
+    away_flag_x = block_start_x + FLAG_W + gap_vs
 
     def try_load_flag(url):
         """尝试加载国旗图片"""
@@ -200,16 +204,17 @@ def generate_share_card_image(data: dict) -> bytes:
     paste_flag(int(away_flag_x), flag_top, away_fi)
     draw = ImageDraw.Draw(img)
 
-    # 队名
-    name_y = flag_top + FLAG_H + 20  # 间距增大（16 -> 20）
+    # 队名（居中对齐在各自国旗下方）
+    name_y = flag_top + FLAG_H + 18
     draw.text((home_flag_x + FLAG_W // 2, name_y), home,
               fill=DARK, font=f_name, anchor="mm")
     draw.text((away_flag_x + FLAG_W // 2, name_y), away,
               fill=DARK, font=f_name, anchor="mm")
 
-    # VS 文字（正中间）
-    draw.text((vs_center_x, flag_top + FLAG_H // 2),
-              "VS", fill=GRAY, font=f_vs, anchor="mm")
+    # VS 文字（两旗正中间，垂直居中对齐国旗区域）
+    vs_y = flag_top + FLAG_H // 2
+    draw.text((vs_center_x, vs_y),
+              "VS", fill=ACCENT_GREEN, font=_load_font(36), anchor="mm")
 
     # =============================================
     #  [3] 时间（队名下方）
