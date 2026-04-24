@@ -56,44 +56,52 @@ async def get_share_card_data(db: AsyncSession, match_id: int) -> dict:
 def generate_share_card_image(data: dict) -> bytes:
     """用 Pillow 生成分享卡片图片（比赛信息卡），返回 PNG 字节流
     
-    设计：绿色渐变背景，与小程序 match-hero 区风格一致
-    内容仅包含：轮次 → 国旗+队名 VS + 分组标签 → 时间场地 → 右下角小程序码
-    简洁干净，悬浮在预测详情页之上展示
+    设计：现代渐变背景，世界杯主题风格
+    内容：轮次 → 国旗+队名 VS → 预测结果 → 底部小程序码和标语
     """
     from PIL import Image, ImageDraw, ImageFont
     import os
 
-    W, H = 750, 660
+    W, H = 750, 1000  # 竖版卡片，更适合手机分享
 
-    # ===== 配色（纯 RGB，Pillow 不支持 alpha fill）=====
-    G1 = (16, 185, 129)           # 绿色渐变起
-    G2 = (5, 150, 105)            # 绿色渐变止
+    # ===== 配色（现代足球主题）=====
+    BG_TOP = (13, 110, 253)       # 蓝色渐变起
+    BG_MID = (16, 185, 129)       # 绿色中间
+    BG_BOTTOM = (5, 150, 105)     # 绿色渐变止
     WHITE = (255, 255, 255)
     WHITE_DIM = (210, 235, 225)   # 暗白（用于次要文字）
+    ACCENT = (251, 191, 36)       # 金色点缀
     TAG_BG = (255, 255, 255)      # 标签背景白
-    TAG_OVERLAY = (40, 80, 55)    # 标签半透明叠加色（用混合模拟）
 
-    img = Image.new("RGB", (W, H), G1)
+    img = Image.new("RGB", (W, H), BG_TOP)
     draw = ImageDraw.Draw(img)
 
-    # 绿色渐变背景
+    # 蓝色到绿色渐变背景
     for y in range(H):
-        r = y / H
-        c = (int(G1[0] + (G2[0] - G1[0]) * r),
-             int(G1[1] + (G2[1] - G1[1]) * r),
-             int(G1[2] + (G2[2] - G1[2]) * r))
+        if y < H // 3:
+            r = y / (H // 3)
+            c = (int(BG_TOP[0] + (BG_MID[0] - BG_TOP[0]) * r),
+                 int(BG_TOP[1] + (BG_MID[1] - BG_TOP[1]) * r),
+                 int(BG_TOP[2] + (BG_MID[2] - BG_TOP[2]) * r))
+        else:
+            r = (y - H // 3) / (H * 2 // 3)
+            c = (int(BG_MID[0] + (BG_BOTTOM[0] - BG_MID[0]) * r),
+                 int(BG_MID[1] + (BG_BOTTOM[1] - BG_MID[1]) * r),
+                 int(BG_MID[2] + (BG_BOTTOM[2] - BG_MID[2]) * r))
         draw.line([(0, y), (W, y)], fill=c)
     draw = ImageDraw.Draw(img)
 
     # ===== 字体 =====
     try:
+        f_title = ImageFont.truetype("msyh.ttc", 32)    # 标题
         f_round = ImageFont.truetype("msyh.ttc", 28)     # 轮次
-        f_name = ImageFont.truetype("msyh.ttc", 42)       # 队名
-        f_vs = ImageFont.truetype("msyh.ttc", 34)         # VS
-        f_tag = ImageFont.truetype("msyh.ttc", 20)        # 标签文字
+        f_name = ImageFont.truetype("msyh.ttc", 48)       # 队名
+        f_vs = ImageFont.truetype("msyh.ttc", 40)         # VS
+        f_pred = ImageFont.truetype("msyh.ttc", 24)       # 预测文字
         f_meta = ImageFont.truetype("msyh.ttc", 22)       # 时间/场地
+        f_qr = ImageFont.truetype("msyh.ttc", 18)         # 小程序码文字
     except (OSError, IOError):
-        f_round = f_name = f_vs = f_tag = f_meta = ImageFont.load_default()
+        f_title = f_round = f_name = f_vs = f_pred = f_meta = f_qr = ImageFont.load_default()
 
     # ===== 数据 =====
     home = data.get("home_team", "主队")
@@ -129,17 +137,18 @@ def generate_share_card_image(data: dict) -> bytes:
     round_label = round_cn.get(round_text, round_text)
 
     # =============================================
-    #  [1] 轮次标题（顶部居中）
+    #  [1] 标题 + 轮次（顶部）
     # =============================================
-    draw.text((W // 2, 44), round_label, fill=WHITE_DIM, font=f_round, anchor="mm")
+    draw.text((W // 2, 40), "⚽ 世界杯 AI 预测大赛", fill=ACCENT, font=f_title, anchor="mm")
+    draw.text((W // 2, 80), round_label, fill=WHITE_DIM, font=f_round, anchor="mm")
 
     # =============================================
     #  [2] 国旗 + 队名 + VS
     # =============================================
-    FLAG_W, FLAG_H = 120, 82
-    flag_top = 84
+    FLAG_W, FLAG_H = 140, 96
+    flag_top = 120
     vs_center_x = W // 2
-    gap = 90  # 两旗之间间距
+    gap = 100  # 两旗之间间距
 
     home_flag_x = vs_center_x - gap // 2 - FLAG_W // 2
     away_flag_x = vs_center_x + gap // 2 + FLAG_W // 2
@@ -189,7 +198,7 @@ def generate_share_card_image(data: dict) -> bytes:
     draw = ImageDraw.Draw(img)
 
     # 队名
-    name_y = flag_top + FLAG_H + 14
+    name_y = flag_top + FLAG_H + 16
     draw.text((home_flag_x + FLAG_W // 2, name_y), home,
               fill=WHITE, font=f_name, anchor="mm")
     draw.text((away_flag_x + FLAG_W // 2, name_y), away,
@@ -197,56 +206,79 @@ def generate_share_card_image(data: dict) -> bytes:
 
     # VS 文字（正中间）
     draw.text((vs_center_x, flag_top + FLAG_H // 2),
-              "VS", fill=WHITE_DIM, font=f_vs, anchor="mm")
+              "VS", fill=WHITE, font=f_vs, anchor="mm")
 
     # =============================================
-    #  [3] 标签区（分组 + FIFA 排名）
+    #  [3] 时间（队名下方）
     # =============================================
-    tag_y = name_y + 50
-
-    def draw_pill(cx, cy, text):
-        """画一个圆角胶囊标签"""
-        bb = draw.textbbox((0, 0), text, font=f_tag)
-        tw = bb[2] - bb[0]
-        th = 32
-        pw = tw + 28
-        ph = th
-        pr = ph // 2
-        draw.rounded_rectangle(
-            [(cx - pw // 2, cy - ph // 2), (cx + pw // 2, cy + ph // 2)],
-            radius=pr, outline=(255, 255, 255), width=1
-        )
-        draw.text((cx, cy + 1), text, fill=WHITE_DIM, font=f_tag, anchor="mm")
-
-    # 主队标签行
-    h_cx1 = home_flag_x + FLAG_W // 2 - 36
-    h_cx2 = home_flag_x + FLAG_W // 2 + 38
-    draw_pill(h_cx1, tag_y, "A组")
-    draw_pill(h_cx2, tag_y, "FIFA #15")
-
-    # 客队标签行
-    a_cx1 = away_flag_x + FLAG_W // 2 - 36
-    a_cx2 = away_flag_x + FLAG_W // 2 + 38
-    draw_pill(a_cx1, tag_y, "A组")
-    draw_pill(a_cx2, tag_y, "FIFA #61")
+    meta_y = name_y + 50
+    if data.get("match_time"):
+        try:
+            from datetime import datetime, timedelta, timezone
+            dt = datetime.fromisoformat(data["match_time"])
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt + timedelta(hours=8)
+            time_str = dt.strftime("%m月%d日 %H:%M")
+        except Exception:
+            time_str = str(data["match_time"])[:16]
+    else:
+        time_str = "待定"
+    
+    draw.text((W // 2, meta_y), f"{time_str}", fill=WHITE_DIM, font=f_meta, anchor="mm")
 
     # =============================================
-    #  [4] 时间/场地（底部居中）
+    #  [4] AI 预测结果区
     # =============================================
-    meta_y = tag_y + 48
-    draw.text((W // 2, meta_y), f"{date_str} \u00b7 {venue_str}",
-              fill=WHITE_DIM, font=f_meta, anchor="mm")
-
+    pred_start_y = meta_y + 60
+    predictions = data.get("predictions", [])
+    
+    if predictions:
+        pred_title_y = pred_start_y
+        draw.text((W // 2, pred_title_y), "🤖 AI 预测结果", fill=ACCENT, font=f_pred, anchor="mm")
+        
+        pred_item_y = pred_title_y + 40
+        for i, pred in enumerate(predictions[:5]):  # 最多显示5个预测
+            model_name = pred.get("model_name", "AI")
+            result = pred.get("result", "")
+            score_h = pred.get("score_home", 0)
+            score_a = pred.get("score_away", 0)
+            
+            # 预测结果文字
+            result_text = "主胜" if result == "home_win" else ("平局" if result == "draw" else "客胜")
+            
+            # 模型名（左）
+            draw.text((80, pred_item_y + i * 50), model_name, fill=WHITE, font=f_pred, anchor="lm")
+            # 预测结果（中）
+            draw.text((W // 2, pred_item_y + i * 50), result_text, fill=ACCENT, font=f_pred, anchor="mm")
+            # 比分（右）
+            draw.text((W - 80, pred_item_y + i * 50), f"{score_h}:{score_a}", fill=WHITE_DIM, font=f_pred, anchor="rm")
+            
+            # 分隔线
+            if i < len(predictions) - 1 and i < 4:
+                draw.line([(60, pred_item_y + i * 50 + 25), (W - 60, pred_item_y + i * 50 + 25)], 
+                         fill=(255, 255, 255, 50), width=1)
+    
     # =============================================
-    #  [5] 右下角小程序码
+    #  [5] 底部标语 + 小程序码
     # =============================================
+    bottom_y = H - 180
+    
+    # 分割线
+    draw.line([(60, bottom_y), (W - 60, bottom_y)], fill=WHITE_DIM, width=1)
+    
+    # 标语
+    draw.text((W // 2, bottom_y + 35), "AI 预测世界杯", fill=WHITE, font=f_pred, anchor="mm")
+    draw.text((W // 2, bottom_y + 65), "谁才是最强预言家？", fill=WHITE_DIM, font=f_qr, anchor="mm")
+    
+    # 小程序码
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    qr_path = os.path.join(base_dir, "server", "avatars", "mini.jpg")
-
-    qrsz = 128
-    qrm = 32
-    qx = W - qrm - qrsz
-    qy = H - qrm - qrsz - 10
+    qr_path = os.path.join(base_dir, "avatars", "mini.jpg")
+    
+    qrsz = 100
+    qrm = 40
+    qx = W // 2 - qrsz // 2
+    qy = bottom_y + 90
 
     qr_loaded = False
     try:
@@ -259,14 +291,15 @@ def generate_share_card_image(data: dict) -> bytes:
         pass
 
     if not qr_loaded:
+        # 如果加载失败，画一个占位框
         draw.rounded_rectangle(
             [(qx, qy), (qx + qrsz, qy + qrsz)],
-            radius=12, outline=WHITE_DIM, width=2
+            radius=8, fill=WHITE, outline=WHITE_DIM, width=2
         )
         draw.text((qx + qrsz // 2, qy + qrsz // 2 - 8),
-                  "小程序码", fill=WHITE_DIM, font=f_tag, anchor="mm")
-        draw.text((qx + qrsz // 2, qy + qrsz // 2 + 16),
-                  "QR Code", fill=WHITE_DIM, font=f_tag, anchor="mm")
+                  "扫码", fill=(100, 100, 100), font=f_qr, anchor="mm")
+        draw.text((qx + qrsz // 2, qy + qrsz // 2 + 12),
+                  "体验", fill=(100, 100, 100), font=f_qr, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", quality=95)

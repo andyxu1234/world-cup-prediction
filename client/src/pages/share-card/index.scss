@@ -61,25 +61,26 @@
   max-width: 630px;
   border-radius: 24px;
   overflow: hidden;
-  background: linear-gradient(160deg, #10b981, #059669, #047857);
+  background: linear-gradient(160deg, #0d6efd, #10b981, #059669);
   border: none;
-  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 12px 40px rgba(13, 110, 253, 0.3);
 }
 
 .share-card-top {
-  padding: 36px 30px 24px;
+  padding: 40px 30px 28px;
   text-align: center;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent);
 }
 
 .share-card-logo {
   font-family: 'SF Mono', 'Menlo', monospace;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 900;
-  color: #ffffff;
-  letter-spacing: 4px;
+  color: #fbbf24;
+  letter-spacing: 3px;
   display: block;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .share-card-match {
@@ -104,9 +105,10 @@
 }
 
 .share-card-vs {
-  font-size: 23px;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 800;
+  font-size: 26px;
+  color: #ffffff;
+  font-weight: 900;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .share-card-meta {
@@ -174,11 +176,11 @@
 }
 
 .share-card-btm {
-  padding: 20px 30px 28px;
+  padding: 24px 30px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.05));
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.1));
 }
 
 .share-card-slogan {
@@ -187,28 +189,31 @@
 }
 
 .slogan-bold {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .slogan-sub {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.65);
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4px;
 }
 
 .share-card-qr {
-  width: 100px;
-  height: 100px;
-  border-radius: 14px;
+  width: 110px;
+  height: 110px;
+  border-radius: 16px;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .qr-text {
-  font-size: 17px;
+  font-size: 18px;
   color: #333;
   font-weight: 700;
   text-align: center;
