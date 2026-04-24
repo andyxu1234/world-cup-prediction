@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Input, ScrollView, Image } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useRouter, useShareAppMessage } from '@tarojs/taro'
 import { useMatchStore, useUserStore } from '@/stores'
+import { getShareCardImage } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -88,6 +89,9 @@ export default function MatchDetail() {
   const [homeScore, setHomeScore] = useState('0')
   const [awayScore, setAwayScore] = useState('0')
   const [pageReady, setPageReady] = useState(false)
+  const [showShareSheet, setShowShareSheet] = useState(false)
+  const [shareImgUrl, setShareImgUrl] = useState('')
+  const [showSharePreview, setShowSharePreview] = useState(false)
 
   useEffect(() => {
     if (matchId) {
@@ -120,6 +124,51 @@ export default function MatchDetail() {
       setAwayScore(String(myVote.score_away ?? 0))
     }
   }, [myVote])
+
+  // 微信分享注册（用户通过右上角...转发时使用）
+  useShareAppMessage(() => {
+    const home = currentMatch?.home_team.cn_name || currentMatch?.home_team.name || ''
+    const away = currentMatch?.away_team.cn_name || currentMatch?.away_team.name || ''
+    return {
+      title: `${home} vs ${away} · AI 预测对战卡`,
+      path: `/pages/index/index`,
+      imageUrl: getShareCardImage(matchId),
+    }
+  })
+
+  // 分享面板操作
+  const handleOpenShareSheet = () => {
+    setShowShareSheet(true)
+  }
+
+  const handleCloseShareSheet = () => {
+    setShowShareSheet(false)
+  }
+
+  // 预测分享图 → 当前页悬浮预览
+  const handleShareImage = async () => {
+    setShowShareSheet(false)
+    const url = getShareCardImage(matchId)
+    setShareImgUrl(url)
+    setShowSharePreview(true)
+  }
+
+  const handleClosePreview = () => {
+    setShowSharePreview(false)
+  }
+
+  // 长按保存图片到相册
+  const handleSaveShareImage = () => {
+    Taro.showToast({ title: '长按图片可保存到相册', icon: 'none', duration: 2000 })
+  }
+
+  // 分享给朋友 → 引导使用微信原生分享
+  const handleShareToFriend = () => {
+    setShowShareSheet(false)
+    setTimeout(() => {
+      Taro.showToast({ title: '请点击右上角「...」转发给好友', icon: 'none', duration: 2000 })
+    }, 300)
+  }
 
   if (!pageReady || !currentMatch) {
     return <View className='detail-page'><Text className='loading'>加载中...</Text></View>
@@ -344,6 +393,71 @@ export default function MatchDetail() {
           </>
         )}
       </View>
+
+      {/* 分享按钮（固定右下角） */}
+      <View className='share-fab' onClick={handleOpenShareSheet}>
+        <Text className='share-fab-icon'>⤴</Text>
+      </View>
+
+      {/* 分享底部弹出面板 */}
+      {showShareSheet && (
+        <>
+          <View className='share-mask' onClick={handleCloseShareSheet} />
+          <View className='share-sheet'>
+            <View className='share-sheet-hd'>
+              <Text className='share-sheet-title'>分享到</Text>
+              <View className='share-sheet-close' onClick={handleCloseShareSheet}>
+                <Text>✕</Text>
+              </View>
+            </View>
+            <View className='share-sheet-options'>
+              <View className='share-sheet-item' onClick={handleShareImage}>
+                <View className='share-sheet-icon-wrap'>
+                  <Text className='share-sheet-icon'>🖼</Text>
+                </View>
+                <Text className='share-sheet-label'>预测分享图</Text>
+              </View>
+              <View className='share-sheet-item' onClick={handleShareToFriend}>
+                <View className='share-sheet-icon-wrap'>
+                  <Text className='share-sheet-icon'>📤</Text>
+                </View>
+                <Text className='share-sheet-label'>分享给朋友</Text>
+              </View>
+            </View>
+            <View className='share-sheet-cancel' onClick={handleCloseShareSheet}>
+              <Text>取消</Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {/* 分享图悬浮预览（覆盖当前页） */}
+      {showSharePreview && (
+        <>
+          <View className='preview-mask' onClick={handleClosePreview} />
+          <View className='preview-container'>
+            <View className='preview-header'>
+              <View className='preview-back' onClick={handleClosePreview}>
+                <Text className='preview-back-text'>‹ 返回</Text>
+              </View>
+              <Text className='preview-title'>预测分享图</Text>
+              <View className='preview-save-btn' onClick={handleSaveShareImage}>
+                <Text>保存图片</Text>
+              </View>
+            </View>
+            <ScrollView scrollY className='preview-scroll'>
+              {shareImgUrl && (
+                <Image
+                  className='preview-img'
+                  src={shareImgUrl}
+                  mode='widthFix'
+                  onClick={() => Taro.previewImage({ urls: [shareImgUrl] })}
+                />
+              )}
+            </ScrollView>
+          </View>
+        </>
+      )}
     </View>
   )
 }

@@ -106,8 +106,7 @@ export default function ShareCardPage() {
   }
 
   const handleShareFriend = () => {
-    // 触发微信分享菜单
-    Taro.showShareMenu({ withShareTicket: true, showShareItems: { shareAppMessage: true } })
+    Taro.showToast({ title: '请点击右上角「...」分享给好友', icon: 'none' })
   }
 
   const handleCopyLink = () => {
@@ -202,7 +201,8 @@ export default function ShareCardPage() {
                 <Text>保存图片</Text>
               </View>
               <View className='share-btn-secondary' onClick={handleCopyLink}>
-                <Text>复制文案</              </View>
+                <Text>复制文案</Text>
+              </View>
             </View>
           </View>
         </>
