@@ -82,7 +82,7 @@ def generate_share_card_image(data: dict) -> bytes:
     from PIL import Image, ImageDraw, ImageFont
     import os
 
-    W, H = 750, 1100  # 竖版卡片，更高以容纳更大的元素
+    W, H = 750, 780  # 紧凑高度
 
     # ===== 配色（纯白背景，与小程序码融为一体）=====
     WHITE = (255, 255, 255)
@@ -140,18 +140,18 @@ def generate_share_card_image(data: dict) -> bytes:
     round_label = round_cn.get(round_text, round_text)
 
     # =============================================
-    #  [1] 标题 + 轮次（顶部）
+    #  [1] 标题 + 轮次（顶部，紧凑）
     # =============================================
-    draw.text((W // 2, 50), "⚽ 世界杯 AI 预测大赛", fill=ACCENT_GREEN, font=f_title, anchor="mm")
-    draw.text((W // 2, 100), round_label, fill=GRAY, font=f_round, anchor="mm")
+    draw.text((W // 2, 36), "\u26bd \u4e16\u754c\u676f AI \u9884\u6d4b\u5927\u8d5b", fill=ACCENT_GREEN, font=f_title, anchor="mm")
+    draw.text((W // 2, 78), round_label, fill=GRAY, font=f_round, anchor="mm")
 
     # =============================================
-    #  [2] 国旗 + 队名 + VS（整体居中布局）
+    #  [2] 国旗 + 队名 + VS（整体居中布局，紧凑）
     # =============================================
-    FLAG_W, FLAG_H = 150, 100
-    flag_top = 140
+    FLAG_W, FLAG_H = 130, 88
+    flag_top = 110
     vs_center_x = W // 2
-    gap_vs = 70          # 两旗之间间距（放VS的空间）
+    gap_vs = 70
 
     # 整体区块宽度，确保居中
     total_w = FLAG_W * 2 + gap_vs
@@ -205,7 +205,7 @@ def generate_share_card_image(data: dict) -> bytes:
     draw = ImageDraw.Draw(img)
 
     # 队名（居中对齐在各自国旗下方）
-    name_y = flag_top + FLAG_H + 18
+    name_y = flag_top + FLAG_H + 16
     draw.text((home_flag_x + FLAG_W // 2, name_y), home,
               fill=DARK, font=f_name, anchor="mm")
     draw.text((away_flag_x + FLAG_W // 2, name_y), away,
@@ -219,7 +219,7 @@ def generate_share_card_image(data: dict) -> bytes:
     # =============================================
     #  [3] 时间（队名下方）
     # =============================================
-    meta_y = name_y + 60  # 间距增大（50 -> 60）
+    meta_y = name_y + 40
     if data.get("match_time"):
         try:
             from datetime import datetime, timedelta, timezone
@@ -238,16 +238,15 @@ def generate_share_card_image(data: dict) -> bytes:
     # =============================================
     #  [4] AI 预测结果区（最多3个）或挑战文案
     # =============================================
-    pred_start_y = meta_y + 70  # 间距增大（60 -> 70）
+    pred_start_y = meta_y + 45
     predictions = data.get("predictions", [])
-    
+
     if predictions:
-        # 有AI预测：显示前3个
         pred_title_y = pred_start_y
-        draw.text((W // 2, pred_title_y), "🤖 AI 预测结果", fill=ACCENT_GREEN, font=f_pred, anchor="mm")
-        
-        pred_item_y = pred_title_y + 50  # 间距增大（40 -> 50）
-        row_height = 65  # 每行高度增大（50 -> 65）
+        draw.text((W // 2, pred_title_y), "\ud83e\udd16 AI \u9884\u6d4b\u7ed3\u679c", fill=ACCENT_GREEN, font=f_pred, anchor="mm")
+
+        pred_item_y = pred_title_y + 38
+        row_height = 52
         for i, pred in enumerate(predictions[:3]):  # 只取前3个预测
             model_name = pred.get("model_name", "AI")
             result = pred.get("result", "")
@@ -265,9 +264,9 @@ def generate_share_card_image(data: dict) -> bytes:
             draw.text((W - 80, pred_item_y + i * row_height), f"{score_h}:{score_a}", fill=GRAY, font=f_pred, anchor="rm")
             
             # 分隔线
-            if i < 2:  # 前两个下面画分隔线
-                draw.line([(60, pred_item_y + i * row_height + 32), (W - 60, pred_item_y + i * row_height + 32)], 
-                         fill=LIGHT_BG, width=2)
+            if i < 2:
+                draw.line([(60, pred_item_y + i * row_height + 26), (W - 60, pred_item_y + i * row_height + 26)],
+                         fill=LIGHT_BG, width=1)
     else:
         # 无AI预测：显示挑战文案
         challenge_y = pred_start_y + 60
@@ -275,21 +274,21 @@ def generate_share_card_image(data: dict) -> bytes:
         draw.text((W // 2, challenge_y + 55), "看看是你还是 AI 预测得更准！", fill=DARK, font=f_pred, anchor="mm")
     
     # =============================================
-    #  [5] 底部区域：标语（左）+ 小程序码（右下角，放大）
+    #  [5] 底部区域：标语（左）+ 小程序码（右下角，紧凑）
     # =============================================
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     qr_path = os.path.join(base_dir, "avatars", "mini.jpg")
 
-    qrsz = 180          # 大幅放大二维码（140 -> 180）
-    qrm = 32            # 右下边距（28 -> 32）
+    qrsz = 150
+    qrm = 24
     qx = W - qrm - qrsz
     qy = H - qrm - qrsz
 
-    # 左侧标语（在二维码左边）
-    slogan_cx = (qx - 60) // 2  # 居中偏左
+    # 左侧标语（在二维码左边居中）
+    slogan_cx = (qx - 40) // 2
     slogan_y = qy + qrsz // 2
-    draw.text((slogan_cx, slogan_y - 20), "AI 预测世界杯", fill=DARK, font=f_slogan, anchor="mm")
-    draw.text((slogan_cx, slogan_y + 24), "谁才是最强预言家？", fill=GRAY, font=f_slogan_sub, anchor="mm")
+    draw.text((slogan_cx, slogan_y - 16), "AI \u9884\u6d4b\u4e16\u754c\u676f", fill=DARK, font=f_slogan, anchor="mm")
+    draw.text((slogan_cx, slogan_y + 20), "\u8c01\u624d\u662f\u6700\u5f3a\u8a00\u5bb6\uff1f", fill=GRAY, font=_load_font(22), anchor="mm")
 
     qr_loaded = False
     try:
