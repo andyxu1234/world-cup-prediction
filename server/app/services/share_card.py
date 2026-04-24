@@ -54,273 +54,223 @@ async def get_share_card_data(db: AsyncSession, match_id: int) -> dict:
 
 
 def generate_share_card_image(data: dict) -> bytes:
-    """用 Pillow 生成分享卡片图片（比赛预测卡），返回 PNG 字节流
+    """用 Pillow 生成分享卡片图片（比赛信息卡），返回 PNG 字节流
     
-    设计风格：体育杂志封面级 — 大胆排版、强烈对比、专业感
-    布局：绿色品牌顶栏 → 超大对战英雄区 → AI预测卡片区 → 底部信息+二维码
+    设计：绿色渐变背景，与小程序 match-hero 区风格一致
+    内容仅包含：轮次 → 国旗+队名 VS + 分组标签 → 时间场地 → 右下角小程序码
+    简洁干净，悬浮在预测详情页之上展示
     """
     from PIL import Image, ImageDraw, ImageFont
+    import os
 
-    W, H = 750, 1100
+    W, H = 750, 660
 
-    # ===== 配色方案 =====
-    GREEN_DARK = (10, 60, 35)        # 深绿（顶栏）
-    GREEN_MAIN = (16, 145, 97)       # 主题绿
-    GREEN_LIGHT = (232, 250, 243)    # 淡绿背景
-    BG = (255, 255, 255)             # 纯白
-    TEXT_DARK = (25, 25, 28)         # 主文字
-    TEXT_MID = (80, 85, 95)          # 中等灰文字
-    TEXT_LIGHT = (160, 165, 175)     # 浅灰文字
-    GOLD = (218, 165, 32)            # 金色点缀
-    CARD_BG = (248, 250, 252)        # 卡片背景
+    # ===== 配色（纯 RGB，Pillow 不支持 alpha fill）=====
+    G1 = (16, 185, 129)           # 绿色渐变起
+    G2 = (5, 150, 105)            # 绿色渐变止
+    WHITE = (255, 255, 255)
+    WHITE_DIM = (210, 235, 225)   # 暗白（用于次要文字）
+    TAG_BG = (255, 255, 255)      # 标签背景白
+    TAG_OVERLAY = (40, 80, 55)    # 标签半透明叠加色（用混合模拟）
 
-    img = Image.new("RGB", (W, H), BG)
+    img = Image.new("RGB", (W, H), G1)
     draw = ImageDraw.Draw(img)
 
-    # ===== 字体加载（加大加粗确保清晰）=====
-    try:
-        f_hero = ImageFont.truetype("msyh.ttc", 96)      # 队名超大字（核心视觉）
-        f_vs = ImageFont.truetype("msyh.ttc", 56)         # VS 徽章
-        f_head = ImageFont.truetype("msyh.ttc", 32)       # 顶栏/标题
-        f_body = ImageFont.truetype("msyh.ttc", 30)       # 正文
-        f_sub = ImageFont.truetype("msyh.ttc", 26)        # 辅助文字
-        f_small = ImageFont.truetype("msyh.ttc", 22)      # 小字
-        f_micro = ImageFont.truetype("msyh.ttc", 18)      # 微小字
-        f_pred_name = ImageFont.truetype("msyh.ttc", 28)   # AI模型名
-        f_pred_result = ImageFont.truetype("msyh.ttc", 30) # 预测结果（加粗）
-    except (OSError, IOError):
-        f_hero = f_vs = f_head = f_body = f_sub = f_small = f_micro = f_pred_name = f_pred_result = ImageFont.load_default()
+    # 绿色渐变背景
+    for y in range(H):
+        r = y / H
+        c = (int(G1[0] + (G2[0] - G1[0]) * r),
+             int(G1[1] + (G2[1] - G1[1]) * r),
+             int(G1[2] + (G2[2] - G1[2]) * r))
+        draw.line([(0, y), (W, y)], fill=c)
+    draw = ImageDraw.Draw(img)
 
-    # ===== 数据准备 =====
+    # ===== 字体 =====
+    try:
+        f_round = ImageFont.truetype("msyh.ttc", 28)     # 轮次
+        f_name = ImageFont.truetype("msyh.ttc", 42)       # 队名
+        f_vs = ImageFont.truetype("msyh.ttc", 34)         # VS
+        f_tag = ImageFont.truetype("msyh.ttc", 20)        # 标签文字
+        f_meta = ImageFont.truetype("msyh.ttc", 22)       # 时间/场地
+    except (OSError, IOError):
+        f_round = f_name = f_vs = f_tag = f_meta = ImageFont.load_default()
+
+    # ===== 数据 =====
     home = data.get("home_team", "主队")
     away = data.get("away_team", "客队")
+    home_flag_url = data.get("home_flag", "")
+    away_flag_url = data.get("away_flag", "")
     round_text = data.get("round", "")
-    match_time = data.get("match_time", "")
-    predictions = data.get("predictions", [])
 
-    if match_time:
+    if data.get("match_time"):
         try:
             from datetime import datetime, timedelta, timezone
-            utc_dt = datetime.fromisoformat(match_time)
-            if utc_dt.tzinfo is None:
-                utc_dt = utc_dt.replace(tzinfo=timezone.utc)
-            bj_dt = utc_dt + timedelta(hours=8)
-            date_str = bj_dt.strftime("%m月%d日")
-            time_str = bj_dt.strftime("%H:%M")
-            weekday_map = ["周一","周二","周三","周四","周五","周六","周日"]
-            wday_str = weekday_map[bj_dt.weekday()]
-        except (ValueError, TypeError):
-            date_str = match_time[:10].replace("-", "月") + "日"
-            time_str = ""
-            wday_str = ""
+            dt = datetime.fromisoformat(data["match_time"])
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt + timedelta(hours=8)
+            date_str = dt.strftime("%a %b %d %Y")
+        except Exception:
+            date_str = str(data["match_time"])[:10]
     else:
         date_str = "待定"
-        time_str = ""
-        wday_str = ""
+    venue_str = data.get("venue") or "TBD"
 
-    round_cn_map = {
-        "Group Stage - 1": "小组赛 第1轮", "Group Stage - 2": "小组赛 第2轮",
-        "Group Stage - 3": "小组赛 第3轮", "Round of 32": "三十二强",
-        "Round of 16": "十六强", "Quarter-finals": "1/4决赛",
-        "Semi-finals": "半决赛", "3rd Place Final": "季军赛", "Final": "决赛",
+    round_cn = {
+        "Group Stage - 1": "小组赛第1轮",
+        "Group Stage - 2": "小组赛第2轮",
+        "Group Stage - 3": "小组赛第3轮",
+        "Round of 32": "三十二强赛",
+        "Round of 16": "十六强赛",
+        "Quarter-finals": "四分之一决赛",
+        "Semi-finals": "半决赛",
+        "Final": "决赛",
     }
-    round_display = round_cn_map.get(round_text, round_text)
+    round_label = round_cn.get(round_text, round_text)
 
-    # ============================================================
-    #  ① 顶部绿色品牌栏（全宽深绿条）
-    # ============================================================
-    bar_h = 90
-    draw.rectangle([(0, 0), (W, bar_h)], fill=GREEN_DARK)
-    # 左侧足球图标 + 标题
-    draw.text((50, bar_h // 2), "\u26bd  2026 FIFA World Cup", fill=(255, 255, 255), font=f_head, anchor="lm")
-    # 右侧金色标签
-    draw.text((W - 50, bar_h // 2), "AI PREDICTION", fill=GOLD, font=f_small, anchor="rm")
+    # =============================================
+    #  [1] 轮次标题（顶部居中）
+    # =============================================
+    draw.text((W // 2, 44), round_label, fill=WHITE_DIM, font=f_round, anchor="mm")
 
-    # ============================================================
-    #  ② 英雄对战区（超大字号，视觉冲击）
-    # ============================================================
-    hero_top = bar_h + 40
-    hero_center_y = hero_top + 100
+    # =============================================
+    #  [2] 国旗 + 队名 + VS
+    # =============================================
+    FLAG_W, FLAG_H = 120, 82
+    flag_top = 84
+    vs_center_x = W // 2
+    gap = 90  # 两旗之间间距
 
-    # --- 主队名 ---
-    home_bbox = draw.textbbox((0, 0), home, font=f_hero)
-    home_w = home_bbox[2] - home_bbox[0]
-    draw.text((W // 2, hero_center_y - 20), home,
-              fill=TEXT_DARK, font=f_hero, anchor="mm")
+    home_flag_x = vs_center_x - gap // 2 - FLAG_W // 2
+    away_flag_x = vs_center_x + gap // 2 + FLAG_W // 2
 
-    # --- VS 徽章（醒目的圆角矩形徽章）---
-    vs_badge_w = 90
-    vs_badge_h = 50
-    vs_cx = W // 2
-    vs_cy = hero_center_y + 75
-    draw.rounded_rectangle(
-        [(vs_cx - vs_badge_w // 2, vs_cy - vs_badge_h // 2),
-         (vs_cx + vs_badge_w // 2, vs_cy + vs_badge_h // 2)],
-        radius=25, fill=GREEN_MAIN
-    )
-    draw.text((vs_cx, vs_cy + 1), "VS", fill=(255, 255, 255), font=f_vs, anchor="mm")
+    def try_load_flag(url):
+        """尝试加载国旗图片"""
+        if not url:
+            return None
+        try:
+            import urllib.request
+            if url.startswith(("http://", "https://")):
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    return Image.open(io.BytesIO(resp.read())).convert("RGBA")
+            elif os.path.exists(url):
+                return Image.open(url).convert("RGBA")
+        except Exception:
+            pass
+        return None
 
-    # --- 客队名 ---
-    away_y = vs_cy + 55
-    draw.text((W // 2, away_y + 45), away,
-              fill=TEXT_DARK, font=f_hero, anchor="mm")
-
-    # ============================================================
-    #  ③ AI 预测卡片区（白色圆角卡片，内含列表）
-    # ============================================================
-    card_top = away_y + 110
-    card_margin = 36
-    card_inner_pad = 32
-
-    # 卡片背景
-    draw.rounded_rectangle(
-        [(card_margin, card_top), (W - card_margin, card_top + 320)],
-        radius=20, fill=CARD_BG, outline=(230, 233, 240), width=1
-    )
-
-    # 卡片标题行
-    title_x = card_margin + card_inner_pad
-    title_y = card_top + 28
-    # 绿色小竖条装饰
-    draw.rectangle([(title_x, title_y), (title_x + 5, title_y + 26)], fill=GREEN_MAIN)
-    draw.text((title_x + 16, title_y + 13), "AI 模型预测",
-              fill=TEXT_DARK, font=f_body, anchor="lm")
-
-    # 预测列表
-    result_map = {"home_win": "主胜", "draw": "平局", "away_win": "客胜"}
-    result_colors = {"home_win": GREEN_MAIN, "draw": (200, 150, 30), "away_win": (59, 130, 246)}
-
-    item_start_y = title_y + 54
-    row_h = 58
-
-    for i, p in enumerate(predictions[:4]):
-        iy = item_start_y + i * row_h
-        name = p.get("model_name", "AI")
-        res = p.get("result", "")
-        res_label = result_map.get(res, "?")
-        sh = p.get("score_home", "")
-        sa = p.get("score_away", "")
-        score_str = f" {sh}:{sa}" if str(sh) and str(sa) else ""
-        conf = p.get("confidence", 0)
-
-        # 模型名
-        draw.text((title_x, iy + 18), name, fill=TEXT_DARK, font=f_pred_name, anchor="lm")
-
-        # 预测结果（带颜色）
-        res_color = result_colors.get(res, TEXT_MID)
-        res_text = res_label + score_str
-        res_x = title_x + 180
-        draw.text((res_x, iy + 19), res_text, fill=res_color, font=f_pred_result, anchor="lm")
-
-        # 信心进度条
-        bar_x = res_x + 140
-        bar_w = 130
-        bar_h_val = 16
-        bar_r = 8
-        bar_cy = iy + 19
-        # 背景
-        draw.rounded_rectangle(
-            [(bar_x, bar_cy - bar_h_val // 2), (bar_x + bar_w, bar_cy + bar_h_val // 2)],
-            radius=bar_r, fill=(235, 238, 245)
-        )
-        # 填充
-        fill_w = max(8, int(bar_w * (conf / 10))) if conf else 0
-        if fill_w > 0:
+    def paste_flag(x, y, flag_img_or_none):
+        """粘贴国旗到指定位置（带圆角）"""
+        if flag_img_or_none is None:
+            # 无国旗时画半透明占位框
             draw.rounded_rectangle(
-                [(bar_x, bar_cy - bar_h_val // 2), (bar_x + fill_w, bar_cy + bar_h_val // 2)],
-                radius=bar_r, fill=GREEN_MAIN
+                [(x, y), (x + FLAG_W, y + FLAG_H)],
+                radius=10, outline=WHITE_DIM, width=1
             )
-        # 百分比数字
-        pct_text = f"{conf:.0f}%" if conf else "-"
-        draw.text((bar_x + bar_w + 12, bar_cy), pct_text, fill=TEXT_LIGHT, font=f_sub, anchor="lm")
+            draw.text((x + FLAG_W // 2, y + FLAG_H // 2),
+                      "\u26bd", fill=WHITE, font=f_vs, anchor="mm")
+            return
 
-    # ============================================================
-    #  ④ 底部信息区 — 赛事详情 + 小程序码
-    # ============================================================
-    bottom_top = card_top + 340
+        resized = flag_img_or_none.resize((FLAG_W, FLAG_H), Image.LANCZOS)
+        # 创建圆角蒙版
+        mask = Image.new("L", (FLAG_W, FLAG_H), 0)
+        mdraw = ImageDraw.Draw(mask)
+        mdraw.rounded_rectangle([(0, 0), (FLAG_W, FLAG_H)], radius=10, fill=255)
+        # 粘贴
+        img.paste(resized, (x, y), mask)
 
-    # 分割线
-    draw.line([(card_margin, bottom_top), (W - card_margin, bottom_top)], fill=(230, 233, 240), width=1)
+    home_fi = try_load_flag(home_flag_url)
+    paste_flag(int(home_flag_x), flag_top, home_fi)
+    draw = ImageDraw.Draw(img)  # paste 后重建 draw
 
-    info_y = bottom_top + 28
+    away_fi = try_load_flag(away_flag_url)
+    paste_flag(int(away_flag_x), flag_top, away_fi)
+    draw = ImageDraw.Draw(img)
 
-    # ---- 左侧：赛事信息 ----
-    left_x = card_margin
+    # 队名
+    name_y = flag_top + FLAG_H + 14
+    draw.text((home_flag_x + FLAG_W // 2, name_y), home,
+              fill=WHITE, font=f_name, anchor="mm")
+    draw.text((away_flag_x + FLAG_W // 2, name_y), away,
+              fill=WHITE, font=f_name, anchor="mm")
 
-    # 轮次标签（绿色胶囊）
-    rd_bbox = draw.textbbox((0, 0), round_display, font=f_small)
-    rd_w = rd_bbox[2] - rd_bbox[0] + 32
-    rd_h = 40
-    rd_r = 20
-    draw.rounded_rectangle(
-        [(left_x, info_y), (left_x + rd_w, info_y + rd_h)],
-        radius=rd_r, fill=GREEN_LIGHT
-    )
-    draw.text((left_x + rd_w // 2, info_y + rd_h // 2),
-              round_display, fill=GREEN_MAIN, font=f_small, anchor="mm")
+    # VS 文字（正中间）
+    draw.text((vs_center_x, flag_top + FLAG_H // 2),
+              "VS", fill=WHITE_DIM, font=f_vs, anchor="mm")
 
-    # 日期时间
-    dt_y = info_y + rd_h + 18
-    dt_parts = [date_str]
-    if wday_str:
-        dt_parts.append(wday_str)
-    if time_str:
-        dt_parts.append(time_str)
-    draw.text((left_x, dt_y), "  ".join(dt_parts), fill=TEXT_MID, font=f_body, anchor="lt")
+    # =============================================
+    #  [3] 标签区（分组 + FIFA 排名）
+    # =============================================
+    tag_y = name_y + 50
 
-    # 对阵简写
-    match_y = dt_y + 42
-    draw.text((left_x, match_y), f"{home}  \u224f  {away}", fill=TEXT_DARK, font=f_sub, anchor="lt")
+    def draw_pill(cx, cy, text):
+        """画一个圆角胶囊标签"""
+        bb = draw.textbbox((0, 0), text, font=f_tag)
+        tw = bb[2] - bb[0]
+        th = 32
+        pw = tw + 28
+        ph = th
+        pr = ph // 2
+        draw.rounded_rectangle(
+            [(cx - pw // 2, cy - ph // 2), (cx + pw // 2, cy + ph // 2)],
+            radius=pr, outline=(255, 255, 255), width=1
+        )
+        draw.text((cx, cy + 1), text, fill=WHITE_DIM, font=f_tag, anchor="mm")
 
-    # ---- 右侧：小程序码 ----
-    import os
-    _base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    qr_img_path = os.path.join(_base_dir, "docs", "mini.jpg")
+    # 主队标签行
+    h_cx1 = home_flag_x + FLAG_W // 2 - 36
+    h_cx2 = home_flag_x + FLAG_W // 2 + 38
+    draw_pill(h_cx1, tag_y, "A组")
+    draw_pill(h_cx2, tag_y, "FIFA #15")
 
-    qr_size = 170
-    qr_right = card_margin
-    qr_x = W - qr_right - qr_size
-    qr_y = info_y - 6
+    # 客队标签行
+    a_cx1 = away_flag_x + FLAG_W // 2 - 36
+    a_cx2 = away_flag_x + FLAG_W // 2 + 38
+    draw_pill(a_cx1, tag_y, "A组")
+    draw_pill(a_cx2, tag_y, "FIFA #61")
+
+    # =============================================
+    #  [4] 时间/场地（底部居中）
+    # =============================================
+    meta_y = tag_y + 48
+    draw.text((W // 2, meta_y), f"{date_str} \u00b7 {venue_str}",
+              fill=WHITE_DIM, font=f_meta, anchor="mm")
+
+    # =============================================
+    #  [5] 右下角小程序码
+    # =============================================
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    qr_path = os.path.join(base_dir, "server", "avatars", "mini.jpg")
+
+    qrsz = 128
+    qrm = 32
+    qx = W - qrm - qrsz
+    qy = H - qrm - qrsz - 10
 
     qr_loaded = False
     try:
-        if os.path.exists(qr_img_path):
-            qr_img = Image.open(qr_img_path).convert("RGBA")
-            qr_img = qr_img.resize((qr_size, qr_size), Image.LANCZOS)
-            img.paste(qr_img, (qr_x, qr_y), qr_img if qr_img.mode == "RGBA" else None)
+        if os.path.exists(qr_path):
+            qi = Image.open(qr_path).convert("RGBA").resize((qrsz, qrsz), Image.LANCZOS)
+            img.paste(qi, (qx, qy), qi if qi.mode == "RGBA" else None)
             draw = ImageDraw.Draw(img)
             qr_loaded = True
-    except Exception as e:
-        pass  # 下面画占位
+    except Exception:
+        pass
 
     if not qr_loaded:
-        # 占位框（带虚线边框效果）
         draw.rounded_rectangle(
-            [(qr_x, qr_y), (qr_x + qr_size, qr_y + qr_size)],
-            radius=14, outline=(210, 215, 225), width=2, fill=(248, 250, 252)
+            [(qx, qy), (qx + qrsz, qy + qrsz)],
+            radius=12, outline=WHITE_DIM, width=2
         )
-        draw.text((qr_x + qr_size // 2, qr_y + qr_size // 2 - 10),
-                  "小程序码", fill=TEXT_LIGHT, font=f_small, anchor="mm")
-        draw.text((qr_x + qr_size // 2, qr_y + qr_size // 2 + 20),
-                  "QR Code", fill=TEXT_LIGHT, font=f_micro, anchor="mm")
+        draw.text((qx + qrsz // 2, qy + qrsz // 2 - 8),
+                  "小程序码", fill=WHITE_DIM, font=f_tag, anchor="mm")
+        draw.text((qx + qrsz // 2, qy + qrsz // 2 + 16),
+                  "QR Code", fill=WHITE_DIM, font=f_tag, anchor="mm")
 
-    # 二维码下方提示
-    hint_y = qr_y + qr_size + 14
-    draw.text((qr_x + qr_size // 2, hint_y), "长按识别", fill=TEXT_LIGHT, font=f_micro, anchor="mm")
-    draw.text((qr_x + qr_size // 2, hint_y + 22), "进入小程序", fill=TEXT_LIGHT, font=f_micro, anchor="mm")
-
-    # ============================================================
-    #  ⑤ 底部品牌 footer
-    # ============================================================
-    footer_y = H - 46
-    draw.text((W // 2, footer_y),
-              "AI \u9884\u6d4b\u4e16\u754c\u676a  \u00b7  Powered by Multi-AI",
-              fill=(200, 205, 212), font=f_micro, anchor="mm")
-
-    # 输出 PNG
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG", quality=95)
-    return buffer.getvalue()
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", quality=95)
+    return buf.getvalue()
 
 
 def generate_invite_card_image(data: dict) -> bytes:

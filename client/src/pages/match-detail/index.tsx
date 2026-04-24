@@ -431,30 +431,28 @@ export default function MatchDetail() {
         </>
       )}
 
-      {/* 分享图悬浮预览（覆盖当前页） */}
+      {/* 分享图悬浮预览（居中弹窗，浮在当前页之上） */}
       {showSharePreview && (
         <>
           <View className='preview-mask' onClick={handleClosePreview} />
-          <View className='preview-container'>
-            <View className='preview-header'>
-              <View className='preview-back' onClick={handleClosePreview}>
-                <Text className='preview-back-text'>‹ 返回</Text>
-              </View>
-              <Text className='preview-title'>预测分享图</Text>
-              <View className='preview-save-btn' onClick={handleSaveShareImage}>
-                <Text>保存图片</Text>
-              </View>
+          <View className='preview-popup'>
+            {/* 关闭按钮 */}
+            <View className='preview-close-btn' onClick={handleClosePreview}>
+              <Text className='preview-close-icon'>✕</Text>
             </View>
-            <ScrollView scrollY className='preview-scroll'>
-              {shareImgUrl && (
-                <Image
-                  className='preview-img'
-                  src={shareImgUrl}
-                  mode='widthFix'
-                  onClick={() => Taro.previewImage({ urls: [shareImgUrl] })}
-                />
-              )}
-            </ScrollView>
+            {/* 分享卡片图片 */}
+            {shareImgUrl && (
+              <Image
+                className='preview-img'
+                src={shareImgUrl}
+                mode='widthFix'
+                onClick={() => Taro.previewImage({ urls: [shareImgUrl] })}
+              />
+            )}
+            {/* 底部提示 */}
+            <View className='preview-hint'>
+              <Text className='preview-hint-text'>长按图片保存或分享给好友</Text>
+            </View>
           </View>
         </>
       )}
