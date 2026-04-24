@@ -208,12 +208,43 @@ export default function ShareCardPage() {
         </>
       )}
 
-      {/* ======== 比赛对战模式 UI（原有） ======== */}
+      /** 长按图片 → 保存到相册 */
+function handleLongPressSave(imgUrl: string) {
+  Taro.showActionSheet({
+    itemList: ['保存图片到相册'],
+    success: () => {
+      Taro.showLoading({ title: '保存中...' })
+      Taro.downloadFile({
+        url: imgUrl,
+        success: (res) => {
+          if (res.statusCode === 200) {
+            Taro.saveImageToPhotosAlbum({
+              filePath: res.tempFilePath,
+              success: () => { Taro.hideLoading(); Taro.showToast({ title: '已保存', icon: 'success' }) },
+              fail: () => { Taro.hideLoading(); Taro.showToast({ title: '保存失败', icon: 'none' }) },
+            })
+          } else {
+            Taro.hideLoading()
+            Taro.showToast({ title: '下载失败', icon: 'none' })
+          }
+        },
+        fail: () => { Taro.hideLoading(); Taro.showToast({ title: '下载失败', icon: 'none' }) },
+      })
+    },
+  })
+}
+
+{/* ======== 比赛对战模式 UI（原有） ======== */}
       {mode === 'match' && (
         <>
           <View className='share-preview'>
             {imageUrl && (
-              <Image className='share-image' src={imageUrl} mode='widthFix' showMenuByLongpress />
+              <Image
+                className='share-image'
+                src={imageUrl}
+                mode='widthFix'
+                onLongPress={() => handleLongPressSave(imageUrl)}
+              />
             )}
             {!imageUrl && cardData && (
               <View className='share-card'>

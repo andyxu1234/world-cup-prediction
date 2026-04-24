@@ -157,6 +157,32 @@ export default function MatchDetail() {
     setShowSharePreview(false)
   }
 
+  // 长按图片 → 保存到相册
+  const handleLongPressSave = (imgUrl: string) => {
+    Taro.showActionSheet({
+      itemList: ['保存图片到相册'],
+      success: () => {
+        Taro.showLoading({ title: '保存中...' })
+        Taro.downloadFile({
+          url: imgUrl,
+          success: (res) => {
+            if (res.statusCode === 200) {
+              Taro.saveImageToPhotosAlbum({
+                filePath: res.tempFilePath,
+                success: () => { Taro.hideLoading(); Taro.showToast({ title: '已保存', icon: 'success' }) },
+                fail: () => { Taro.hideLoading(); Taro.showToast({ title: '保存失败', icon: 'none' }) },
+              })
+            } else {
+              Taro.hideLoading()
+              Taro.showToast({ title: '下载失败', icon: 'none' })
+            }
+          },
+          fail: () => { Taro.hideLoading(); Taro.showToast({ title: '下载失败', icon: 'none' }) },
+        })
+      },
+    })
+  }
+
   // 长按保存图片到相册
   const handleSaveShareImage = () => {
     Taro.showToast({ title: '长按图片可保存到相册', icon: 'none', duration: 2000 })
@@ -446,7 +472,7 @@ export default function MatchDetail() {
                 className='preview-img'
                 src={shareImgUrl}
                 mode='widthFix'
-                showMenuByLongpress
+                onLongPress={() => handleLongPressSave(shareImgUrl)}
                 onClick={() => Taro.previewImage({ urls: [shareImgUrl] })}
               />
             )}

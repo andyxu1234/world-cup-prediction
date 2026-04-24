@@ -338,7 +338,7 @@ def generate_share_card_image(data: dict) -> bytes:
     # =============================================
     #  [5] 底部 Footer（标语 + 小程序码）
     # =============================================
-    footer_h = 140
+    footer_h = 170
     footer_top = H - footer_h
     # Footer 背景
     draw.rounded_rectangle(
@@ -350,7 +350,7 @@ def generate_share_card_image(data: dict) -> bytes:
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     qr_path = os.path.join(base_dir, "avatars", "mini.jpg")
 
-    qrsz = 120
+    qrsz = 155
     qrm = 28
     qx = W - qrm - qrsz
     qy = footer_top + (footer_h - qrsz) // 2  # 垂直居中在 footer 内
