@@ -12,6 +12,26 @@ from app.models.prediction import Prediction
 from app.models.ai_model import AIModel
 
 
+def _load_font(size):
+    """加载中文字体，按优先级尝试多种路径（兼容 Windows/Linux/macOS）"""
+    from PIL import ImageFont
+    _font_paths = [
+        "msyh.ttc",                                    # Windows 微软雅黑
+        "msyhbd.ttc",                                  # Windows 微软雅黑粗体
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",   # Linux 文泉驿微米黑
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # Linux Noto CJK
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        "/usr/share/fonts/truetype/arphic/uming.ttc",  # Linux 文鼎
+        "/System/Library/Fonts/PingFang.ttc",          # macOS 苹方
+    ]
+    for fp in _font_paths:
+        try:
+            return ImageFont.truetype(fp, size)
+        except (OSError, IOError):
+            continue
+    return ImageFont.load_default()
+
+
 async def get_share_card_data(db: AsyncSession, match_id: int) -> dict:
     """获取分享卡片数据"""
     stmt = (
@@ -76,18 +96,15 @@ def generate_share_card_image(data: dict) -> bytes:
     draw = ImageDraw.Draw(img)
 
     # ===== 字体（增大字号，提升可读性）=====
-    try:
-        f_title = ImageFont.truetype("msyh.ttc", 40)    # 标题（32->40）
-        f_round = ImageFont.truetype("msyh.ttc", 32)     # 轮次（28->32）
-        f_name = ImageFont.truetype("msyh.ttc", 56)       # 队名（48->56）
-        f_vs = ImageFont.truetype("msyh.ttc", 48)         # VS（40->48）
-        f_pred = ImageFont.truetype("msyh.ttc", 32)       # 预测文字（24->32）
-        f_meta = ImageFont.truetype("msyh.ttc", 28)       # 时间/场地（22->28）
-        f_qr = ImageFont.truetype("msyh.ttc", 24)         # 小程序码文字（18->24）
-        f_slogan = ImageFont.truetype("msyh.ttc", 36)     # 标语大字
-        f_slogan_sub = ImageFont.truetype("msyh.ttc", 28) # 标语小字
-    except (OSError, IOError):
-        f_title = f_round = f_name = f_vs = f_pred = f_meta = f_qr = f_slogan = f_slogan_sub = ImageFont.load_default()
+    f_title = _load_font(40)
+    f_round = _load_font(32)
+    f_name = _load_font(56)
+    f_vs = _load_font(48)
+    f_pred = _load_font(32)
+    f_meta = _load_font(28)
+    f_qr = _load_font(24)
+    f_slogan = _load_font(36)
+    f_slogan_sub = _load_font(28)
 
     # ===== 数据 =====
     home = data.get("home_team", "主队")
@@ -329,17 +346,14 @@ def generate_invite_card_image(data: dict) -> bytes:
     # 重新获取 draw 对象（因为上面画了很多线）
     draw = ImageDraw.Draw(img)
 
-    # 加载字体
-    try:
-        font_xl = ImageFont.truetype("msyh.ttc", 44)
-        font_lg = ImageFont.truetype("msyh.ttc", 32)
-        font_md = ImageFont.truetype("msyh.ttc", 26)
-        font_sm = ImageFont.truetype("msyh.ttc", 20)
-        font_xs = ImageFont.truetype("msyh.ttc", 16)
-        font_num = ImageFont.truetype("msyh.ttc", 52)
-        font_num_sm = ImageFont.truetype("msyh.ttc", 28)
-    except (OSError, IOError):
-        font_xl = font_lg = font_md = font_sm = font_xs = font_num = font_num_sm = ImageFont.load_default()
+    # 加载字体（使用模块级多路径回退）
+    font_xl = _load_font(44)
+    font_lg = _load_font(32)
+    font_md = _load_font(26)
+    font_sm = _load_font(20)
+    font_xs = _load_font(16)
+    font_num = _load_font(52)
+    font_num_sm = _load_font(28)
 
     nickname = data.get("nickname", "预言家")
     avatar_url = data.get("avatar_url", "")
