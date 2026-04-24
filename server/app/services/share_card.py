@@ -86,11 +86,11 @@ def generate_share_card_image(data: dict) -> bytes:
     import os
     import math
 
-    W, H = 750, 940  # 拉长卡片
+    W, H = 750, 1060  # 拉长卡片
 
     # ===== 配色（浅化绿色）=====
-    GREEN_DARK = (34, 120, 72)        # 浅森林绿（原8,56,36 太深）
-    GREEN_MID = (52, 160, 96)         # 中绿
+    GREEN_DARK = (60, 160, 100)       # 浅森林绿（再提亮）
+    GREEN_MID = (80, 190, 130)        # 中绿（再提亮）
     GREEN_ACCENT = (22, 163, 96)      # 亮绿点缀
     GOLD = (245, 166, 35)
     BG = (248, 250, 252)             # 浅灰背景
@@ -246,7 +246,7 @@ def generate_share_card_image(data: dict) -> bytes:
               fill=GREEN_DARK, font=f_vs, anchor="mm")
 
     # --- 队名（国旗下方，加大间距避免重叠）---
-    name_y = hero_top + FLAG_H + 26
+    name_y = hero_top + FLAG_H + 42
     draw.text((home_fx + FLAG_W // 2, name_y), home,
               fill=TEXT_PRIMARY, font=f_name, anchor="mm")
     draw.text((away_fx + FLAG_W // 2, name_y), away,
