@@ -64,31 +64,15 @@ def generate_share_card_image(data: dict) -> bytes:
 
     W, H = 750, 1000  # 竖版卡片，更适合手机分享
 
-    # ===== 配色（现代足球主题）=====
-    BG_TOP = (13, 110, 253)       # 蓝色渐变起
-    BG_MID = (16, 185, 129)       # 绿色中间
-    BG_BOTTOM = (5, 150, 105)     # 绿色渐变止
+    # ===== 配色（纯白背景，与小程序码融为一体）=====
     WHITE = (255, 255, 255)
-    WHITE_DIM = (210, 235, 225)   # 暗白（用于次要文字）
-    ACCENT = (251, 191, 36)       # 金色点缀
-    TAG_BG = (255, 255, 255)      # 标签背景白
+    DARK = (30, 41, 59)           # 主文字深色
+    GRAY = (148, 163, 184)        # 次要文字灰色
+    ACCENT_GREEN = (16, 185, 129) # 绿色点缀
+    ACCENT_GOLD = (251, 191, 36)  # 金色点缀
+    LIGHT_BG = (248, 250, 252)    # 浅灰背景区
 
-    img = Image.new("RGB", (W, H), BG_TOP)
-    draw = ImageDraw.Draw(img)
-
-    # 蓝色到绿色渐变背景
-    for y in range(H):
-        if y < H // 3:
-            r = y / (H // 3)
-            c = (int(BG_TOP[0] + (BG_MID[0] - BG_TOP[0]) * r),
-                 int(BG_TOP[1] + (BG_MID[1] - BG_TOP[1]) * r),
-                 int(BG_TOP[2] + (BG_MID[2] - BG_TOP[2]) * r))
-        else:
-            r = (y - H // 3) / (H * 2 // 3)
-            c = (int(BG_MID[0] + (BG_BOTTOM[0] - BG_MID[0]) * r),
-                 int(BG_MID[1] + (BG_BOTTOM[1] - BG_MID[1]) * r),
-                 int(BG_MID[2] + (BG_BOTTOM[2] - BG_MID[2]) * r))
-        draw.line([(0, y), (W, y)], fill=c)
+    img = Image.new("RGB", (W, H), WHITE)
     draw = ImageDraw.Draw(img)
 
     # ===== 字体 =====
@@ -139,8 +123,8 @@ def generate_share_card_image(data: dict) -> bytes:
     # =============================================
     #  [1] 标题 + 轮次（顶部）
     # =============================================
-    draw.text((W // 2, 40), "⚽ 世界杯 AI 预测大赛", fill=ACCENT, font=f_title, anchor="mm")
-    draw.text((W // 2, 80), round_label, fill=WHITE_DIM, font=f_round, anchor="mm")
+    draw.text((W // 2, 40), "\u26bd 世界杯 AI 预测大赛", fill=ACCENT_GREEN, font=f_title, anchor="mm")
+    draw.text((W // 2, 80), round_label, fill=GRAY, font=f_round, anchor="mm")
 
     # =============================================
     #  [2] 国旗 + 队名 + VS
@@ -175,10 +159,10 @@ def generate_share_card_image(data: dict) -> bytes:
             # 无国旗时画半透明占位框
             draw.rounded_rectangle(
                 [(x, y), (x + FLAG_W, y + FLAG_H)],
-                radius=10, outline=WHITE_DIM, width=1
+                radius=10, outline=GRAY, width=1
             )
             draw.text((x + FLAG_W // 2, y + FLAG_H // 2),
-                      "\u26bd", fill=WHITE, font=f_vs, anchor="mm")
+                      "\u26bd", fill=DARK, font=f_vs, anchor="mm")
             return
 
         resized = flag_img_or_none.resize((FLAG_W, FLAG_H), Image.LANCZOS)
@@ -200,13 +184,13 @@ def generate_share_card_image(data: dict) -> bytes:
     # 队名
     name_y = flag_top + FLAG_H + 16
     draw.text((home_flag_x + FLAG_W // 2, name_y), home,
-              fill=WHITE, font=f_name, anchor="mm")
+              fill=DARK, font=f_name, anchor="mm")
     draw.text((away_flag_x + FLAG_W // 2, name_y), away,
-              fill=WHITE, font=f_name, anchor="mm")
+              fill=DARK, font=f_name, anchor="mm")
 
     # VS 文字（正中间）
     draw.text((vs_center_x, flag_top + FLAG_H // 2),
-              "VS", fill=WHITE, font=f_vs, anchor="mm")
+              "VS", fill=GRAY, font=f_vs, anchor="mm")
 
     # =============================================
     #  [3] 时间（队名下方）
@@ -225,7 +209,7 @@ def generate_share_card_image(data: dict) -> bytes:
     else:
         time_str = "待定"
     
-    draw.text((W // 2, meta_y), f"{time_str}", fill=WHITE_DIM, font=f_meta, anchor="mm")
+    draw.text((W // 2, meta_y), f"{time_str}", fill=GRAY, font=f_meta, anchor="mm")
 
     # =============================================
     #  [4] AI 预测结果区
@@ -235,7 +219,7 @@ def generate_share_card_image(data: dict) -> bytes:
     
     if predictions:
         pred_title_y = pred_start_y
-        draw.text((W // 2, pred_title_y), "🤖 AI 预测结果", fill=ACCENT, font=f_pred, anchor="mm")
+        draw.text((W // 2, pred_title_y), "\ud83e\udd16 AI \u9884\u6d4b\u7ed3\u679c", fill=ACCENT_GREEN, font=f_pred, anchor="mm")
         
         pred_item_y = pred_title_y + 40
         for i, pred in enumerate(predictions[:5]):  # 最多显示5个预测
@@ -248,37 +232,33 @@ def generate_share_card_image(data: dict) -> bytes:
             result_text = "主胜" if result == "home_win" else ("平局" if result == "draw" else "客胜")
             
             # 模型名（左）
-            draw.text((80, pred_item_y + i * 50), model_name, fill=WHITE, font=f_pred, anchor="lm")
+            draw.text((80, pred_item_y + i * 50), model_name, fill=DARK, font=f_pred, anchor="lm")
             # 预测结果（中）
-            draw.text((W // 2, pred_item_y + i * 50), result_text, fill=ACCENT, font=f_pred, anchor="mm")
+            draw.text((W // 2, pred_item_y + i * 50), result_text, fill=ACCENT_GREEN, font=f_pred, anchor="mm")
             # 比分（右）
-            draw.text((W - 80, pred_item_y + i * 50), f"{score_h}:{score_a}", fill=WHITE_DIM, font=f_pred, anchor="rm")
+            draw.text((W - 80, pred_item_y + i * 50), f"{score_h}:{score_a}", fill=GRAY, font=f_pred, anchor="rm")
             
             # 分隔线
             if i < len(predictions) - 1 and i < 4:
                 draw.line([(60, pred_item_y + i * 50 + 25), (W - 60, pred_item_y + i * 50 + 25)], 
-                         fill=(255, 255, 255, 50), width=1)
+                         fill=GRAY, width=1)
     
     # =============================================
-    #  [5] 底部标语 + 小程序码
+    #  [5] 底部区域：标语（左）+ 小程序码（右下角）
     # =============================================
-    bottom_y = H - 180
-    
-    # 分割线
-    draw.line([(60, bottom_y), (W - 60, bottom_y)], fill=WHITE_DIM, width=1)
-    
-    # 标语
-    draw.text((W // 2, bottom_y + 35), "AI 预测世界杯", fill=WHITE, font=f_pred, anchor="mm")
-    draw.text((W // 2, bottom_y + 65), "谁才是最强预言家？", fill=WHITE_DIM, font=f_qr, anchor="mm")
-    
-    # 小程序码
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     qr_path = os.path.join(base_dir, "avatars", "mini.jpg")
-    
-    qrsz = 100
-    qrm = 40
-    qx = W // 2 - qrsz // 2
-    qy = bottom_y + 90
+
+    qrsz = 140          # 放大后尺寸
+    qrm = 28            # 右下边距
+    qx = W - qrm - qrsz
+    qy = H - qrm - qrsz
+
+    # 左侧标语（在二维码左边）
+    slogan_cx = qx // 2
+    slogan_y = qy + qrsz // 2
+    draw.text((slogan_cx, slogan_y - 14), "AI \u9884\u6d4b\u4e16\u754c\u676f", fill=DARK, font=f_pred, anchor="mm")
+    draw.text((slogan_cx, slogan_y + 14), "\u8c01\u624d\u662f\u6700\u5f3a\u8a00\u5bb6\uff1f", fill=GRAY, font=f_qr, anchor="mm")
 
     qr_loaded = False
     try:
@@ -291,15 +271,14 @@ def generate_share_card_image(data: dict) -> bytes:
         pass
 
     if not qr_loaded:
-        # 如果加载失败，画一个占位框
         draw.rounded_rectangle(
             [(qx, qy), (qx + qrsz, qy + qrsz)],
-            radius=8, fill=WHITE, outline=WHITE_DIM, width=2
+            radius=12, outline=GRAY, width=2
         )
-        draw.text((qx + qrsz // 2, qy + qrsz // 2 - 8),
-                  "扫码", fill=(100, 100, 100), font=f_qr, anchor="mm")
-        draw.text((qx + qrsz // 2, qy + qrsz // 2 + 12),
-                  "体验", fill=(100, 100, 100), font=f_qr, anchor="mm")
+        draw.text((qx + qrsz // 2, qy + qrsz // 2 - 10),
+                  "\u626b\u7801", fill=GRAY, font=f_qr, anchor="mm")
+        draw.text((qx + qrsz // 2, qy + qrsz // 2 + 14),
+                  "\u4f53\u9a8c", fill=GRAY, font=f_qr, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", quality=95)
