@@ -255,7 +255,7 @@ def generate_share_card_image(data: dict) -> bytes:
     # =============================================
     #  [3] 时间信息条（细横条）
     # =============================================
-    time_y = name_y + 50
+    time_y = name_y + 60
     draw.text((W // 2, time_y), time_str,
               fill=TEXT_SECONDARY, font=f_meta, anchor="mm")
 
@@ -263,7 +263,7 @@ def generate_share_card_image(data: dict) -> bytes:
     #  [4] AI 预测区（卡片容器）
     # =============================================
     card_margin = 28
-    card_top = time_y + 42
+    card_top = time_y + 56
     predictions = data.get("predictions", [])
 
     if predictions:

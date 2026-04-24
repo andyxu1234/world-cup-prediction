@@ -446,6 +446,7 @@ export default function MatchDetail() {
                 className='preview-img'
                 src={shareImgUrl}
                 mode='widthFix'
+                showMenuByLongpress
                 onClick={() => Taro.previewImage({ urls: [shareImgUrl] })}
               />
             )}

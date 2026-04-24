@@ -213,7 +213,7 @@ export default function ShareCardPage() {
         <>
           <View className='share-preview'>
             {imageUrl && (
-              <Image className='share-image' src={imageUrl} mode='widthFix' />
+              <Image className='share-image' src={imageUrl} mode='widthFix' showMenuByLongpress />
             )}
             {!imageUrl && cardData && (
               <View className='share-card'>
