@@ -109,8 +109,18 @@ function MixedRankRow({ item, rank }: { item: MixedRankItem; rank: number }) {
   const isMe = !!item.isMe
   const hasResult = item.total > 0
 
+  const handlePress = () => {
+    if (item.type === 'ai' && item.model_id) {
+      Taro.navigateTo({ url: `/pages/ai-detail/index?modelId=${item.model_id}` })
+    }
+  }
+
   return (
-    <View key={`${item.type}-${item.user_id ?? item.model_id}`} className={`lb-item ${isMe ? 'lb-item-me' : ''} ${rank <= 3 && !isMe ? 'lb-item-top3' : ''}`}>
+    <View
+      key={`${item.type}-${item.user_id ?? item.model_id}`}
+      className={`lb-item ${isMe ? 'lb-item-me' : ''} ${rank <= 3 && !isMe ? 'lb-item-top3' : ''} ${item.type === 'ai' ? 'lb-item-clickable' : ''}`}
+      onClick={handlePress}
+    >
       <View className='lb-rank'>
         <Text className='lb-rank-badge'>#{rank}</Text>
       </View>
@@ -290,7 +300,7 @@ export default function Leaderboard() {
             const hasResult = entry.total > 0
             const rank = idx + 1
             return (
-              <View key={idx} className={`lb-item ${rank <= 3 ? 'lb-item-top3' : ''}`}>
+              <View key={idx} className={`lb-item ${rank <= 3 ? 'lb-item-top3' : ''} lb-item-clickable`} onClick={() => Taro.navigateTo({ url: `/pages/ai-detail/index?modelId=${entry.model_id}` })}>
                 <View className='lb-rank'>
                   <Text className='lb-rank-badge'>#{rank}</Text>
                 </View>

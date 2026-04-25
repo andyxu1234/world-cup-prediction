@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage } from '@tarojs/taro'
 import {
@@ -36,7 +36,7 @@ function formatTime(iso: string | null | undefined): string {
 
 const FLAG_MAP: Record<string, string> = {
   'Brazil': '🇧🇷', 'Germany': '🇩🇪', 'Argentina': '🇦🇷', 'France': '🇫🇷',
-  'Mexico': '🇲🇽', 'Japan': '🇯🇵', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'USA': '🇺🇸',
+  'Mexico': '🇲🇽', 'Japan': '🇯🇵', 'England': '🏴', 'USA': '🇺🇸',
   'Spain': '🇪🇸', 'Portugal': '🇵🇹', 'Italy': '🇮🇹', 'Netherlands': '🇳🇱',
 }
 
@@ -63,6 +63,26 @@ export default function ShareCardPage() {
   const [inviteImageUrl, setInviteImageUrl] = useState('')
   const [nickname, setNickname] = useState('预言家')
   const [avatarDisplay, setAvatarDisplay] = useState('')
+
+  // 长按定时器（绕开 Taro onLongPress 编译问题）
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressImgUrl = useRef<string>('')
+
+  /** 手动长按检测：touchstart 开始计时 */
+  const handleTouchStart = (imgUrl: string) => {
+    longPressImgUrl.current = imgUrl
+    longPressTimer.current = setTimeout(() => {
+      handleLongPressSave(imgUrl)
+    }, 500)
+  }
+
+  /** touchend / touchcancel 取消计时 */
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
 
   useEffect(() => {
     if (mode === 'match' && matchId > 0) {
@@ -166,9 +186,11 @@ export default function ShareCardPage() {
           })
         }
       },
-      fail: () => {
-        // 用户取消操作
-        console.log('用户取消操作')
+      fail: (err) => {
+        // 用户取消操作（正常行为，不提示）
+        if (!err?.errMsg?.includes('cancel')) {
+          console.error('showActionSheet fail:', err)
+        }
       },
     })
   }
@@ -214,16 +236,13 @@ export default function ShareCardPage() {
           {/* 卡片预览 */}
           <View className='share-preview invite-preview'>
             {inviteImageUrl && (
-              <View 
-                className='share-image-wrapper'
-                onLongPress={() => handleLongPressSave(inviteImageUrl)}
-              >
-                <Image
-                  className='share-image invite-image'
-                  src={inviteImageUrl}
-                  mode='widthFix'
-                />
-              </View>
+              <View
+                className='share-image-wrapper share-bg-image'
+                style={{ backgroundImage: `url(${inviteImageUrl})` }}
+                onTouchStart={() => handleTouchStart(inviteImageUrl)}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+              />
             )}
             {!inviteImageUrl && (
               <View className='invite-fallback'>
@@ -297,16 +316,13 @@ export default function ShareCardPage() {
         <>
           <View className='share-preview'>
             {imageUrl && (
-              <View 
-                className='share-image-wrapper'
-                onLongPress={() => handleLongPressSave(imageUrl)}
-              >
-                <Image
-                  className='share-image'
-                  src={imageUrl}
-                  mode='widthFix'
-                />
-              </View>
+              <View
+                className='share-image-wrapper share-bg-image'
+                style={{ backgroundImage: `url(${imageUrl})` }}
+                onTouchStart={() => handleTouchStart(imageUrl)}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+              />
             )}
             {!imageUrl && cardData && (
               <View className='share-card'>

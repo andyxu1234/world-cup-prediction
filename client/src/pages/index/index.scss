@@ -113,6 +113,26 @@
   backdrop-filter: blur(10px);
   border-radius: 14px;
   padding: 10px 6px 8px;
+
+  &.hero-stat-clickable {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    &:active {
+      opacity: 0.75;
+    }
+  }
 }
 
 .hero-stat-num {

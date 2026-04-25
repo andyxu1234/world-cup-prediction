@@ -8,6 +8,7 @@ export default defineAppConfig({
     'pages/profile-setup/index',
     'pages/share-card/index',
     'pages/vote-history/index',
+    'pages/ai-detail/index',
     'pages/about/index'
   ],
   window: {

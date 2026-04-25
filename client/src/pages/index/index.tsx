@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useMatchStore, useUserStore } from '@/stores'
+import { useMatchStore, useUserStore, useLeaderboardStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
 
@@ -83,7 +83,13 @@ export default function Index() {
   useEffect(() => {
     if (!loginReady) return
     const params: any = {}
-    if (activeChip === '已结束') params.status = 'finished'
+    // 已结束：只展示所有已完成的比赛（不限轮次、不限日期）
+    if (activeChip === '已结束') {
+      params.status = 'finished'
+    } else {
+      // 其余标签：全部排除已结束的比赛，只显示未开始/进行中的比赛
+      params.status_not = 'finished'
+    }
     if (activeChip === '小组赛') params.round = ['Group Stage - 1', 'Group Stage - 2', 'Group Stage - 3']
     if (activeChip === '淘汰赛') params.round = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', '3rd Place Final', 'Final']
     if (activeChip === '今日') params.date = new Date().toISOString().slice(0, 10)
@@ -119,15 +125,33 @@ export default function Index() {
             <Text className='hero-stat-num'>104</Text>
             <Text className='hero-stat-label'>总场次</Text>
           </View>
-          <View className='hero-stat'>
+          <View
+            className='hero-stat hero-stat-clickable'
+            onClick={() => {
+              useLeaderboardStore.getState().setActiveTab('ai')
+              Taro.switchTab({ url: '/pages/leaderboard/index' })
+            }}
+          >
             <Text className='hero-stat-num'>{homeStats?.active_ai_models ?? '--'}</Text>
-            <Text className='hero-stat-label'>AI 选手</Text>
+            <Text className='hero-stat-label'>AI 模型</Text>
           </View>
-          <View className='hero-stat'>
+          <View
+            className='hero-stat hero-stat-clickable'
+            onClick={() => {
+              useLeaderboardStore.getState().setActiveTab('ai')
+              Taro.switchTab({ url: '/pages/leaderboard/index' })
+            }}
+          >
             <Text className='hero-stat-num'>{homeStats?.total_predictions ?? '--'}</Text>
             <Text className='hero-stat-label'>AI预测总数</Text>
           </View>
-          <View className='hero-stat'>
+          <View
+            className='hero-stat hero-stat-clickable'
+            onClick={() => {
+              useLeaderboardStore.getState().setActiveTab('human')
+              Taro.switchTab({ url: '/pages/leaderboard/index' })
+            }}
+          >
             <Text className='hero-stat-num'>{formatVoteCount(homeStats?.total_user_predictions ?? 0)}</Text>
             <Text className='hero-stat-label'>人类预测总场次</Text>
           </View>

@@ -93,7 +93,11 @@ export default function Profile() {
       Taro.showToast({ title: '请先填写昵称', icon: 'none' })
       return
     }
-    const finalAvatar = avatarUrl || ''
+    const finalAvatar = avatarUrl || (user?.avatar_url || '')
+    if (!finalAvatar) {
+      Taro.showToast({ title: '请先选择头像', icon: 'none' })
+      return
+    }
     const uid = user!.id
     setSaving(true)
     try {
@@ -133,9 +137,14 @@ export default function Profile() {
 
   const isLoggedIn = !!user && !!token
   const hasProfile = !!isLoggedIn && !!profileSetup
-  const displayAvatar = resolveAvatarUrl(hasProfile ? (user!.avatar_url || '') : avatarUrl)
+  // 编辑模式下优先显示刚选的头像，否则用已有头像
+  const displayAvatar = editing
+    ? resolveAvatarUrl(avatarUrl || (user?.avatar_url || ''))
+    : resolveAvatarUrl(user?.avatar_url || '')
   const displayName = hasProfile ? (user!.nickname || '微信用户') : (nickname || '微信用户')
-  const canSave = nickname.trim().length > 0
+  // 保存条件：昵称不为空 且 有头像（新选的 或 已有的均可）
+  const hasAvatar = avatarUrl.length > 0 || (user?.avatar_url?.length > 0)
+  const canSave = nickname.trim().length > 0 && hasAvatar
 
   return (
     <View className='profile-page'>
@@ -185,10 +194,12 @@ export default function Profile() {
               className={`prof-save-btn ${canSave && !saving ? 'ready' : ''}`}
               onClick={canSave && !saving ? handleSaveProfile : undefined}
             >
-              <Text>{saving ? '保存中...' : canSave ? '✓ 保存' : '请填写昵称'}</Text>
+              <Text>{saving ? '保存中...' : '保存'}</Text>
             </View>
 
-            <Text className='prof-edit-tip'>填写昵称即可保存，选择头像更佳</Text>
+            {!canSave && (
+              <Text className='prof-edit-tip'>{hasAvatar ? '请填写昵称' : '请选择头像并填写昵称'}</Text>
+            )}
           </View>
         )}
 
@@ -209,9 +220,9 @@ export default function Profile() {
       </View>
 
       <View className='prof-stats'>
-        <View className='prof-stat'>
+        <View className='prof-stat prof-stat-clickable' onClick={() => Taro.navigateTo({ url: '/pages/vote-history/index' })}>
           <Text className='prof-stat-num mono'>{isLoggedIn ? (user?.total_votes ?? 0) : '-'}</Text>
-          <Text className='prof-stat-label'>已投票</Text>
+          <Text className='prof-stat-label'>已预测</Text>
         </View>
         <View className='prof-stat-divider' />
         <View className='prof-stat'>

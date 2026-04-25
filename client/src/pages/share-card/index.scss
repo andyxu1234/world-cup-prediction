@@ -52,11 +52,25 @@
   width: 100%;
   max-width: 630px;
   display: block;
-  
+
   // 添加按压反馈效果
   &:active {
     opacity: 0.8;
   }
+}
+
+// 用 View + backgroundImage 替代 Image 组件（绕开微信原生图片长按菜单）
+.share-bg-image {
+  width: 100%;
+  max-width: 630px;
+  border-radius: 24px;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  // 保持图片宽高比，高度由 padding-top 撑开
+  aspect-ratio: auto / 1.55;
 }
 
 .share-image {

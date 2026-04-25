@@ -385,6 +385,16 @@
 .metric-pending { color: #d1d5db; }     // 待评估：灰
 .metric-none   { color: #f3f4f6; }      // 无数据：极浅灰
 
+// ── AI 模型可点击跳转详情页 ────────────────────────────
+.lb-item-clickable {
+  cursor: pointer;
+
+  &:active {
+    background: #f8fafc;
+    transform: scale(0.99);
+  }
+}
+
 // ── 人类用户排行（当前用户高亮 + 分割线）────────────
 .lb-item-me {
   border-color: rgba(16, 185, 129, 0.25) !important;

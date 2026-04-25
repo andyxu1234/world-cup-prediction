@@ -144,12 +144,13 @@ export interface Prediction {
   created_at: string | null
 }
 
-export function getMatches(params?: { status?: string; round?: string[] | string; date?: string }) {
+export function getMatches(params?: { status?: string; status_not?: string; round?: string[] | string; date?: string }) {
   // 手动构建 query string，确保数组参数正确序列化为 ?round=xxx&round=yyy
   let qs = ''
   if (params) {
     const parts: string[] = []
     if (params.status) parts.push(`status=${encodeURIComponent(params.status)}`)
+    if (params.status_not) parts.push(`status_not=${encodeURIComponent(params.status_not)}`)
     if (params.round) {
       const rounds = Array.isArray(params.round) ? params.round : [params.round]
       rounds.forEach(r => parts.push(`round=${encodeURIComponent(r)}`))
@@ -275,8 +276,50 @@ export function getAILeaderboard(round?: string) {
   return request<AILeaderboardItem[]>({ url: '/leaderboard/ai', data: round ? { round } : {} })
 }
 
-export function getHumanLeaderboard(userId?: number) {
-  return request<HumanLeaderboardOut>({ url: '/leaderboard/human', data: userId ? { user_id: userId } : {} })
+export interface AIDetailPrediction {
+  prediction_id: number
+  match_id: number
+  round: string
+  match_time: string | null
+  match_status: string
+  home_team_name: string
+  home_team_flag: string | null
+  away_team_name: string
+  away_team_flag: string | null
+  match_result: string | null
+  match_home_score: number | null
+  match_away_score: number | null
+  predicted_result: string
+  predicted_home_score: number | null
+  predicted_away_score: number | null
+  is_correct_result: boolean | null
+  is_correct_score: boolean | null
+  confidence: number | null
+  created_at: string | null
+}
+
+export interface AIDetailOut {
+  model_id: number
+  name: string
+  avatar_url: string | null
+  style_tags: Record<string, any> | null
+  total_predictions: number
+  correct_results: number
+  result_accuracy: float
+  correct_scores: number
+  score_accuracy: float
+  predictions: AIDetailPrediction[]
+}
+
+export function getAIDetail(modelId: number) {
+  return request<AIDetailOut>({ url: `/leaderboard/ai/${modelId}` })
+}
+
+export function getHumanLeaderboard(userId?: number, round?: string) {
+  const data: Record<string, any> = {}
+  if (userId) data.user_id = userId
+  if (round) data.round = round
+  return request<HumanLeaderboardOut>({ url: '/leaderboard/human', data })
 }
 
 /** 上传头像文件，返回永久 URL */

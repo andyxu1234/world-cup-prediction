@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from sqlalchemy import select, func, case
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.team import Team
 from app.models.prediction import Prediction
 from app.models.ai_model import AIModel
 from app.models.user_vote import UserVote
@@ -66,8 +68,12 @@ async def get_ai_leaderboard(
         .where(Prediction.is_correct_result.isnot(None))
     )
 
-    if round_filter != "全部":
-        query = query.where(Match.round == round_filter)
+    if round_filter and round_filter != "全部":
+        rounds = [r.strip() for r in round_filter.split(",") if r.strip()]
+        if len(rounds) == 1:
+            query = query.where(Match.round == rounds[0])
+        elif len(rounds) > 1:
+            query = query.where(Match.round.in_(rounds))
 
     # 层级排序：主排字段 → 副排字段 → 总票数
     main_col = func.sum(case((Prediction.is_correct_result == True, 1), else_=0)) / func.count(Prediction.id)
@@ -112,10 +118,11 @@ async def get_ai_leaderboard(
     return leaderboard
 
 
-@cached(leaderboard_cache, key_fn=lambda db, current_user_id=None: f"human_leaderboard:{current_user_id or 'none'}")
-async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = None) -> dict:
+@cached(leaderboard_cache, key_fn=lambda db, current_user_id=None, round_filter="全部": f"human_leaderboard:{current_user_id or 'none'}:{round_filter}")
+async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = None, round_filter: str = "全部") -> dict:
     """人机排行榜：用户群体 vs 各 AI + 人类 Top 用户排行"""
     from app.models.user import User
+    from app.models.match import Match
 
     # 用户群体统计
     vote_stats = (
@@ -124,8 +131,15 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
             func.sum(case((UserVote.is_correct_result == True, 1), else_=0)).label("correct_result"),
             func.sum(case((UserVote.is_correct_score == True, 1), else_=0)).label("correct_score"),
         )
+        .join(Match, Match.id == UserVote.match_id)
         .where(UserVote.is_correct_result.isnot(None))
     )
+    if round_filter and round_filter != "全部":
+        rounds = [r.strip() for r in round_filter.split(",") if r.strip()]
+        if len(rounds) == 1:
+            vote_stats = vote_stats.where(Match.round == rounds[0])
+        elif len(rounds) > 1:
+            vote_stats = vote_stats.where(Match.round.in_(rounds))
     vote_result = await db.execute(vote_stats)
     vote_row = vote_result.one()
 
@@ -153,15 +167,20 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
             func.sum(case((UserVote.is_correct_score == True, 1), else_=0)).label("correct_score"),
         )
         .join(UserVote, UserVote.user_id == User.id)
+        .join(Match, Match.id == UserVote.match_id)
         .where(UserVote.is_correct_result.isnot(None))
-        .group_by(User.id)
-        .order_by(
-            (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(UserVote.id)).desc(),
-            (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(UserVote.id)).desc(),
-            func.count(UserVote.id).desc(),
-        )
-        .limit(50)
     )
+    if round_filter and round_filter != "全部":
+        rounds = [r.strip() for r in round_filter.split(",") if r.strip()]
+        if len(rounds) == 1:
+            user_query = user_query.where(Match.round == rounds[0])
+        elif len(rounds) > 1:
+            user_query = user_query.where(Match.round.in_(rounds))
+    user_query = user_query.group_by(User.id).order_by(
+        (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(UserVote.id)).desc(),
+        (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(UserVote.id)).desc(),
+        func.count(UserVote.id).desc(),
+    ).limit(50)
     user_result = await db.execute(user_query)
     user_rows = user_result.all()
 
@@ -232,13 +251,94 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
             )
             my_rank["_rank"] = rank_val
 
-    # AI 模型统计
-    ai_leaderboard = await get_ai_leaderboard(db)
+    # AI 模型统计（使用相同的 round_filter）
+    ai_leaderboard = await get_ai_leaderboard(db, round_filter=round_filter)
 
     return {
         "human": human,
         "ai_models": ai_leaderboard,
         "top_users": user_ranking,
         "my_rank": my_rank,
+    }
+
+
+@cached(leaderboard_cache, key_fn=lambda db, model_id=0: f"ai_model_detail:{model_id}")
+async def get_ai_model_detail(db: AsyncSession, model_id: int) -> dict:
+    """AI 模型预测详情：模型统计 + 所有预测记录"""
+    from app.models.user import User
+    from app.models.match import Match
+
+    # 获取模型信息
+    model_stmt = select(AIModel).where(AIModel.id == model_id)
+    model_result = await db.execute(model_stmt)
+    ai_model = model_result.scalar_one_or_none()
+    if not ai_model:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="AI 模型不存在")
+
+    # 模型统计（所有已出结果的预测）
+    pred_stats = (
+        select(
+            func.count(Prediction.id).label("total"),
+            func.sum(case((Prediction.is_correct_result == True, 1), else_=0)).label("correct_result"),
+            func.sum(case((Prediction.is_correct_score == True, 1), else_=0)).label("correct_score"),
+        )
+        .where(Prediction.model_id == model_id)
+        .where(Prediction.is_correct_result.isnot(None))
+    )
+    stats_row = (await db.execute(pred_stats)).one()
+    total = stats_row.total or 0
+    correct_result = stats_row.correct_result or 0
+    correct_score = stats_row.correct_score or 0
+
+    # 查询该模型的所有预测记录（带比赛详情）
+    HomeTeam = aliased(Team)
+    AwayTeam = aliased(Team)
+    pred_list_stmt = (
+        select(Prediction, Match, HomeTeam, AwayTeam)
+        .join(Match, Match.id == Prediction.match_id)
+        .join(HomeTeam, Match.home_team_id == HomeTeam.id)
+        .join(AwayTeam, Match.away_team_id == AwayTeam.id)
+        .where(Prediction.model_id == model_id)
+        .order_by(Match.match_time.desc())
+    )
+    pred_rows = (await db.execute(pred_list_stmt)).all()
+
+    predictions = []
+    for row in pred_rows:
+        pred, match, home, away = row
+        predictions.append({
+            "prediction_id": pred.id,
+            "match_id": pred.match_id,
+            "round": match.round or "",
+            "match_time": match.match_time.isoformat() if match.match_time else None,
+            "match_status": match.status.value if match.status else "",
+            "home_team_name": home.cn_name or home.name or "",
+            "home_team_flag": _clean_avatar_url(home.flag_url),
+            "away_team_name": away.cn_name or away.name or "",
+            "away_team_flag": _clean_avatar_url(away.flag_url),
+            "match_result": match.result.value if match.result else None,
+            "match_home_score": match.home_score,
+            "match_away_score": match.away_score,
+            "predicted_result": str(pred.result),
+            "predicted_home_score": pred.score_home,
+            "predicted_away_score": pred.score_away,
+            "is_correct_result": pred.is_correct_result,
+            "is_correct_score": pred.is_correct_score,
+            "confidence": float(pred.confidence) if pred.confidence else None,
+            "created_at": pred.created_at.isoformat() if pred.created_at else None,
+        })
+
+    return {
+        "model_id": ai_model.id,
+        "name": ai_model.name,
+        "avatar_url": ai_model.avatar_url,
+        "style_tags": ai_model.style_tags,
+        "total_predictions": total,
+        "correct_results": correct_result,
+        "result_accuracy": round(correct_result / total * 100, 1) if total > 0 else 0,
+        "correct_scores": correct_score,
+        "score_accuracy": round(correct_score / total * 100, 1) if total > 0 else 0,
+        "predictions": predictions,
     }
 

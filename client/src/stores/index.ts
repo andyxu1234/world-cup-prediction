@@ -65,6 +65,17 @@ export const useMatchStore = create<MatchState>((set) => ({
 
 // ==================== 排行榜状态 ====================
 
+/** 中文轮次标签 → 数据库实际 round 英文值 */
+const LEADERBOARD_ROUND_MAP: Record<string, string> = {
+  '小组赛': 'Group Stage - 1,Group Stage - 2,Group Stage - 3',
+  '淘汰赛': 'Round of 32,Round of 16,Quarter-finals,Semi-finals,3rd Place Final,Final',
+}
+
+/** 解析排行榜 activeRound 为 API 需要的英文 round 字符串 */
+function resolveLeaderboardRound(activeRound: string): string {
+  return LEADERBOARD_ROUND_MAP[activeRound] || ''
+}
+
 interface LeaderboardState {
   activeTab: 'ai' | 'human'
   activeRound: string
@@ -249,10 +260,11 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
 
   fetchLeaderboard: async () => {
     const { activeTab, activeRound, sortBy, sortOrder } = get()
+    const resolvedRound = resolveLeaderboardRound(activeRound)
     set({ loading: true })
     try {
       if (activeTab === 'ai') {
-        const rawEntries = await api.getAILeaderboard(activeRound)
+        const rawEntries = await api.getAILeaderboard(resolvedRound)
         set({
           entries: applySort(rawEntries as AILeaderboardItem[], sortBy, sortOrder),
           humanData: null,
@@ -262,7 +274,7 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
         })
       } else {
         const userId = useUserStore.getState().user?.id
-        const humanData = await api.getHumanLeaderboard(userId)
+        const humanData = await api.getHumanLeaderboard(userId, resolvedRound)
         const sortedAis = applySort(humanData.ai_models as AILeaderboardItem[], sortBy, sortOrder)
         const sortedUsers = applyUserSort(humanData.top_users as HumanUserRankItem[], sortBy, sortOrder)
         const mixed = buildMixedRank(sortedUsers, sortedAis, humanData.my_rank ?? null, userId, sortBy, sortOrder)

@@ -1,0 +1,323 @@
+// Variables injected globally via sass.data
+
+.ai-detail-page {
+  min-height: 100vh;
+  background: $bg-primary;
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  flex-direction: column;
+}
+
+// ==================== Hero 区域 — 深蓝科技风 ====================
+
+.ad-hero {
+  margin: 10px 28px 16px;
+  padding: 32px 30px 28px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 40%, #0f172a 100%);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(30, 58, 95, 0.35);
+}
+
+.ad-hero-glow {
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+@keyframes adHeroPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.06); }
+}
+
+.ad-hero-model {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.ad-av {
+  width: 88rpx !important;
+  height: 88rpx !important;
+  font-size: 36rpx !important;
+  border-radius: 22rpx !important;
+  flex-shrink: 0;
+}
+
+.ad-hero-info {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ad-hero-name {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #e2e8f0;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ad-hero-sub {
+  font-size: 22rpx;
+  color: rgba(148, 163, 184, 0.75);
+  font-weight: 500;
+}
+
+.ad-hero-stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+  margin-top: 18px;
+}
+
+.ad-hero-stat {
+  flex: 1;
+  min-width: 72px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  padding: 12px 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ad-hero-stat-num {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 34rpx;
+  font-weight: 900;
+  color: #818cf8;
+  display: block;
+  line-height: 1.2;
+}
+
+.ad-hero-stat-label {
+  font-size: 17rpx;
+  color: rgba(148, 163, 184, 0.7);
+  margin-top: 2px;
+}
+
+// ==================== 列表区域 ====================
+
+.ad-list {
+  padding: 0 0 30px;
+  height: calc(100vh - 360px);
+}
+
+// ==================== 预测卡片 ====================
+
+.ad-card {
+  margin: 10px 28px 12px;
+  padding: 24px 28px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+}
+
+.ad-card-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.ad-round {
+  font-size: 19rpx;
+  color: $text3;
+  font-weight: 500;
+}
+
+.ad-badges {
+  display: flex;
+  gap: 6px;
+}
+
+// 球队
+.ad-teams {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ad-team {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-team-flag {
+  width: 80px;
+  height: 54px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ad-flag-fb {
+  width: 80px;
+  height: 54px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.ad-team-name {
+  font-size: 23rpx;
+  font-weight: 700;
+  color: $text1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+// 比分区
+.ad-score-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.ad-score {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 46rpx;
+  font-weight: 900;
+  color: $green;
+  line-height: 1;
+}
+
+.ad-score-label {
+  font-size: 17rpx;
+  color: $text3;
+}
+
+.ad-vs {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 26rpx;
+  font-weight: 800;
+  color: $text3;
+}
+
+.ad-status-label {
+  font-size: 17rpx;
+  color: $text3;
+}
+
+// 卡片底部
+.ad-card-ft {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.ad-prediction {
+  font-size: 20rpx;
+  color: $text2;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ad-time-wrapper {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  margin-left: 12px;
+}
+
+.ad-time-label {
+  font-size: 20rpx;
+  color: $text2;
+  margin-right: 4px;
+}
+
+.ad-time {
+  font-size: 20rpx;
+  color: #6366f1;
+  font-weight: 600;
+}
+
+// ==================== 徽章 ====================
+
+.ad-badge {
+  font-size: 18rpx;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+
+  &.tag-score {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+
+  &.tag-result {
+    background: rgba(99, 102, 241, 0.1);
+    color: #4f46e5;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  &.tag-wrong {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+
+  &.tag-pending {
+    background: rgba(148, 163, 184, 0.1);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+}
+
+// ==================== 空状态 / 加载 ====================
+
+.ad-empty {
+  text-align: center;
+  padding: 80px 40px;
+}
+
+.ad-empty-icon {
+  font-size: 80px;
+  display: block;
+  margin-bottom: 20px;
+  opacity: 0.45;
+}
+
+.ad-empty-text {
+  font-size: 24rpx;
+  color: $text3;
+}
+
+.ad-loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: $text3;
+  font-size: 24rpx;
+}

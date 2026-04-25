@@ -45,6 +45,7 @@ async def get_home_stats(db: AsyncSession = Depends(get_db)):
 async def get_matches(
     round: Optional[List[str]] = Query(None, description="轮次筛选，支持多个，如 ?round=Group+Stage+-1&round=Round+of+16"),
     status: Optional[str] = Query(None, description="状态筛选"),
+    status_not: Optional[str] = Query(None, description="状态排除筛选（排除指定状态）"),
     date: Optional[str] = Query(None, description="日期筛选，格式 YYYY-MM-DD"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -62,6 +63,8 @@ async def get_matches(
         stmt = stmt.where(Match.round.in_(round))
     if status:
         stmt = stmt.where(Match.status == status)
+    if status_not:
+        stmt = stmt.where(Match.status != status_not)
     if date:
         # match_time 是 datetime 类型，用 DATE() 函数按天匹配
         from sqlalchemy import func, cast

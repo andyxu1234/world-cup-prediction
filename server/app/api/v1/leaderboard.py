@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from app.database import get_db
-from app.schemas.leaderboard import AILeaderboardItem, HumanLeaderboardOut
-from app.services.leaderboard_calc import get_ai_leaderboard, get_human_leaderboard
+from app.schemas.leaderboard import AILeaderboardItem, HumanLeaderboardOut, AIDetailOut
+from app.services.leaderboard_calc import get_ai_leaderboard, get_human_leaderboard, get_ai_model_detail
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
@@ -27,8 +27,18 @@ async def ai_leaderboard(
 @router.get("/human", response_model=HumanLeaderboardOut)
 async def human_leaderboard(
     user_id: int | None = Query(None, description="当前用户ID（可选，用于返回我的排名）"),
+    round: str = Query("全部", description="轮次筛选"),
     db: AsyncSession = Depends(get_db),
 ):
     """人机排行榜"""
-    return await get_human_leaderboard(db, current_user_id=user_id)
+    return await get_human_leaderboard(db, current_user_id=user_id, round_filter=round)
+
+
+@router.get("/ai/{model_id}", response_model=AIDetailOut)
+async def ai_model_detail(
+    model_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """AI 模型预测详情"""
+    return await get_ai_model_detail(db, model_id=model_id)
 
