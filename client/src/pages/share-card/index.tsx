@@ -18,9 +18,26 @@ const MODEL_COLORS: Record<string, { gradient: string; letter: string }> = {
   'GPT': { gradient: 'linear-gradient(135deg, #2563eb, #60a5fa)', letter: 'G' },
 }
 
+const ROUND_CN_MAP: Record<string, string> = {
+  'Group Stage - 1': '小组赛第1轮',
+  'Group Stage - 2': '小组赛第2轮',
+  'Group Stage - 3': '小组赛第3轮',
+  'Round of 32': '三十二强赛',
+  'Round of 16': '十六强赛',
+  'Quarter-finals': '四分之一决赛',
+  'Semi-finals': '半决赛',
+  '3rd Place Final': '季军赛',
+  'Final': '决赛',
+}
+
+function getRoundLabel(round: string): string {
+  return ROUND_CN_MAP[round] || round
+}
+
 function getResultLabel(result: string) {
-  if (result === 'home_win') return { text: '主胜', cls: 'pred-home' }
-  if (result === 'draw') return { text: '平局', cls: 'pred-draw' }
+  const key = result.replace('PredictionResult.', '')
+  if (key === 'home_win') return { text: '主胜', cls: 'pred-home' }
+  if (key === 'draw') return { text: '平局', cls: 'pred-draw' }
   return { text: '客胜', cls: 'pred-away' }
 }
 
@@ -29,9 +46,13 @@ function formatTime(iso: string | null | undefined): string {
   const d = new Date(iso)
   const month = d.getMonth() + 1
   const day = d.getDate()
-  const hour = d.getHours().toString().padStart(2, '0')
+  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const weekday = weekDays[d.getDay()]
+  const hour24 = d.getHours()
   const min = d.getMinutes().toString().padStart(2, '0')
-  return `${month}月${day}日 ${hour}:${min}`
+  const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
+  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+  return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${min}`
 }
 
 const FLAG_MAP: Record<string, string> = {
@@ -339,7 +360,7 @@ export default function ShareCardPage() {
                       <Text className='share-card-team-name'>{cardData.away_team}</Text>
                     </View>
                   </View>
-                  <Text className='share-card-meta'>{cardData.round} · {formatTime(cardData.match_time)}</Text>
+                  <Text className='share-card-meta'>{getRoundLabel(cardData.round)} · {formatTime(cardData.match_time)}</Text>
                 </View>
                 <View className='share-card-body'>
                   {cardData.predictions?.map((pred: any, idx: number) => {

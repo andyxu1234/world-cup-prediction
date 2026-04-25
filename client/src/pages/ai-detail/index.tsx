@@ -45,13 +45,31 @@ function ModelAvatar({ name, size = '' }: { name: string; size?: string }) {
   return <View className={`model-av ${size}`} style={{ background: fb.gradient }}>{fb.letter}</View>
 }
 
+const ROUND_CN_MAP: Record<string, string> = {
+  'Group Stage - 1': '小组赛第1轮',
+  'Group Stage - 2': '小组赛第2轮',
+  'Group Stage - 3': '小组赛第3轮',
+  'Round of 32': '三十二强赛',
+  'Round of 16': '十六强赛',
+  'Quarter-finals': '四分之一决赛',
+  'Semi-finals': '半决赛',
+  '3rd Place Final': '季军赛',
+  'Final': '决赛',
+}
+
+function getRoundLabel(round: string): string {
+  return ROUND_CN_MAP[round] || round
+}
+
 function getResultLabel(result: string): string {
+  // 处理枚举值（如 PredictionResult.home_win）和短值（home_win）
+  const key = result.replace('PredictionResult.', '')
   const map: Record<string, string> = {
     home_win: '主胜',
     away_win: '客胜',
     draw: '平局',
   }
-  return map[result] ?? result
+  return map[key] ?? key
 }
 
 function getStatusBadge(item: AIDetailPrediction) {
@@ -72,9 +90,13 @@ function formatTime(iso: string | null): string {
   const d = new Date(iso)
   const month = d.getMonth() + 1
   const day = d.getDate()
-  const hour = d.getHours().toString().padStart(2, '0')
+  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const weekday = weekDays[d.getDay()]
+  const hour24 = d.getHours()
   const min = d.getMinutes().toString().padStart(2, '0')
-  return `${month}月${day}日 ${hour}:${min}`
+  const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
+  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+  return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${min}`
 }
 
 export default function AIDetail() {
@@ -137,19 +159,15 @@ export default function AIDetail() {
         <View className='ad-hero-stats'>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.total_predictions}</Text>
-            <Text className='ad-hero-stat-label'>总预测</Text>
-          </View>
-          <View className='ad-hero-stat'>
-            <Text className='ad-hero-stat-num'>{detail.correct_results}</Text>
-            <Text className='ad-hero-stat-label'>胜负正确</Text>
-          </View>
-          <View className='ad-hero-stat'>
-            <Text className='ad-hero-stat-num'>{detail.correct_scores}</Text>
-            <Text className='ad-hero-stat-label'>比分命中</Text>
+            <Text className='ad-hero-stat-label'>预测场次</Text>
           </View>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.result_accuracy}%</Text>
             <Text className='ad-hero-stat-label'>胜率</Text>
+          </View>
+          <View className='ad-hero-stat'>
+            <Text className='ad-hero-stat-num'>{detail.score_accuracy}%</Text>
+            <Text className='ad-hero-stat-label'>比分命中率</Text>
           </View>
         </View>
       </View>
@@ -167,7 +185,7 @@ export default function AIDetail() {
             return (
               <View key={item.prediction_id} className='ad-card'>
                 <View className='ad-card-hd'>
-                  <Text className='ad-round'>{item.round}</Text>
+                  <Text className='ad-round'>{getRoundLabel(item.round)}</Text>
                   <View className='ad-badges'>
                     <Text className={`ad-badge ${badge.className}`}>{badge.text}</Text>
                   </View>

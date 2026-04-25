@@ -205,7 +205,11 @@ export default function Profile() {
 
         {/* 已完善资料 → 展示模式 */}
         {isLoggedIn && !editing && (
-          <View className='prof-hd-center' onClick={() => setEditing(true)}>
+          <View className='prof-hd-center' onClick={() => {
+            setNickname(user?.nickname || '')
+            setAvatarUrl('')
+            setEditing(true)
+          }}>
             <View className='prof-av prof-av-clickable'>
               {displayAvatar ? (
                 <Image className='prof-avatar-img' src={displayAvatar} mode='aspectFill' />

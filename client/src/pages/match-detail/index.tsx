@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, Input, ScrollView, Image } from '@tarojs/components'
+import { View, Text, Input, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage } from '@tarojs/taro'
 import { useMatchStore, useUserStore } from '@/stores'
 import { getShareCardImage } from '@/services/api'
@@ -157,30 +157,69 @@ export default function MatchDetail() {
     setShowSharePreview(false)
   }
 
-  // 长按图片 → 保存到相册
-  const handleLongPressSave = (imgUrl: string) => {
-    Taro.showActionSheet({
-      itemList: ['保存图片到相册'],
-      success: () => {
-        Taro.showLoading({ title: '保存中...' })
-        Taro.downloadFile({
-          url: imgUrl,
-          success: (res) => {
-            if (res.statusCode === 200) {
-              Taro.saveImageToPhotosAlbum({
-                filePath: res.tempFilePath,
-                success: () => { Taro.hideLoading(); Taro.showToast({ title: '已保存', icon: 'success' }) },
-                fail: () => { Taro.hideLoading(); Taro.showToast({ title: '保存失败', icon: 'none' }) },
-              })
-            } else {
-              Taro.hideLoading()
-              Taro.showToast({ title: '下载失败', icon: 'none' })
-            }
-          },
-          fail: () => { Taro.hideLoading(); Taro.showToast({ title: '下载失败', icon: 'none' }) },
-        })
+  // 长按图片 → 弹出自定义底部操作面板（含真正的分享按钮）
+  const [showLongPressMenu, setShowLongPressMenu] = useState(false)
+  const handleLongPressSave = (_imgUrl: string) => {
+    setShowLongPressMenu(true)
+  }
+
+  // 关闭长按菜单
+  const handleCloseLongPressMenu = () => {
+    setShowLongPressMenu(false)
+  }
+
+  // 保存到相册
+  const handleSaveToAlbum = () => {
+    setShowLongPressMenu(false)
+    if (!shareImgUrl) return
+    Taro.showLoading({ title: '保存中...' })
+    Taro.downloadFile({
+      url: shareImgUrl,
+      success: (res) => {
+        if (res.statusCode === 200) {
+          Taro.saveImageToPhotosAlbum({
+            filePath: res.tempFilePath,
+            success: () => { Taro.hideLoading(); Taro.showToast({ title: '已保存', icon: 'success' }) },
+            fail: () => { Taro.hideLoading(); Taro.showToast({ title: '保存失败', icon: 'none' }) },
+          })
+        } else {
+          Taro.hideLoading()
+          Taro.showToast({ title: '下载失败', icon: 'none' })
+        }
       },
+      fail: () => { Taro.hideLoading(); Taro.showToast({ title: '下载失败', icon: 'none' }) },
     })
+  }
+
+  // 转发图片给好友（shareFileMessage）
+  const handleForwardImage = async () => {
+    setShowLongPressMenu(false)
+    if (!shareImgUrl) return
+    Taro.showLoading({ title: '准备中...' })
+    try {
+      const dlRes = await Taro.downloadFile({ url: shareImgUrl })
+      if (dlRes.statusCode !== 200 || !dlRes.tempFilePath) {
+        Taro.hideLoading()
+        Taro.showToast({ title: '图片下载失败', icon: 'none' })
+        return
+      }
+      Taro.hideLoading()
+      await Taro.shareFileMessage({
+        filePath: dlRes.tempFilePath,
+        fileName: `AI预测-${currentMatch?.home_team.cn_name || ''}vs${currentMatch?.away_team.cn_name || ''}.png`,
+        success: () => Taro.showToast({ title: '已分享', icon: 'success' }),
+        fail: () => {},
+      })
+    } catch {
+      Taro.hideLoading()
+      Taro.showToast({ title: '请点击右上角「...」转发', icon: 'none', duration: 2000 })
+    }
+  }
+
+  // 转发小程序成功回调
+  const handleMiniProgramShared = () => {
+    setShowLongPressMenu(false)
+    Taro.showToast({ title: '已转发', icon: 'success' })
   }
 
   // 长按保存图片到相册
@@ -211,7 +250,7 @@ export default function MatchDetail() {
     }
     try {
       await vote(matchId, selectedResult, Number(homeScore), Number(awayScore))
-      Taro.showToast({ title: '预测已提交！', icon: 'success' })
+      Taro.showToast({ title: myVote ? '预测已更新！' : '预测已提交！', icon: 'success' })
     } catch {
       Taro.showToast({ title: '提交失败', icon: 'error' })
     }
@@ -228,7 +267,18 @@ export default function MatchDetail() {
           <TeamInfo team={currentMatch.away_team} />
         </View>
         <Text className='match-hero-meta'>
-          {currentMatch.match_time ? new Date(currentMatch.match_time).toLocaleDateString('zh-CN') : '待定'} · {currentMatch.venue || 'TBD'}
+          {(() => {
+            if (!currentMatch.match_time) return '待定'
+            const d = new Date(currentMatch.match_time)
+            const month = d.getMonth() + 1
+            const day = d.getDate()
+            const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+            const weekday = weekDays[d.getDay()]
+            const hour24 = d.getHours()
+            const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
+            const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+            return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+          })()} · {currentMatch.venue || 'TBD'}
         </Text>
       </View>
 
@@ -354,36 +404,31 @@ export default function MatchDetail() {
         })}
       </ScrollView>
 
-      {/* 投票区域 */}
+      {/* 投票区域：比赛未结束时允许修改预测 */}
       <View className='vote-card'>
-        {myVote ? (
+        {(!!myVote && currentMatch?.status === 'finished') ? (
           <>
             <Text className='vote-title'>✅ 你的预测</Text>
             <View className='vote-opts'>
               {['home_win', 'draw', 'away_win'].map((opt) => {
                 const label = opt === 'home_win' ? '主胜' : opt === 'draw' ? '平局' : '客胜'
                 return (
-                  <View
-                    key={opt}
-                    className={`vote-btn ${myVote.result === opt ? 'sel' : ''} voted`}
-                  >
+                  <View key={opt} className={`vote-btn ${myVote!.result === opt ? 'sel' : ''} voted`}>
                     <Text>{label}</Text>
                   </View>
                 )
               })}
             </View>
             <View className='vote-score'>
-              <Text className='sc-display mono'>{myVote.score_home ?? 0}</Text>
+              <Text className='sc-display mono'>{myVote!.score_home ?? 0}</Text>
               <Text className='sc-colon mono'>:</Text>
-              <Text className='sc-display mono'>{myVote.score_away ?? 0}</Text>
+              <Text className='sc-display mono'>{myVote!.score_away ?? 0}</Text>
             </View>
-            <View className='vote-submitted'>
-              <Text>✓ 已提交</Text>
-            </View>
+            <View className='vote-submitted'><Text>✓ 已提交</Text></View>
           </>
         ) : (
           <>
-            <Text className='vote-title'>✏️ 投出你的预测</Text>
+            <Text className='vote-title'>{myVote ? '✅ 修改你的预测' : '✏️ 投出你的预测'}</Text>
             <View className='vote-opts'>
               {['home_win', 'draw', 'away_win'].map((opt) => {
                 const label = opt === 'home_win' ? '主胜' : opt === 'draw' ? '平局' : '客胜'
@@ -399,22 +444,12 @@ export default function MatchDetail() {
               })}
             </View>
             <View className='vote-score'>
-              <Input
-                className='sc-input mono'
-                type='number'
-                value={homeScore}
-                onInput={(e) => setHomeScore(e.detail.value)}
-              />
+              <Input className='sc-input mono' type='number' value={homeScore} onInput={(e) => setHomeScore(e.detail.value)} />
               <Text className='sc-colon mono'>:</Text>
-              <Input
-                className='sc-input mono'
-                type='number'
-                value={awayScore}
-                onInput={(e) => setAwayScore(e.detail.value)}
-              />
+              <Input className='sc-input mono' type='number' value={awayScore} onInput={(e) => setAwayScore(e.detail.value)} />
             </View>
             <View className='vote-submit' onClick={handleVote}>
-              <Text>提交预测</Text>
+              <Text>{myVote ? '修改预测' : '提交预测'}</Text>
             </View>
           </>
         )}
@@ -423,6 +458,7 @@ export default function MatchDetail() {
       {/* 分享按钮（固定右下角） */}
       <View className='share-fab' onClick={handleOpenShareSheet}>
         <Text className='share-fab-icon'>⤴</Text>
+        <Text className='share-fab-text'>分享</Text>
       </View>
 
       {/* 分享底部弹出面板 */}
@@ -479,6 +515,43 @@ export default function MatchDetail() {
             {/* 底部提示 */}
             <View className='preview-hint'>
               <Text className='preview-hint-text'>长按图片保存或分享给好友</Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {/* 长按图片 → 自定义底部操作面板 */}
+      {showLongPressMenu && (
+        <>
+          <View className='lp-mask' onClick={handleCloseLongPressMenu} />
+          <View className='lp-sheet'>
+            <View className='lp-sheet-hd'>
+              <Text className='lp-sheet-title'>分享到</Text>
+              <View className='lp-sheet-close' onClick={handleCloseLongPressMenu}>
+                <Text>✕</Text>
+              </View>
+            </View>
+            <View className='lp-sheet-opts'>
+              <View className='lp-item' onClick={handleSaveToAlbum}>
+                <View className='lp-icon-wrap'><Text className='lp-icon'>💾</Text></View>
+                <Text className='lp-label'>保存图片到相册</Text>
+              </View>
+              <View className='lp-item' onClick={handleForwardImage}>
+                <View className='lp-icon-wrap'><Text className='lp-icon'>🖼</Text></View>
+                <Text className='lp-label'>转发图片给好友</Text>
+              </View>
+              {/* 转发小程序：使用 button open-type="share" 直接唤起微信转发面板 */}
+              <Button
+                className='lp-item lp-share-btn'
+                openType='share'
+                onShareAppMessageSuccess={handleMiniProgramShared}
+              >
+                <View className='lp-icon-wrap'><Text className='lp-icon'>📤</Text></View>
+                <Text className='lp-label'>转发小程序给好友</Text>
+              </Button>
+            </View>
+            <View className='lp-cancel' onClick={handleCloseLongPressMenu}>
+              <Text>取消</Text>
             </View>
           </View>
         </>

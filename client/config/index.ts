@@ -43,6 +43,10 @@ export default defineConfig(async (merge) => {
       },
       webpackChain(chain) {
         chain.resolve.alias.set('@', path.resolve(__dirname, '..', 'src'))
+        // 禁止 asset 内联为 base64：将 maxSize 设为 0，强制所有文件作为独立资源输出
+        // 避免 SVG 头像被转成超长 data URI 导致 "image src 数据量过大" 警告
+        chain.module.rule('asset')
+          .set('parser', { dataUrlCondition: { maxSize: 0 } })
       }
     },
     h5: {
@@ -50,6 +54,9 @@ export default defineConfig(async (merge) => {
       staticDirectory: 'static',
       webpackChain(chain) {
         chain.resolve.alias.set('@', path.resolve(__dirname, '..', 'src'))
+        // 同上：禁止 asset 内联为 base64
+        chain.module.rule('asset')
+          .set('parser', { dataUrlCondition: { maxSize: 0 } })
       },
       postcss: {
         autoprefixer: { enable: true, config: {} },

@@ -167,7 +167,7 @@ async def create_vote(
     if not match_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Match not found")
 
-    # 检查是否已投票
+    # 检查是否已投票 → 已投票则更新，未投票则新建
     stmt = select(UserVote).where(
         UserVote.user_id == user_id,
         UserVote.match_id == data.match_id,
@@ -175,7 +175,15 @@ async def create_vote(
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=400, detail="Already voted for this match")
+        # 更新预测（比赛未结束时允许修改）
+        existing.result = data.result
+        existing.score_home = data.score_home
+        existing.score_away = data.score_away
+        existing.is_correct_result = None
+        existing.is_correct_score = None
+        await db.flush()
+        await db.refresh(existing)
+        return existing
 
     vote = UserVote(
         user_id=user_id,

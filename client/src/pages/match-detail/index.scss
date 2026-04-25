@@ -523,28 +523,37 @@
 // ==================== 悬浮分享按钮 ====================
 .share-fab {
   position: fixed;
-  right: 28px;
-  bottom: 200px;  // tabBar 上方
+  right: 24px;
+  bottom: 180px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, $green, #059669);
-  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+  gap: 8px;
+  height: 72rpx;
+  padding: 0 24rpx;
+  border-radius: 36rpx;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.12), 0 1px 3px rgba(0, 0, 0, 0.04);
   z-index: 500;
 
   &:active {
-    transform: scale(0.92);
-    opacity: 0.9;
+    transform: scale(0.95);
+    opacity: 0.8;
+    background: rgba(16, 185, 129, 0.18);
   }
 }
 
 .share-fab-icon {
-  font-size: 40px;
-  color: #ffffff;
+  font-size: 28rpx;
+  color: $green;
+  line-height: 1;
+}
+
+.share-fab-text {
+  font-size: 24rpx;
+  color: $green;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -739,4 +748,118 @@
 .preview-hint-text {
   font-size: 22px;
   color: rgba(255, 255, 255, 0.85);
+}
+
+// ==================== 长按图片 → 自定义底部操作面板 ====================
+.lp-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+}
+
+.lp-sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 1060;
+  background: #f5f5f5;
+  border-radius: 24px 24px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: sheetUp 0.25s ease-out;
+}
+
+.lp-sheet-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 32px 20px;
+}
+
+.lp-sheet-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: $text1;
+}
+
+.lp-sheet-close {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text {
+    font-size: 32px;
+    color: $text3;
+  }
+}
+
+.lp-sheet-opts {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  padding: 16px 32px 36px;
+}
+
+.lp-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1;
+
+  &::after {
+    display: none;
+  }
+}
+
+.lp-share-btn {
+  // 覆盖 Taro Button 默认样式，使其看起来和普通 View 一样
+}
+
+.lp-icon-wrap {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+
+  &:active {
+    background: #f0f0f0;
+  }
+}
+
+.lp-icon {
+  font-size: 44px;
+}
+
+.lp-label {
+  font-size: 23px;
+  color: $text2;
+  font-weight: 500;
+}
+
+.lp-cancel {
+  margin: 0 32px;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 18px;
+  text-align: center;
+
+  text {
+    font-size: 27px;
+    color: $text1;
+    font-weight: 600;
+  }
+
+  &:active {
+    background: #f0f0f0;
+  }
 }

@@ -38,9 +38,13 @@ function formatMatchTime(timeStr: string | null): string {
   const d = new Date(timeStr)
   const month = d.getMonth() + 1
   const day = d.getDate()
-  const hour = d.getHours().toString().padStart(2, '0')
+  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const weekday = weekDays[d.getDay()]
+  const hour24 = d.getHours()
   const min = d.getMinutes().toString().padStart(2, '0')
-  return `${month}月${day}日 ${hour}:${min}`
+  const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
+  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+  return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${min}`
 }
 
 function formatVoteCount(count: number): string {
