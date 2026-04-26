@@ -485,6 +485,20 @@ export function getLongTermPredictions() {
   return request<LongTermPrediction[]>({ url: '/long-term-predictions' })
 }
 
+// ==================== 趣闻生成 ====================
+
+export interface FunFact {
+  icon: string
+  title: string
+  text: string
+}
+
+export function getFunFact(totalVotes = 0, correctResults = 0, correctScores = 0) {
+  return request<FunFact>({
+    url: `/fun-fact?total_votes=${totalVotes}&correct_results=${correctResults}&correct_scores=${correctScores}`,
+  })
+}
+
 // ==================== 管理 ====================
 
 export function syncMatches() {

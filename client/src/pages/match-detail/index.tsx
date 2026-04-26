@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { View, Text, Input, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage } from '@tarojs/taro'
 import { useMatchStore, useUserStore } from '@/stores'
-import { getShareCardImage } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -89,9 +88,7 @@ export default function MatchDetail() {
   const [homeScore, setHomeScore] = useState('0')
   const [awayScore, setAwayScore] = useState('0')
   const [pageReady, setPageReady] = useState(false)
-  const [showShareSheet, setShowShareSheet] = useState(false)
-  const [shareImgUrl, setShareImgUrl] = useState('')
-  const [showSharePreview, setShowSharePreview] = useState(false)
+  const [voteValidationError, setVoteValidationError] = useState('')
 
   useEffect(() => {
     if (matchId) {
@@ -125,115 +122,31 @@ export default function MatchDetail() {
     }
   }, [myVote])
 
-  // 微信分享注册（用户通过右上角...转发时使用）
+  // 实时校验：胜负平与比分一致性
+  useEffect(() => {
+    if (!selectedResult) { setVoteValidationError(''); return }
+    const h = Number(homeScore) || 0
+    const a = Number(awayScore) || 0
+    if (selectedResult === 'home_win' && h <= a) {
+      setVoteValidationError(`「主胜」与比分 ${h}:${a} 不一致`)
+    } else if (selectedResult === 'draw' && h !== a) {
+      setVoteValidationError(`「平局」与比分 ${h}:${a} 不一致`)
+    } else if (selectedResult === 'away_win' && h >= a) {
+      setVoteValidationError(`「客胜」与比分 ${h}:${a} 不一致`)
+    } else {
+      setVoteValidationError('')
+    }
+  }, [selectedResult, homeScore, awayScore])
+
+  // 微信分享注册（用户通过右上角...转发或点击分享按钮时使用）
   useShareAppMessage(() => {
     const home = currentMatch?.home_team.cn_name || currentMatch?.home_team.name || ''
     const away = currentMatch?.away_team.cn_name || currentMatch?.away_team.name || ''
     return {
       title: `${home} vs ${away} · AI 预测对战卡`,
       path: `/pages/index/index`,
-      imageUrl: getShareCardImage(matchId),
     }
   })
-
-  // 分享面板操作
-  const handleOpenShareSheet = () => {
-    setShowShareSheet(true)
-  }
-
-  const handleCloseShareSheet = () => {
-    setShowShareSheet(false)
-  }
-
-  // 预测分享图 → 当前页悬浮预览
-  const handleShareImage = async () => {
-    setShowShareSheet(false)
-    const url = getShareCardImage(matchId)
-    setShareImgUrl(url)
-    setShowSharePreview(true)
-  }
-
-  const handleClosePreview = () => {
-    setShowSharePreview(false)
-  }
-
-  // 长按图片 → 弹出自定义底部操作面板（含真正的分享按钮）
-  const [showLongPressMenu, setShowLongPressMenu] = useState(false)
-  const handleLongPressSave = (_imgUrl: string) => {
-    setShowLongPressMenu(true)
-  }
-
-  // 关闭长按菜单
-  const handleCloseLongPressMenu = () => {
-    setShowLongPressMenu(false)
-  }
-
-  // 保存到相册
-  const handleSaveToAlbum = () => {
-    setShowLongPressMenu(false)
-    if (!shareImgUrl) return
-    Taro.showLoading({ title: '保存中...' })
-    Taro.downloadFile({
-      url: shareImgUrl,
-      success: (res) => {
-        if (res.statusCode === 200) {
-          Taro.saveImageToPhotosAlbum({
-            filePath: res.tempFilePath,
-            success: () => { Taro.hideLoading(); Taro.showToast({ title: '已保存', icon: 'success' }) },
-            fail: () => { Taro.hideLoading(); Taro.showToast({ title: '保存失败', icon: 'none' }) },
-          })
-        } else {
-          Taro.hideLoading()
-          Taro.showToast({ title: '下载失败', icon: 'none' })
-        }
-      },
-      fail: () => { Taro.hideLoading(); Taro.showToast({ title: '下载失败', icon: 'none' }) },
-    })
-  }
-
-  // 转发图片给好友（shareFileMessage）
-  const handleForwardImage = async () => {
-    setShowLongPressMenu(false)
-    if (!shareImgUrl) return
-    Taro.showLoading({ title: '准备中...' })
-    try {
-      const dlRes = await Taro.downloadFile({ url: shareImgUrl })
-      if (dlRes.statusCode !== 200 || !dlRes.tempFilePath) {
-        Taro.hideLoading()
-        Taro.showToast({ title: '图片下载失败', icon: 'none' })
-        return
-      }
-      Taro.hideLoading()
-      await Taro.shareFileMessage({
-        filePath: dlRes.tempFilePath,
-        fileName: `AI预测-${currentMatch?.home_team.cn_name || ''}vs${currentMatch?.away_team.cn_name || ''}.png`,
-        success: () => Taro.showToast({ title: '已分享', icon: 'success' }),
-        fail: () => {},
-      })
-    } catch {
-      Taro.hideLoading()
-      Taro.showToast({ title: '请点击右上角「...」转发', icon: 'none', duration: 2000 })
-    }
-  }
-
-  // 转发小程序成功回调
-  const handleMiniProgramShared = () => {
-    setShowLongPressMenu(false)
-    Taro.showToast({ title: '已转发', icon: 'success' })
-  }
-
-  // 长按保存图片到相册
-  const handleSaveShareImage = () => {
-    Taro.showToast({ title: '长按图片可保存到相册', icon: 'none', duration: 2000 })
-  }
-
-  // 分享给朋友 → 引导使用微信原生分享
-  const handleShareToFriend = () => {
-    setShowShareSheet(false)
-    setTimeout(() => {
-      Taro.showToast({ title: '请点击右上角「...」转发给好友', icon: 'none', duration: 2000 })
-    }, 300)
-  }
 
   if (!pageReady || !currentMatch) {
     return <View className='detail-page'><Text className='loading'>加载中...</Text></View>
@@ -248,6 +161,26 @@ export default function MatchDetail() {
       Taro.showToast({ title: '请先登录后再投票', icon: 'none' })
       return
     }
+
+    // 校验：胜负平选择必须与比分一致
+    const h = Number(homeScore)
+    const a = Number(awayScore)
+    let valid = true
+    let errMsg = ''
+
+    if (selectedResult === 'home_win') {
+      if (h <= a) { valid = false; errMsg = `选择了「主胜」但比分 ${h}:${a} 不支持主胜，请检查` }
+    } else if (selectedResult === 'draw') {
+      if (h !== a) { valid = false; errMsg = `选择了「平局」但比分 ${h}:${a} 不是平局，请检查` }
+    } else if (selectedResult === 'away_win') {
+      if (h >= a) { valid = false; errMsg = `选择了「客胜」但比分 ${h}:${a} 不支持客胜，请检查` }
+    }
+
+    if (!valid) {
+      Taro.showToast({ title: errMsg, icon: 'none', duration: 2500 })
+      return
+    }
+
     try {
       await vote(matchId, selectedResult, Number(homeScore), Number(awayScore))
       Taro.showToast({ title: myVote ? '预测已更新！' : '预测已提交！', icon: 'success' })
@@ -448,6 +381,9 @@ export default function MatchDetail() {
               <Text className='sc-colon mono'>:</Text>
               <Input className='sc-input mono' type='number' value={awayScore} onInput={(e) => setAwayScore(e.detail.value)} />
             </View>
+            {voteValidationError ? (
+              <Text className='vote-error-hint'>{voteValidationError}</Text>
+            ) : null}
             <View className='vote-submit' onClick={handleVote}>
               <Text>{myVote ? '修改预测' : '提交预测'}</Text>
             </View>
@@ -455,107 +391,15 @@ export default function MatchDetail() {
         )}
       </View>
 
-      {/* 分享按钮（固定右下角） */}
-      <View className='share-fab' onClick={handleOpenShareSheet}>
-        <Text className='share-fab-icon'>⤴</Text>
+      {/* 分享按钮（固定右下角，直接转发小程序） */}
+      <Button
+        className='share-fab'
+        openType='share'
+        onShareAppMessageSuccess={() => Taro.showToast({ title: '已分享', icon: 'success' })}
+      >
+        <Text className='share-fab-icon'>📤</Text>
         <Text className='share-fab-text'>分享</Text>
-      </View>
-
-      {/* 分享底部弹出面板 */}
-      {showShareSheet && (
-        <>
-          <View className='share-mask' onClick={handleCloseShareSheet} />
-          <View className='share-sheet'>
-            <View className='share-sheet-hd'>
-              <Text className='share-sheet-title'>分享到</Text>
-              <View className='share-sheet-close' onClick={handleCloseShareSheet}>
-                <Text>✕</Text>
-              </View>
-            </View>
-            <View className='share-sheet-options'>
-              <View className='share-sheet-item' onClick={handleShareImage}>
-                <View className='share-sheet-icon-wrap'>
-                  <Text className='share-sheet-icon'>🖼</Text>
-                </View>
-                <Text className='share-sheet-label'>预测分享图</Text>
-              </View>
-              <View className='share-sheet-item' onClick={handleShareToFriend}>
-                <View className='share-sheet-icon-wrap'>
-                  <Text className='share-sheet-icon'>📤</Text>
-                </View>
-                <Text className='share-sheet-label'>分享给朋友</Text>
-              </View>
-            </View>
-            <View className='share-sheet-cancel' onClick={handleCloseShareSheet}>
-              <Text>取消</Text>
-            </View>
-          </View>
-        </>
-      )}
-
-      {/* 分享图悬浮预览（居中弹窗，浮在当前页之上） */}
-      {showSharePreview && (
-        <>
-          <View className='preview-mask' onClick={handleClosePreview} />
-          <View className='preview-popup'>
-            {/* 关闭按钮 */}
-            <View className='preview-close-btn' onClick={handleClosePreview}>
-              <Text className='preview-close-icon'>✕</Text>
-            </View>
-            {/* 分享卡片图片 */}
-            {shareImgUrl && (
-              <Image
-                className='preview-img'
-                src={shareImgUrl}
-                mode='widthFix'
-                onLongPress={() => handleLongPressSave(shareImgUrl)}
-                onClick={() => Taro.previewImage({ urls: [shareImgUrl] })}
-              />
-            )}
-            {/* 底部提示 */}
-            <View className='preview-hint'>
-              <Text className='preview-hint-text'>长按图片保存或分享给好友</Text>
-            </View>
-          </View>
-        </>
-      )}
-
-      {/* 长按图片 → 自定义底部操作面板 */}
-      {showLongPressMenu && (
-        <>
-          <View className='lp-mask' onClick={handleCloseLongPressMenu} />
-          <View className='lp-sheet'>
-            <View className='lp-sheet-hd'>
-              <Text className='lp-sheet-title'>分享到</Text>
-              <View className='lp-sheet-close' onClick={handleCloseLongPressMenu}>
-                <Text>✕</Text>
-              </View>
-            </View>
-            <View className='lp-sheet-opts'>
-              <View className='lp-item' onClick={handleSaveToAlbum}>
-                <View className='lp-icon-wrap'><Text className='lp-icon'>💾</Text></View>
-                <Text className='lp-label'>保存图片到相册</Text>
-              </View>
-              <View className='lp-item' onClick={handleForwardImage}>
-                <View className='lp-icon-wrap'><Text className='lp-icon'>🖼</Text></View>
-                <Text className='lp-label'>转发图片给好友</Text>
-              </View>
-              {/* 转发小程序：使用 button open-type="share" 直接唤起微信转发面板 */}
-              <Button
-                className='lp-item lp-share-btn'
-                openType='share'
-                onShareAppMessageSuccess={handleMiniProgramShared}
-              >
-                <View className='lp-icon-wrap'><Text className='lp-icon'>📤</Text></View>
-                <Text className='lp-label'>转发小程序给好友</Text>
-              </Button>
-            </View>
-            <View className='lp-cancel' onClick={handleCloseLongPressMenu}>
-              <Text>取消</Text>
-            </View>
-          </View>
-        </>
-      )}
+      </Button>
     </View>
   )
 }

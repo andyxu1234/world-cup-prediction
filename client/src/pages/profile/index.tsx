@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Input, Button, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
@@ -8,10 +8,29 @@ import './index.scss'
 
 const MENU_ITEMS = [
   { icon: '🏆', label: '我的战绩', color: 'rgba(0,255,135,0.1)', textColor: '#00ff87' },
-  { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
   { icon: '🔗', label: '分享给好友', color: 'rgba(168,85,247,0.1)', textColor: '#a855f7' },
-  { icon: '⚙️', label: '设置', color: 'rgba(255,255,255,0.05)', textColor: '#8892a8' },
+  { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
 ]
+
+const DEFAULT_AI_RANKING = [
+  { name: 'DeepSeek', result_accuracy: 82.3 },
+  { name: 'GPT-4o', result_accuracy: 78.1 },
+  { name: 'Claude', result_accuracy: 75.6 },
+]
+
+/** 调用 DeepSeek 动态生成趣闻 */
+async function fetchFunFactFromAPI(user: any): Promise<api.FunFact> {
+  try {
+    return await api.getFunFact(
+      user?.total_votes ?? 0,
+      user?.correct_results ?? 0,
+      user?.correct_scores ?? 0,
+    )
+  } catch {
+    // API 失败时的兜底
+    return { icon: '⚽', title: '足球小知识', text: '精彩内容正在生成中，稍后再来试试吧~' }
+  }
+}
 
 export default function Profile() {
   const { user, token, profileSetup, fetchProfile, login, updateProfile } = useUserStore()
@@ -20,6 +39,30 @@ export default function Profile() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pickingAvatar, setPickingAvatar] = useState(false)
+  const [funFact, setFunFact] = useState<api.FunFact>({ icon: '🎵', title: '你知道吗？', text: '' })
+  const [factKey, setFactKey] = useState(0)
+  const [fetchingFact, setFetchingFact] = useState(false)
+
+  // 分享给好友成功回调
+  const handleShared = () => Taro.showToast({ title: '已分享', icon: 'success' })
+
+  // 微信分享配置（点击"分享给好友"或右上角转发时使用）
+  useShareAppMessage(() => {
+    const count = user?.total_votes ?? 0
+    return {
+      title: `我在AI预测世界杯完成了${count}场预测，快来和我一起参与吧`,
+      path: '/pages/index/index',
+    }
+  })
+
+  // 分享到朋友圈
+  useShareTimeline(() => {
+    const count = user?.total_votes ?? 0
+    return {
+      title: `我在AI预测世界杯完成了${count}场预测，快来和我一起参与吧`,
+      query: '',
+    }
+  })
 
   useEffect(() => {
     if (user?.id) {
@@ -36,6 +79,22 @@ export default function Profile() {
       setEditing(true)
     }
   }, [user?.id, profileSetup])
+
+  // 动态趣闻：调用 DeepSeek API 生成，支持点击换一条
+  useEffect(() => {
+    if (user) {
+      fetchFunFactFromAPI(user).then(f => setFunFact(f))
+    }
+  }, [user?.total_votes, user?.correct_results, user?.correct_scores])
+
+  const handleRefreshFact = async () => {
+    if (fetchingFact) return
+    setFetchingFact(true)
+    const next = await fetchFunFactFromAPI(user)
+    setFunFact(next)
+    setFactKey(k => k + 1)
+    setFetchingFact(false)
+  }
 
   const handleReLogin = () => {
     Taro.login({
@@ -118,7 +177,7 @@ export default function Profile() {
 
   const handleMenuClick = (label: string) => {
     if (label === '分享给好友') {
-      Taro.navigateTo({ url: '/pages/share-card/index?mode=invite' })
+      // 由 Button openType='share' 直接处理
       return
     }
     if (label === '我的战绩') {
@@ -242,6 +301,22 @@ export default function Profile() {
 
       <View className='prof-menu'>
         {MENU_ITEMS.map((item) => (
+          item.label === '分享给好友' ? (
+            <Button
+              key={item.label}
+              className='prof-menu-item'
+              openType='share'
+              onShareAppMessageSuccess={handleShared}
+            >
+              <View className='prof-menu-left'>
+                <View className='prof-menu-icon' style={{ background: item.color, color: item.textColor }}>
+                  <Text>{item.icon}</Text>
+                </View>
+                <Text className='prof-menu-text'>{item.label}</Text>
+              </View>
+              <Text className='prof-menu-arrow'>›</Text>
+            </Button>
+          ) : (
           <View
             key={item.label}
             className='prof-menu-item'
@@ -255,14 +330,20 @@ export default function Profile() {
             </View>
             <Text className='prof-menu-arrow'>›</Text>
           </View>
+          )
         ))}
       </View>
 
-      <View className='fun-fact'>
-        <Text className='fun-fact-title'>🎵 你知道吗？</Text>
-        <Text className='fun-fact-text'>
-          目前 DeepSeek 以 82.3 分领跑 AI 排行榜，但比赛才刚开始，随时可能翻盘！
-        </Text>
+      <View className='fun-fact' key={factKey} onClick={handleRefreshFact}>
+        <View className='fun-fact-header'>
+          <Text className='fun-fact-title'>{funFact.icon} {funFact.title}</Text>
+          <Text className='fun-fact-refresh'>🔄</Text>
+        </View>
+        <Text className='fun-fact-text'>{funFact.text}</Text>
+      </View>
+
+      <View className='disclaimer'>
+        <Text className='disclaimer-text'>AI 预测结果由模型自动生成，仅供参考，不构成任何投资或竞彩建议</Text>
       </View>
 
       {pickingAvatar && (

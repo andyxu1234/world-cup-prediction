@@ -163,7 +163,7 @@ export default function AIDetail() {
           </View>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.result_accuracy}%</Text>
-            <Text className='ad-hero-stat-label'>胜率</Text>
+            <Text className='ad-hero-stat-label'>胜负命中率</Text>
           </View>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.score_accuracy}%</Text>

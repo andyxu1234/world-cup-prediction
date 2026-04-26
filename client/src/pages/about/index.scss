@@ -1,248 +1,399 @@
 // Variables injected globally via sass.data
+// Design: Editorial Futurism — 深绿主调 + 金色点缀 + 玻璃拟态 + 杂志排版
 
 .about-page {
   min-height: 100vh;
-  background: $bg-primary;
+  background: #0a0f0d;
   padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
 }
 
-// Hero 区域 — 与首页和战绩页面保持一致的风格
-.about-hero {
-  margin: 10px 28px 20px;
-  padding: 32px 30px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 40%, #1d4ed8 100%);
+// ==================== Hero — 深绿沉浸式头部 ====================
+
+.hero {
   position: relative;
+  margin: 16px 24px 0;
+  padding: 56px 32px 48px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, #0d2818 0%, #0f3d22 40%, #14532d 100%);
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.25);
 }
 
-.about-hero-glow {
+// 动态光球
+.hero-orb {
   position: absolute;
-  top: -50%;
-  right: -30%;
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(60px);
   pointer-events: none;
 }
 
-.about-hero-title {
-  font-family: 'SF Mono', 'Menlo', monospace;
-  font-size: 36px;
-  font-weight: 900;
-  display: block;
-  margin-bottom: 4px;
-  color: #ffffff;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+.hero-orb-1 {
+  top: -60px;
+  right: -40px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+  animation: orbFloat1 8s ease-in-out infinite alternate;
 }
 
-.about-hero-sub {
-  font-size: 22px;
-  color: rgba(255, 255, 255, 0.85);
-  display: block;
-  font-weight: 500;
+.hero-orb-2 {
+  bottom: -80px;
+  left: -30px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, transparent 70%);
+  animation: orbFloat2 10s ease-in-out infinite alternate-reverse;
 }
 
-// 内容区域
-.about-content {
-  padding: 0 28px 30px;
-  flex: 1;
+@keyframes orbFloat1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-20px, 20px) scale(1.15); }
 }
 
-// 卡片样式 — 与系统其他卡片保持一致
-.about-card {
-  margin-bottom: 16px;
-  padding: 24px 28px;
-  border-radius: 18px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+@keyframes orbFloat2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(18px, -14px) scale(1.1); }
 }
 
-.about-card-hd {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
+// 网格背景
+.hero-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+  pointer-events: none;
 }
 
-.about-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-  font-size: 24px;
+.hero-content {
+  position: relative;
+  z-index: 1;
 }
 
-.about-card-title {
-  font-size: 26px;
-  font-weight: 700;
-  color: $text1;
-}
-
-.about-card-desc {
-  font-size: 20px;
-  color: $text2;
-  line-height: 1.5;
+.hero-badge {
+  display: inline-block;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: $green;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.2);
   margin-bottom: 20px;
 }
 
-// GitHub 部分
-.about-github {
-  display: flex;
-  align-items: center;
-  background: rgba(59, 130, 246, 0.05);
-  border: 1px solid rgba(59, 130, 246, 0.1);
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:active {
-    background: rgba(59, 130, 246, 0.1);
-    transform: scale(0.98);
+.hero-title {
+  display: block;
+  font-size: 42px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 3px;
+  line-height: 1.2;
+  margin-bottom: 10px;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.hero-sub {
+  display: block;
+  font-size: 21px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+// 底部装饰线
+.hero-deco-line {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, $green, transparent);
+  opacity: 0.5;
+}
+
+// ==================== 内容区 ====================
+
+.body {
+  flex: 1;
+  padding: 24px 24px 0;
+}
+
+// ====== 卡片通用 ======
+.card {
+  margin-bottom: 20px;
+  padding: 28px 26px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px);
+  // 微信小程序不支持 backdrop-filter，用半透明模拟
+  animation: cardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  &:nth-child(1) { animation-delay: 0.05s; }
+  &:nth-child(2) { animation-delay: 0.15s; }
+  &:nth-child(3) { animation-delay: 0.25s; }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.about-github-icon {
-  font-size: 24px;
-  margin-right: 12px;
-  color: #3b82f6;
+.card-tag-row {
+  margin-bottom: 16px;
 }
 
-.about-github-text {
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.tag-blue {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.tag-amber {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.card-head {
+  display: block;
+  font-size: 29px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+.card-body-text {
+  display: block;
   font-size: 20px;
-  color: $text1;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+// ====== GitHub 卡片 ======
+
+.github-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+
+  &:active {
+    background: rgba(59, 130, 246, 0.14);
+    transform: scale(0.985);
+  }
+}
+
+.gh-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   flex: 1;
+  min-width: 0;
 }
 
-.about-github-url {
-  font-size: 18px;
-  color: $text3;
-  font-family: 'SF Mono', 'Menlo', monospace;
-  word-break: break-all;
-  background: #f8fafc;
-  padding: 10px 14px;
+.gh-icon {
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-// 收款码部分
-.about-qr-wrapper {
+.gh-info {
+  min-width: 0;
+}
+
+.gh-label {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2px;
+}
+
+.gh-url {
+  display: block;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-action {
+  font-size: 17px;
+  font-weight: 700;
+  color: #60a5fa;
+  flex-shrink: 0;
+  padding-left: 12px;
+}
+
+// ====== 支持开发者卡片 ======
+
+.qr-zone {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 20px 0;
-  padding: 20px;
-  background: #f8fafc;
+  margin: 24px 0 20px;
+  padding: 24px 0;
   border-radius: 16px;
-  border: 1px dashed #cbd5e1;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
-.about-qr-code {
+.qr-frame {
   width: 200px;
   height: 200px;
-  border-radius: 12px;
+  border-radius: 16px;
   background: #ffffff;
-  padding: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.about-qr-tip {
-  font-size: 18px;
-  color: $text3;
-  margin-top: 12px;
+.qr-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+
+.qr-hint {
+  margin-top: 14px;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.35);
   font-weight: 500;
 }
 
-// 打赏说明
-.about-donation-info {
-  margin-top: 20px;
-  padding: 16px;
-  background: rgba(245, 158, 11, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(245, 158, 11, 0.1);
-}
-
-.about-donation-title {
-  font-size: 20px;
-  color: #d97706;
-  font-weight: 700;
-  margin-bottom: 8px;
-  display: block;
-}
-
-.about-donation-item {
-  font-size: 18px;
-  color: $text2;
-  line-height: 1.6;
-  display: block;
-  
-  &:not(:last-child) {
-    margin-bottom: 4px;
-  }
-}
-
-// 版本信息
-.about-version {
+.support-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
-.about-version-item {
+.support-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.5;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dot-1 { background: #60a5fa; }
+.dot-2 { background: #fbbf24; }
+.dot-3 { background: $green; }
+
+// ====== 版本信息卡片（紧凑行风格） ======
+
+.card-meta {
+  padding: 6px 26px !important;
+}
+
+.meta-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  
-  &:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
+  padding: 16px 0;
 }
 
-.about-version-label {
-  font-size: 20px;
-  color: $text2;
+.meta-label {
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.4);
   font-weight: 500;
 }
 
-.about-version-value {
-  font-size: 20px;
-  color: $text1;
-  font-weight: 600;
-  font-family: 'SF Mono', 'Menlo', monospace;
+.meta-value {
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
 }
 
-// 底部致谢
-.about-footer {
+.mono {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: $green;
+}
+
+.mono-sm {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.meta-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+// ==================== 底部签名 ====================
+
+.footer {
   text-align: center;
-  padding: 24px 28px 40px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  background: #ffffff;
+  padding: 32px 24px 48px;
   margin-top: auto;
 }
 
-.about-footer-text {
-  font-size: 22px;
-  color: $text1;
-  font-weight: 600;
-  margin-bottom: 8px;
-  display: block;
+.footer-line {
+  width: 80px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  margin: 0 auto 20px;
 }
 
-.about-footer-sub {
-  font-size: 20px;
-  color: $text3;
+.footer-brand {
   display: block;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: rgba(255, 255, 255, 0.25);
+  margin-bottom: 8px;
+}
+
+.footer-slogan {
+  display: block;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.18);
+  letter-spacing: 3px;
 }

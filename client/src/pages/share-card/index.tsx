@@ -216,24 +216,42 @@ export default function ShareCardPage() {
     })
   }
 
-  /** 直接转发给微信好友 */
+  /** 转发图片给好友 → 先保存相册再引导发送 */
   const handleForwardToFriend = () => {
-    Taro.showActionSheet({
-      itemList: ['转发给微信好友', '分享小程序'],
-      success: (res) => {
-        if (res.tapIndex === 0) {
-          Taro.showToast({ 
-            title: '请点击右上角「...」转发', 
-            icon: 'none',
-            duration: 2000
-          })
-        } else if (res.tapIndex === 1) {
-          Taro.showToast({ 
-            title: '请点击右上角「...」分享', 
-            icon: 'none',
-            duration: 2000
-          })
+    const url = currentImageUrl
+    if (!url) {
+      Taro.showToast({ title: '图片未就绪', icon: 'none' })
+      return
+    }
+    Taro.showLoading({ title: '保存图片中...' })
+    Taro.downloadFile({
+      url,
+      success: (dlRes) => {
+        if (dlRes.statusCode !== 200 || !dlRes.tempFilePath) {
+          Taro.hideLoading()
+          Taro.showToast({ title: '图片下载失败', icon: 'none' })
+          return
         }
+        Taro.saveImageToPhotosAlbum({
+          filePath: dlRes.tempFilePath,
+          success: () => {
+            Taro.hideLoading()
+            Taro.showModal({
+              title: '已保存到相册',
+              content: '请在微信聊天中点击"+"选择相册，即可将卡片以图片形式发给好友',
+              confirmText: '去发送',
+              cancelText: '知道了',
+            })
+          },
+          fail: () => {
+            Taro.hideLoading()
+            Taro.showToast({ title: '保存失败，请检查权限', icon: 'none' })
+          },
+        })
+      },
+      fail: () => {
+        Taro.hideLoading()
+        Taro.showToast({ title: '下载失败', icon: 'none' })
       },
     })
   }

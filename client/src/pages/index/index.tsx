@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useMatchStore, useUserStore, useLeaderboardStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
@@ -83,6 +83,18 @@ export default function Index() {
       fail: () => { navigatingRef.current.delete(id) },
     })
   }, [])
+
+  // 分享给好友
+  useShareAppMessage(() => ({
+    title: 'AI 预测世界杯 · 和 AI 一起预测比赛结果',
+    path: '/pages/index/index',
+  }))
+
+  // 分享到朋友圈
+  useShareTimeline(() => ({
+    title: 'AI 预测世界杯 · 和 AI 一起预测比赛结果',
+    query: '',
+  }))
 
   useEffect(() => {
     if (!loginReady) return

@@ -91,19 +91,15 @@ export default function VoteHistory() {
         <View className='vh-hero-stats'>
           <View className='vh-hero-stat'>
             <Text className='vh-hero-stat-num'>{list.length}</Text>
-            <Text className='vh-hero-stat-label'>总预测</Text>
-          </View>
-          <View className='vh-hero-stat'>
-            <Text className='vh-hero-stat-num'>{correctResults}</Text>
-            <Text className='vh-hero-stat-label'>胜负正确</Text>
-          </View>
-          <View className='vh-hero-stat'>
-            <Text className='vh-hero-stat-num'>{correctScores}</Text>
-            <Text className='vh-hero-stat-label'>比分命中</Text>
+            <Text className='vh-hero-stat-label'>总预测比赛</Text>
           </View>
           <View className='vh-hero-stat'>
             <Text className='vh-hero-stat-num'>{accuracy}%</Text>
-            <Text className='vh-hero-stat-label'>胜率</Text>
+            <Text className='vh-hero-stat-label'>胜负命中率</Text>
+          </View>
+          <View className='vh-hero-stat'>
+            <Text className='vh-hero-stat-num'>{correctScores}%</Text>
+            <Text className='vh-hero-stat-label'>比分命中率</Text>
           </View>
         </View>
       </View>

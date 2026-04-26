@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useLeaderboardStore, useUserStore } from '@/stores'
 import type { MixedRankItem } from '@/stores'
 import { resolveAvatarUrl } from '@/services/api'
@@ -54,7 +54,7 @@ const ROUNDS = ['全部', '小组赛', '淘汰赛']
 type SortByType = 'default' | 'result_accuracy' | 'score_accuracy'
 const SORT_OPTIONS: { by: SortByType; label: string }[] = [
   { by: 'default', label: '综合' },
-  { by: 'result_accuracy', label: '胜率' },
+  { by: 'result_accuracy', label: '胜负' },
   { by: 'score_accuracy', label: '比分' },
 ]
 
@@ -144,19 +144,19 @@ function MixedRankRow({ item, rank }: { item: MixedRankItem; rank: number }) {
           <View className='metric-group'>
             {hasResult ? (
               <>
-                <Text className='metric-text'>胜率：</Text>
+                <Text className='metric-text'>胜负命中率：</Text>
                 <Text className={`metric-num metric-ok`}>{item.result_accuracy}%</Text>
               </>
             ) : (
               <>
-                <Text className='metric-text'>胜率：</Text>
+                <Text className='metric-text'>胜负：</Text>
                 <Text className={`metric-num metric-none`}>-</Text>
               </>
             )}
           </View>
           {hasResult && (
             <View className='metric-group'>
-              <Text className='metric-text'>比分命中：</Text>
+              <Text className='metric-text'>比分命中率：</Text>
               <Text className={`metric-num metric-sub`}>{item.score_accuracy}%</Text>
             </View>
           )}
@@ -182,6 +182,18 @@ export default function Leaderboard() {
   useEffect(() => {
     if (loginReady) fetchLeaderboard()
   }, [loginReady])
+
+  // 分享给好友
+  useShareAppMessage(() => ({
+    title: 'AI 排行榜 · 谁是预测之王？',
+    path: '/pages/leaderboard/index',
+  }))
+
+  // 分享到朋友圈
+  useShareTimeline(() => ({
+    title: 'AI 排行榜 · 谁是预测之王？',
+    query: '',
+  }))
 
   /** 切换排序 */
   const handleSortClick = (by: SortByType) => {
@@ -252,29 +264,34 @@ export default function Leaderboard() {
         <View className='human-card'>
           <View className='human-av'>👥</View>
           <View className='human-info'>
-            <Text className='human-name'>{humanData.human.name}</Text>
+            <Text className='human-name'>人类平均</Text>
             <View className='human-metrics'>
-              <View className='metric-item'>
-                <Text className='metric-num metric-ok'>{humanData.human.result_accuracy}%</Text>
-                <Text className='metric-label'>胜率</Text>
+              <View className='metric-group'>
+                <>
+                  <Text className='metric-text'>胜负命中率：</Text>
+                  <Text className={`metric-num metric-ok`}>{humanData.human.result_accuracy}%</Text>
+                </>
               </View>
-              <Text className='metric-divider'>·</Text>
-              <View className='metric-item'>
-                <Text className='metric-num metric-sub'>{humanData.human.score_accuracy}%</Text>
-                <Text className='metric-label'>比分</Text>
+              <View className='metric-group'>
+                <>
+                  <Text className='metric-text'>比分命中率：</Text>
+                  <Text className={`metric-num metric-sub`}>{humanData.human.score_accuracy}%</Text>
+                </>
               </View>
+              {humanData.human.total > 0 && (
+                <View className='metric-group'>
+                  <Text className='metric-text'>投票：</Text>
+                  <Text className='metric-total'>{humanData.human.total}场</Text>
+                </View>
+              )}
             </View>
-          </View>
-          <View className='human-votes'>
-            <Text className='human-votes-num mono'>{humanData.human.total}</Text>
-            <Text className='human-votes-label'>投票</Text>
           </View>
         </View>
       )}
 
       {/* 人机对决：混合排行列表 */}
       {activeTab === 'human' && (
-        <ScrollView scrollY className='lb-list'>
+        <ScrollView scrollY className='lb-list lb-list-ai'>
           {mixedRank.length === 0 && !useLeaderboardStore.getState().loading && (
             <View className='empty'>
               <Text className='empty-icon'>⚔️</Text>
@@ -284,12 +301,15 @@ export default function Leaderboard() {
           {mixedRank.map((item, idx) => (
             <MixedRankRow key={`${item.type}-${item.user_id ?? item.model_id}`} item={item} rank={idx + 1} />
           ))}
+          <View className='lb-footnote'>
+            <Text className='lb-footnote-text'>* 胜负/比分命中率仅对已结束的比赛进行统计</Text>
+          </View>
         </ScrollView>
       )}
 
       {/* AI 排行：纯 AI 列表 */}
       {activeTab === 'ai' && (
-        <ScrollView scrollY className='lb-list'>
+        <ScrollView scrollY className='lb-list lb-list-ai'>
           {entries.length === 0 && !useLeaderboardStore.getState().loading && (
             <View className='empty'>
               <Text className='empty-icon'>🏆</Text>
@@ -316,12 +336,12 @@ export default function Leaderboard() {
                     <View className='metric-group'>
                       {hasResult ? (
                         <>
-                          <Text className='metric-text'>胜率：</Text>
+                          <Text className='metric-text'>胜负命中率：</Text>
                           <Text className={`metric-num metric-ok`}>{entry.result_accuracy}%</Text>
                         </>
                       ) : (
                         <>
-                          <Text className='metric-text'>胜率：</Text>
+                          <Text className='metric-text'>胜负：</Text>
                           <Text className={`metric-num ${entry.total > 0 ? 'metric-pending' : 'metric-none'}`}>-</Text>
                         </>
                       )}
@@ -330,12 +350,12 @@ export default function Leaderboard() {
                       <View className='metric-group'>
                         {hasResult ? (
                           <>
-                            <Text className='metric-text'>比分命中：</Text>
+                            <Text className='metric-text'>比分命中率：</Text>
                             <Text className={`metric-num metric-sub`}>{entry.score_accuracy}%</Text>
                           </>
                         ) : (
                           <>
-                            <Text className='metric-text'>比分命中：</Text>
+                            <Text className='metric-text'>比分命中率：</Text>
                             <Text className={`metric-num metric-pending`}>--</Text>
                           </>
                         )}
@@ -352,6 +372,9 @@ export default function Leaderboard() {
               </View>
             )
           })}
+          <View className='lb-footnote'>
+            <Text className='lb-footnote-text'>* 胜负/比分命中率仅对已结束的比赛进行统计</Text>
+          </View>
         </ScrollView>
       )}
     </View>

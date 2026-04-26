@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { getFaceSlaps, FaceSlap, FaceSlapSort } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
@@ -84,6 +85,18 @@ export default function FaceSlapPage() {
   useEffect(() => {
     fetchData(activeSort)
   }, [])
+
+  // 分享给好友
+  useShareAppMessage(() => ({
+    title: 'AI 打脸合集 · 谁的预测最离谱？',
+    path: '/pages/face-slap/index',
+  }))
+
+  // 分享到朋友圈
+  useShareTimeline(() => ({
+    title: 'AI 打脸合集 · 谁的预测最离谱？',
+    query: '',
+  }))
 
   const handleChipClick = (sort: FaceSlapSort) => {
     if (sort === activeSort) return
