@@ -518,7 +518,7 @@
   font-size: 26px;
   font-weight: 700;
   text-align: center;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px rgba(18, 150, 219, 0.2);
 
   &.voted {
     background: #f0fdf4;
@@ -528,44 +528,57 @@
   }
 }
 
-// ==================== 悬浮分享按钮 ====================
-.share-fab {
+// ==================== 悬浮分享按钮 — 简洁胶囊 ====================
+.share-fab-wrap {
   position: fixed;
   right: 24px;
   bottom: 180px;
+  z-index: 500;
+}
+
+.share-fab {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
-  height: 80rpx;
-  padding: 0 32rpx;
-  border-radius: 40rpx;
-  background: linear-gradient(135deg, #10b981, #059669);
-  border: none;
-  box-shadow:
-    0 6px 24px rgba(16, 185, 129, 0.35),
-    0 2px 6px rgba(0, 0, 0, 0.06);
-  z-index: 500;
+  height: 72rpx;
+  padding: 0 26rpx;
+  border-radius: 36rpx;
+  background: transparent;
+  border: 1.5px solid rgba(18, 150, 219, 0.5);
+  box-shadow: 0 4px 16px rgba(18, 150, 219, 0.2);
+  z-index: 1;
 
   &:active {
     transform: scale(0.94);
     opacity: 0.9;
-    box-shadow: 0 3px 12px rgba(16, 185, 129, 0.25);
   }
+
+  &::after { display: none !important; }
+}
+
+.share-fab-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
 }
 
 .share-fab-icon {
-  font-size: 30rpx;
-  color: #ffffff;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-fab-img {
+  width: 30rpx;
+  height: 30rpx;
 }
 
 .share-fab-text {
-  font-size: 26rpx;
-  color: #ffffff;
-  font-weight: 700;
+  font-size: 24rpx;
+  color: #1296db;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: 2rpx;
 }
 
 // ==================== 分享底部弹出面板 ====================

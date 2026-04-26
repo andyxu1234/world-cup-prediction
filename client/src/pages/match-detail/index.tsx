@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Input, ScrollView, Image, Button } from '@tarojs/components'
-import Taro, { useRouter, useShareAppMessage } from '@tarojs/taro'
+import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useMatchStore, useUserStore } from '@/stores'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
@@ -14,6 +14,7 @@ import minimaxImg from '@/assets/aimodels/minimax.svg'
 import grokImg from '@/assets/aimodels/grok.svg'
 import hunyuanImg from '@/assets/aimodels/hunyuan.svg'
 import xiaomimimoImg from '@/assets/aimodels/xiaomimimo.svg'
+import shareIcon from '@/assets/share.svg'
 import './index.scss'
 
 const MODEL_AVATARS: Record<string, string> = {
@@ -145,6 +146,16 @@ export default function MatchDetail() {
     return {
       title: `${home} vs ${away} · AI 预测对战卡`,
       path: `/pages/index/index`,
+    }
+  })
+
+  // 分享到朋友圈
+  useShareTimeline(() => {
+    const home = currentMatch?.home_team.cn_name || currentMatch?.home_team.name || ''
+    const away = currentMatch?.away_team.cn_name || currentMatch?.away_team.name || ''
+    return {
+      title: `${home} vs ${away} · AI 预测世界杯`,
+      query: '',
     }
   })
 
@@ -392,14 +403,19 @@ export default function MatchDetail() {
       </View>
 
       {/* 分享按钮（固定右下角，直接转发小程序） */}
-      <Button
-        className='share-fab'
-        openType='share'
-        onShareAppMessageSuccess={() => Taro.showToast({ title: '已分享', icon: 'success' })}
-      >
-        <Text className='share-fab-icon'>📤</Text>
-        <Text className='share-fab-text'>分享</Text>
-      </Button>
+      <View className='share-fab-wrap'>
+        <View className='share-fab-glow' />
+        <Button
+          className='share-fab'
+          openType='share'
+          onShareAppMessageSuccess={() => Taro.showToast({ title: '已分享', icon: 'success' })}
+        >
+          <View className='share-fab-inner'>
+            <Image className='share-fab-img' src={shareIcon} mode='aspectFit' />
+            <Text className='share-fab-text'>分享</Text>
+          </View>
+        </Button>
+      </View>
     </View>
   )
 }

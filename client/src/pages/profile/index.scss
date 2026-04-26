@@ -389,14 +389,21 @@
 }
 
 .fun-fact-refresh {
-  font-size: 28rpx;
-  opacity: 0.4;
+  font-size: 32rpx;
+  opacity: 1;
   flex-shrink: 0;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  background: rgba(59, 130, 246, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform .3s;
 
   &:active {
     transform: rotate(180deg);
-    opacity: 0.8;
+    background: rgba(59, 130, 246, 0.25);
   }
 }
 
