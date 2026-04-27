@@ -1,8 +1,9 @@
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import moneyImg from '@/assets/money.png'
 import './index.scss'
 
-const GITHUB_URL = 'https://github.com/your-username/world-cup-prediction'
+const GITHUB_URL = 'https://github.com/AndyXu-Citi/world-cup-prediction'
 
 export default function About() {
   const handleCopyGithub = () => {
@@ -64,8 +65,9 @@ export default function About() {
             <View className='qr-frame'>
               <Image
                 className='qr-img'
-                src='https://via.placeholder.com/220x220/0d2818/10b981?text=收款码'
+                src={moneyImg}
                 mode='aspectFit'
+                showMenuByLongpress
               />
             </View>
             <Text className='qr-hint'>长按保存收款码</Text>
