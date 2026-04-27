@@ -209,6 +209,12 @@
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+
+  &:active {
+    opacity: 0.85;
+    transform: scale(0.99);
+    transition: all 0.15s ease;
+  }
 }
 
 .m-card-hd {
@@ -216,6 +222,10 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 18px;
+}
+
+.m-card-hd .badge {
+  margin-left: 12px;
 }
 
 .m-round {

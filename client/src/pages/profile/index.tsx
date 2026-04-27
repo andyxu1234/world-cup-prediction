@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Input, Button, Image } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
@@ -73,6 +73,13 @@ export default function Profile() {
     if (savedAvatar) setAvatarUrl(savedAvatar)
     if (savedNick) setNickname(savedNick)
   }, [user?.id])
+
+  // 切回 Tab 时刷新用户数据（已预测数等）
+  useDidShow(() => {
+    if (user?.id) {
+      fetchProfile(user.id)
+    }
+  })
 
   useEffect(() => {
     if (user && token && !profileSetup) {

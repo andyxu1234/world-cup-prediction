@@ -77,9 +77,12 @@ export default function VoteHistory() {
       .finally(() => setLoading(false))
   }, [user?.id])
 
-  const correctResults = list.filter((i) => i.is_correct_result).length
-  const correctScores = list.filter((i) => i.is_correct_score).length
-  const accuracy = list.length > 0 ? Math.round((correctResults / list.length) * 100) : 0
+  // 仅已结束的比赛参与命中率计算
+  const finishedList = list.filter((i) => i.match_status === 'finished')
+  const correctResults = finishedList.filter((i) => i.is_correct_result).length
+  const correctScores = finishedList.filter((i) => i.is_correct_score).length
+  const accuracy = finishedList.length > 0 ? Math.round((correctResults / finishedList.length) * 100) : 0
+  const scoreAccuracy = finishedList.length > 0 ? Math.round((correctScores / finishedList.length) * 100) : 0
 
   return (
     <View className='vote-history-page'>
@@ -94,11 +97,15 @@ export default function VoteHistory() {
             <Text className='vh-hero-stat-label'>总预测比赛</Text>
           </View>
           <View className='vh-hero-stat'>
+            <Text className='vh-hero-stat-num'>{finishedList.length}</Text>
+            <Text className='vh-hero-stat-label'>比赛结束</Text>
+          </View>
+          <View className='vh-hero-stat'>
             <Text className='vh-hero-stat-num'>{accuracy}%</Text>
             <Text className='vh-hero-stat-label'>胜负命中率</Text>
           </View>
           <View className='vh-hero-stat'>
-            <Text className='vh-hero-stat-num'>{correctScores}%</Text>
+            <Text className='vh-hero-stat-num'>{scoreAccuracy}%</Text>
             <Text className='vh-hero-stat-label'>比分命中率</Text>
           </View>
         </View>

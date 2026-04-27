@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
 import { useMatchStore, useUserStore, useLeaderboardStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
@@ -117,6 +117,27 @@ export default function Index() {
     fetchMatches(params)
   }, [activeChip, fetchMatches, loginReady])
 
+  // Tab 切换回来时刷新数据
+  useDidShow(() => {
+    if (!loginReady) return
+    fetchHomeStats()
+    const params: any = {}
+    if (activeChip === '已结束') {
+      params.status = 'finished'
+    } else {
+      params.status_not = 'finished'
+    }
+    if (activeChip === '小组赛') params.round = ['Group Stage - 1', 'Group Stage - 2', 'Group Stage - 3']
+    if (activeChip === '淘汰赛') params.round = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', '3rd Place Final', 'Final']
+    if (activeChip === '今日') params.date = new Date().toISOString().slice(0, 10)
+    if (activeChip === '明日') {
+      const d = new Date()
+      d.setDate(d.getDate() + 1)
+      params.date = d.toISOString().slice(0, 10)
+    }
+    fetchMatches(params)
+  })
+
   // ===== loginReady 为 false 时返回加载页 =====
   if (!loginReady) {
     return (
@@ -200,14 +221,13 @@ export default function Index() {
         {matches.map((match) => {
           const statusInfo = getStatusLabel(match.status)
           return (
-            <View key={match.id} className='m-card'>
+            <View key={match.id} className='m-card' onClick={() => goToDetail(match.id)}>
               <View className='m-card-hd'>
                 <Text className='m-round'>{getRoundLabel(match.round)}</Text>
-                {statusInfo ? (
+                {statusInfo && (
                   <Text className={`badge ${statusInfo.cls}`}>{statusInfo.text}</Text>
-                ) : (
-                  <Text className='m-time'>{formatMatchTime(match.match_time)}</Text>
                 )}
+                <Text className='m-time'>{formatMatchTime(match.match_time)}</Text>
               </View>
               <View className='m-teams'>
                 <View className='m-team'>
@@ -228,13 +248,7 @@ export default function Index() {
                 <Text className='m-consensus'>
                   AI 共识：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
                 </Text>
-                <Text
-                  className='m-action'
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    goToDetail(match.id)
-                  }}
-                >查看预测 ›</Text>
+                <Text className='m-action'>查看预测 ›</Text>
               </View>
             </View>
           )
