@@ -3,6 +3,7 @@
   "projectname": "world-cup-predictor",
   "description": "世界杯 AI 预测大赛",
   "appid": "wxfc5e86c6ee589316",
+  "lazyCodeLoading": "requiredComponents",
   "setting": {
     "urlCheck": false,
     "es6": false,
