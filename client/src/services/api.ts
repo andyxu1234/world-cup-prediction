@@ -428,48 +428,6 @@ export function votePrediction(userId: number, matchId: number, predictedResult:
   })
 }
 
-// ==================== 分享卡片 ====================
-
-export interface ShareCard {
-  match_id: number
-  home_team: string
-  home_flag: string
-  away_team: string
-  away_flag: string
-  match_time: string
-  round: string
-  status: string
-  home_score: number | null
-  away_score: number | null
-  predictions: any[]
-}
-
-export function getShareCard(matchId: number) {
-  return request<ShareCard>({ url: `/share/card/${matchId}` })
-}
-
-export function getShareCardImage(matchId: number) {
-  return `${BASE_URL}/share/card/${matchId}/image`
-}
-
-export function getInviteCardImageUrl(params: {
-  nickname?: string
-  avatarUrl?: string
-  totalVotes?: number
-  correctResults?: number
-  correctScores?: number
-}) {
-  const { nickname = '预言家', avatarUrl = '', totalVotes = 0, correctResults = 0, correctScores = 0 } = params
-  const qs = [
-    `nickname=${encodeURIComponent(nickname)}`,
-    `avatar_url=${encodeURIComponent(avatarUrl)}`,
-    `total_votes=${totalVotes}`,
-    `correct_results=${correctResults}`,
-    `correct_scores=${correctScores}`,
-  ].join('&')
-  return `${BASE_URL}/share/invite/card/image?${qs}`
-}
-
 // ==================== 长期预测 ====================
 
 export interface LongTermPrediction {
@@ -493,9 +451,9 @@ export interface FunFact {
   text: string
 }
 
-export function getFunFact(totalVotes = 0, correctResults = 0, correctScores = 0) {
+export function getFunFact() {
   return request<FunFact>({
-    url: `/fun-fact?total_votes=${totalVotes}&correct_results=${correctResults}&correct_scores=${correctScores}`,
+    url: '/fun-fact',
   })
 }
 

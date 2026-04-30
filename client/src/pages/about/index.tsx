@@ -1,6 +1,5 @@
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import moneyImg from '@/assets/money.png'
 import './index.scss'
 
 const GITHUB_URL = 'https://github.com/AndyXu-Citi/world-cup-prediction'
@@ -15,21 +14,20 @@ export default function About() {
 
   return (
     <View className='about-page'>
-      {/* ======== Hero 区域 ======== */}
-      <View className='hero'>
-        <View className='hero-orb hero-orb-1' />
-        <View className='hero-orb hero-orb-2' />
-        <View className='hero-grid-bg' />
-        <View className='hero-content'>
-          <Text className='hero-badge'>ABOUT</Text>
-          <Text className='hero-title'>关于小程序</Text>
-          <Text className='hero-sub'>AI 驱动的世界杯预测平台</Text>
-        </View>
-        <View className='hero-deco-line' />
-      </View>
-
       {/* ======== 内容区 ======== */}
       <View className='body'>
+        {/* ======== Hero 区域 ======== */}
+        <View className='hero'>
+          <View className='hero-orb hero-orb-1' />
+          <View className='hero-orb hero-orb-2' />
+          <View className='hero-grid-bg' />
+          <View className='hero-content'>
+            <Text className='hero-badge'>ABOUT</Text>
+            <Text className='hero-title'>关于小程序</Text>
+            <Text className='hero-sub'>AI 驱动的世界杯预测平台</Text>
+          </View>
+          <View className='hero-deco-line' />
+        </View>
 
         {/* 开源项目 */}
         <View className='card card-open'>
@@ -49,42 +47,6 @@ export default function About() {
               </View>
             </View>
             <Text className='gh-action'>点击复制</Text>
-          </View>
-        </View>
-
-        {/* 支持开发者 */}
-        <View className='card card-support'>
-          <View className='card-tag-row'>
-            <View className='tag tag-amber'><Text>SUPPORT</Text></View>
-          </View>
-          <Text className='card-head'>支持开发者</Text>
-          <Text className='card-body-text'>
-            如果这个小工具为你带来了便利或乐趣，可以考虑请我喝杯咖啡。每一份支持都是持续迭代的动力。
-          </Text>
-          <View className='qr-zone'>
-            <View className='qr-frame'>
-              <Image
-                className='qr-img'
-                src={moneyImg}
-                mode='aspectFit'
-                showMenuByLongpress
-              />
-            </View>
-            <Text className='qr-hint'>长按保存收款码</Text>
-          </View>
-          <View className='support-list'>
-            <View className='support-item'>
-              <View className='dot dot-1' />
-              <Text>所有打赏将用于服务器与模型 API 费用</Text>
-            </View>
-            <View className='support-item'>
-              <View className='dot dot-2' />
-              <Text>持续优化 AI 预测准确度与交互体验</Text>
-            </View>
-            <View className='support-item'>
-              <View className='dot dot-3' />
-              <Text>你的支持是我们最大的鼓励 ❤️</Text>
-            </View>
           </View>
         </View>
 

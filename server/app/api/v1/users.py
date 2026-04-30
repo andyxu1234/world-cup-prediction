@@ -24,6 +24,10 @@ from app.schemas.user import WechatLoginIn, UserOut, VoteIn, VoteOut, UserProfil
 from app.schemas.vote_history import VoteHistoryItem
 from app.core.wechat import WeChatClient
 from app.core.auth import create_token
+from app.core.cache import (
+    user_profile_cache, user_votes_cache, user_vote_cache,
+    get_or_set, invalidate_user,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -139,13 +143,17 @@ async def get_user_vote(
     db: AsyncSession = Depends(get_db),
 ):
     """查询用户对某场比赛的投票"""
-    stmt = select(UserVote).where(
-        UserVote.user_id == user_id,
-        UserVote.match_id == match_id,
-    )
-    result = await db.execute(stmt)
-    vote = result.scalar_one_or_none()
-    return vote
+    cache_key = f"vote:{user_id}:{match_id}"
+
+    async def fetch():
+        stmt = select(UserVote).where(
+            UserVote.user_id == user_id,
+            UserVote.match_id == match_id,
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    return await get_or_set(user_vote_cache, cache_key, fetch)
 
 
 @router.post("/vote", response_model=VoteOut)
@@ -183,6 +191,8 @@ async def create_vote(
         existing.is_correct_score = None
         await db.flush()
         await db.refresh(existing)
+        # 写后失效缓存
+        invalidate_user(user_id)
         return existing
 
     vote = UserVote(
@@ -196,7 +206,10 @@ async def create_vote(
     await db.flush()
     await db.refresh(vote)
 
+    # 写后失效缓存
+    invalidate_user(user_id)
     return vote
+
 
 @router.get("/profile", response_model=UserProfileOut)
 async def get_profile(
@@ -204,44 +217,51 @@ async def get_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """用户信息"""
-    stmt = select(User).where(User.id == user_id)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    cache_key = f"profile:{user_id}"
 
-    # 投票统计：total 为全部投票数，correct_result/score 只统计已评估的
-    total_stmt = select(func.count(UserVote.id)).where(UserVote.user_id == user_id)
-    total_result = await db.execute(total_stmt)
-    total = total_result.scalar() or 0
+    async def fetch():
+        stmt = select(User).where(User.id == user_id)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    evaluated_stmt = (
-        select(
-            func.sum(case((UserVote.is_correct_result == True, 1), else_=0)).label("correct_result"),
-            func.sum(case((UserVote.is_correct_score == True, 1), else_=0)).label("correct_score"),
+        # 投票统计
+        total_stmt = select(func.count(UserVote.id)).where(UserVote.user_id == user_id)
+        total_result = await db.execute(total_stmt)
+        total = total_result.scalar() or 0
+
+        evaluated_stmt = (
+            select(
+                func.sum(case((UserVote.is_correct_result == True, 1), else_=0)).label("correct_result"),
+                func.sum(case((UserVote.is_correct_score == True, 1), else_=0)).label("correct_score"),
+            )
+            .where(UserVote.user_id == user_id)
+            .where(UserVote.is_correct_result.isnot(None))
         )
-        .where(UserVote.user_id == user_id)
-        .where(UserVote.is_correct_result.isnot(None))
-    )
-    evaluated_result = await db.execute(evaluated_stmt)
-    evaluated_row = evaluated_result.one()
-    correct_result = evaluated_row.correct_result or 0
-    correct_score = evaluated_row.correct_score or 0
+        evaluated_result = await db.execute(evaluated_stmt)
+        evaluated_row = evaluated_result.one()
+        correct_result = evaluated_row.correct_result or 0
+        correct_score = evaluated_row.correct_score or 0
 
-    vote_stats = {
-        "total": total,
-        "correct_result": correct_result,
-        "correct_score": correct_score,
-        "result_accuracy": round(correct_result / total * 100, 1) if total > 0 else 0,
-    }
+        vote_stats = {
+            "total": total,
+            "correct_result": correct_result,
+            "correct_score": correct_score,
+            "result_accuracy": round(correct_result / total * 100, 1) if total > 0 else 0,
+        }
 
-    # 将 vote_stats 合并到 user 对象返回
-    user_dict = UserOut.model_validate(user).model_dump()
-    user_dict["total_votes"] = total
-    user_dict["correct_results"] = correct_result
-    user_dict["correct_scores"] = correct_score
+        user_dict = UserOut.model_validate(user).model_dump()
+        user_dict["total_votes"] = total
+        user_dict["correct_results"] = correct_result
+        user_dict["correct_scores"] = correct_score
 
-    return {"user": user_dict, "vote_stats": vote_stats}
+        return {"user": user_dict, "vote_stats": vote_stats}
+
+    try:
+        return await get_or_set(user_profile_cache, cache_key, fetch)
+    except HTTPException:
+        raise
 
 
 @router.get("/votes", response_model=list[VoteHistoryItem])
@@ -252,45 +272,50 @@ async def get_vote_history(
     db: AsyncSession = Depends(get_db),
 ):
     """获取用户投票历史"""
-    HomeTeam = aliased(Team)
-    AwayTeam = aliased(Team)
-    stmt = (
-        select(UserVote, Match, HomeTeam, AwayTeam)
-        .join(Match, UserVote.match_id == Match.id)
-        .join(HomeTeam, Match.home_team_id == HomeTeam.id)
-        .join(AwayTeam, Match.away_team_id == AwayTeam.id)
-        .where(UserVote.user_id == user_id)
-        .order_by(UserVote.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    result = await db.execute(stmt)
-    rows = result.all()
+    cache_key = f"votes:{user_id}:{limit}:{offset}"
 
-    items = []
-    for row in rows:
-        vote, match, home_team, away_team = row
-        items.append(VoteHistoryItem(
-            id=vote.id,
-            match_id=match.id,
-            round=match.round,
-            match_time=match.match_time.isoformat() if match.match_time else None,
-            home_team_name=home_team.cn_name or home_team.name,
-            away_team_name=away_team.cn_name or away_team.name,
-            home_team_flag=home_team.flag_url,
-            away_team_flag=away_team.flag_url,
-            match_status=match.status.value,
-            match_result=match.result.value if match.result else None,
-            match_home_score=match.home_score,
-            match_away_score=match.away_score,
-            predicted_result=vote.result.value,
-            predicted_home_score=vote.score_home,
-            predicted_away_score=vote.score_away,
-            is_correct_result=vote.is_correct_result,
-            is_correct_score=vote.is_correct_score,
-            created_at=vote.created_at.isoformat() if vote.created_at else None,
-        ))
-    return items
+    async def fetch():
+        HomeTeam = aliased(Team)
+        AwayTeam = aliased(Team)
+        stmt = (
+            select(UserVote, Match, HomeTeam, AwayTeam)
+            .join(Match, UserVote.match_id == Match.id)
+            .join(HomeTeam, Match.home_team_id == HomeTeam.id)
+            .join(AwayTeam, Match.away_team_id == AwayTeam.id)
+            .where(UserVote.user_id == user_id)
+            .order_by(UserVote.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        items = []
+        for row in rows:
+            vote, match, home_team, away_team = row
+            items.append(VoteHistoryItem(
+                id=vote.id,
+                match_id=match.id,
+                round=match.round,
+                match_time=match.match_time.isoformat() if match.match_time else None,
+                home_team_name=home_team.cn_name or home_team.name,
+                away_team_name=away_team.cn_name or away_team.name,
+                home_team_flag=home_team.flag_url,
+                away_team_flag=away_team.flag_url,
+                match_status=match.status.value,
+                match_result=match.result.value if match.result else None,
+                match_home_score=match.home_score,
+                match_away_score=match.away_score,
+                predicted_result=vote.result.value,
+                predicted_home_score=vote.score_home,
+                predicted_away_score=vote.score_away,
+                is_correct_result=vote.is_correct_result,
+                is_correct_score=vote.is_correct_score,
+                created_at=vote.created_at.isoformat() if vote.created_at else None,
+            ))
+        return items
+
+    return await get_or_set(user_votes_cache, cache_key, fetch)
 
 
 @router.put("/profile", response_model=UserOut)
@@ -320,4 +345,7 @@ async def update_profile(
 
     await db.flush()
     await db.refresh(user)
+
+    # 写后失效缓存
+    invalidate_user(user_id)
     return UserOut.model_validate(user)

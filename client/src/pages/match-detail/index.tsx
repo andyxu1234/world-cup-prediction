@@ -114,12 +114,17 @@ export default function MatchDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, matchId])
 
-  // 已有投票时回填状态
+  // 已有投票时回填状态；无投票时重置默认
   useEffect(() => {
     if (myVote) {
       setSelectedResult(myVote.result)
       setHomeScore(String(myVote.score_home ?? 0))
       setAwayScore(String(myVote.score_away ?? 0))
+    } else {
+      // 未投票：默认 0:0，无选中
+      setSelectedResult('')
+      setHomeScore('0')
+      setAwayScore('0')
     }
   }, [myVote])
 
@@ -222,7 +227,7 @@ export default function MatchDetail() {
             const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
             const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
             return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
-          })()} · {currentMatch.venue || 'TBD'}
+          })()}
         </Text>
       </View>
 

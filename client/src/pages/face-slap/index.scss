@@ -389,19 +389,73 @@ $text3: #8e8ea0;
   font-weight: 500;
 }
 
-.fs-empty {
+/* ========== Rich Empty State ========== */
+.fs-rich-empty {
+  position: relative;
   text-align: center;
-  padding: 140px 40px;
+  padding: 80px 32px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.fs-empty-icon {
+.fs-re-glow {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, rgba(249, 115, 22, 0.05) 50%, transparent 70%);
+  pointer-events: none;
+  animation: fsReGlowPulse 4s ease-in-out infinite;
+}
+
+@keyframes fsReGlowPulse {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.8; }
+  50% { transform: translateX(-50%) scale(1.15); opacity: 1; }
+}
+
+.fs-re-icon {
   font-size: 96px;
   display: block;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  animation: fsReFloat 4s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
 }
 
-.fs-empty-text {
-  font-size: 27px;
+@keyframes fsReFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.fs-re-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: $text1;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.fs-re-desc {
+  font-size: 25px;
   color: $text3;
-  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.fs-re-tip {
+  font-size: 23px;
+  color: $text3;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, rgba($red, 0.06), rgba($orange, 0.04));
+  border-radius: 20px;
+  border: 1px solid rgba($red, 0.08);
+  position: relative;
+  z-index: 1;
 }

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { useLeaderboardStore, useUserStore } from '@/stores'
+import { useLeaderboardStore, useUserStore, useMatchStore } from '@/stores'
 import type { MixedRankItem } from '@/stores'
 import { resolveAvatarUrl } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
@@ -104,6 +104,102 @@ function renderStyleTags(tags: Record<string, any> | null | undefined) {
   })
 }
 
+/** 计算距离世界杯开幕的倒计时（2026-06-11 开幕） */
+function getCountdown(): { days: number; hours: number; mins: number; secs: number } {
+  // 使用 Date 构造函数避免时区解析差异（月份从0开始）
+  const target = new Date(Date.UTC(2026, 5, 11, 0, 0, 0))
+  const now = new Date()
+  const diff = Math.max(0, target.getTime() - now.getTime())
+  return {
+    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+    mins: Math.floor((diff / (1000 * 60)) % 60),
+    secs: Math.floor((diff / 1000) % 60),
+  }
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+/** 单个翻页数字 — CSS 3D 翻转动画 */
+function FlipDigit({ value, prevValue }: { value: string; prevValue: string }) {
+  const isFlipping = value !== prevValue
+  return (
+    <View className='flip-digit'>
+      {/* 静态当前数字 */}
+      <Text className={`flip-digit-num ${isFlipping ? 'flip-out' : ''}`}>{prevValue}</Text>
+      {isFlipping && (
+        <>
+          {/* 上半部分翻下 */}
+          <View className='flip-digit-top'>
+            <Text className='flip-digit-text'>{prevValue}</Text>
+          </View>
+          {/* 下半部分 */}
+          <View className='flip-digit-bottom'>
+            <Text className='flip-digit-text'>{value}</Text>
+          </View>
+        </>
+      )}
+      <Text className={`flip-digit-new ${isFlipping ? 'flip-in' : ''}`}>{value}</Text>
+    </View>
+  )
+}
+
+/** 时间单元：两位数字 + 标签 */
+function FlipUnit({ value, label }: { value: string; label: string }) {
+  const [prevVal, setPrevVal] = useState(value)
+  // 数字变化时触发翻转
+  useEffect(() => { if (value !== prevVal) setPrevVal(value) }, [value])
+  return (
+    <View className='flip-unit'>
+      <View className='flip-unit-digits'>
+        <FlipDigit value={value[0]} prevValue={prevVal[0]} />
+        <FlipDigit value={value[1]} prevValue={prevVal[1]} />
+      </View>
+      <Text className='flip-unit-label'>{label}</Text>
+    </View>
+  )
+}
+
+/** 世界杯倒计时横幅 */
+function WorldCupCountdown() {
+  const cd = getCountdown()
+  const d = pad2(cd.days)
+  const h = pad2(cd.hours)
+  const m = pad2(cd.mins)
+  const s = pad2(cd.secs)
+  // 用 ref 追踪上一秒值来触发翻转
+  const prevRef = useRef({ d, h, m, s })
+  const [, force] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      prevRef.current = { d, h, m, s }
+      force(n => n + 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const prev = prevRef.current
+  return (
+    <View className='countdown-banner'>
+      <View className='countdown-banner-bg' />
+      <View className='countdown-header'>
+        <Text className='countdown-title-icon'>🏆</Text>
+        <Text className='countdown-title'>2026 世界杯开幕倒计时</Text>
+      </View>
+      <View className='countdown-flips'>
+        <FlipUnit value={d} label='天' />
+        <View className='flip-sep'><Text className='flip-dot'></Text></View>
+        <FlipUnit value={h} label='时' />
+        <View className='flip-sep'><Text className='flip-dot'></Text></View>
+        <FlipUnit value={m} label='分' />
+        <View className='flip-sep'><Text className='flip-dot'></Text></View>
+        <FlipUnit value={s} label='秒' />
+      </View>
+    </View>
+  )
+}
+
 /** 混合排行条目（人机合一） */
 function MixedRankRow({ item, rank }: { item: MixedRankItem; rank: number }) {
   const isMe = !!item.isMe
@@ -178,6 +274,7 @@ export default function Leaderboard() {
     setActiveTab, setActiveRound, setSortMode, setSort, fetchLeaderboard,
   } = useLeaderboardStore()
   const loginReady = useUserStore((s) => s.loginReady)
+  const homeStats = useMatchStore((s) => s.homeStats)
 
   useEffect(() => {
     if (loginReady) fetchLeaderboard()
@@ -289,13 +386,21 @@ export default function Leaderboard() {
         </View>
       )}
 
+      {/* 世界杯倒计时翻页（放在 ScrollView 外部，与上方控件对齐） */}
+      <WorldCupCountdown />
+
       {/* 人机对决：混合排行列表 */}
       {activeTab === 'human' && (
         <ScrollView scrollY className='lb-list lb-list-ai'>
           {mixedRank.length === 0 && !useLeaderboardStore.getState().loading && (
-            <View className='empty'>
-              <Text className='empty-icon'>⚔️</Text>
-              <Text className='empty-text'>暂无人机对战数据</Text>
+            <View className='rich-empty'>
+              <View className='rich-empty-glow' />
+              <Text className='rich-empty-icon'>⚔️</Text>
+              <Text className='rich-empty-title'>对决即将开始</Text>
+              <Text className='rich-empty-desc'>比赛开始后，AI 与人类预测实力对比将在这里实时更新</Text>
+              <Text className='rich-empty-tip'>
+                💡 已有 {homeStats?.active_ai_models ?? 0} 个 AI 模型蓄势待发
+              </Text>
             </View>
           )}
           {mixedRank.map((item, idx) => (
@@ -311,9 +416,14 @@ export default function Leaderboard() {
       {activeTab === 'ai' && (
         <ScrollView scrollY className='lb-list lb-list-ai'>
           {entries.length === 0 && !useLeaderboardStore.getState().loading && (
-            <View className='empty'>
-              <Text className='empty-icon'>🏆</Text>
-              <Text className='empty-text'>暂无排行数据</Text>
+            <View className='rich-empty'>
+              <View className='rich-empty-glow' />
+              <Text className='rich-empty-icon'>🏆</Text>
+              <Text className='rich-empty-title'>排行榜即将揭晓</Text>
+              <Text className='rich-empty-desc'>比赛开始后，AI 预测实力排行将在这里实时更新</Text>
+              <Text className='rich-empty-tip'>
+                💡 已有 {homeStats?.active_ai_models ?? 0} 个 AI 模型蓄势待发
+              </Text>
             </View>
           )}
           {entries.map((entry, idx) => {

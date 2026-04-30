@@ -1,8 +1,9 @@
 """定时任务调度
 
-重构后只有 2 个 cron job：
-- sync_matches_and_respond: 每 30 分钟同步比赛 + 事件驱动下游（H2H、stats、评估）
+重构后只有 3 个 cron job：
+- sync_matches_and_respond: 每 30 分钟同步比赛 + 事件驱动下游
 - generate_predictions: 每日 01:00 生成 AI 预测
+- refresh_all_caches: 每 5 分钟刷新缓存
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ def start_scheduler():
     """启动定时任务"""
     from app.services.sync_pipeline import sync_matches_and_respond
     from app.services.ai_predictor import generate_predictions
+    from app.core.cache_warmer import refresh_all_caches
 
     # 每 30 分钟：同步比赛 + 事件响应（新增比赛→H2H，比赛结束→stats+评估）
     scheduler.add_job(
@@ -37,11 +39,21 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # 每 5 分钟：刷新缓存（预热只读数据，减少 DB 查询）
+    scheduler.add_job(
+        refresh_all_caches,
+        "cron",
+        minute="*/5",
+        id="refresh_all_caches",
+        replace_existing=True,
+    )
+
     scheduler.start()
     logger.info(
         "Scheduler started: "
         "sync_matches_and_respond(*/30min), "
-        "generate_predictions(01:00)"
+        "generate_predictions(01:00), "
+        "refresh_all_caches(*/5min)"
     )
 
 

@@ -10,6 +10,7 @@ const MENU_ITEMS = [
   { icon: '🏆', label: '我的战绩', color: 'rgba(0,255,135,0.1)', textColor: '#00ff87' },
   { icon: '🔗', label: '分享给好友', color: 'rgba(168,85,247,0.1)', textColor: '#a855f7' },
   { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
+  { icon: '☕', label: '支持开发者', color: 'rgba(245,158,11,0.1)', textColor: '#f59e0b' },
 ]
 
 const DEFAULT_AI_RANKING = [
@@ -18,16 +19,11 @@ const DEFAULT_AI_RANKING = [
   { name: 'Claude', result_accuracy: 75.6 },
 ]
 
-/** 调用 DeepSeek 动态生成趣闻 */
-async function fetchFunFactFromAPI(user: any): Promise<api.FunFact> {
+/** 调用 DeepSeek 动态生成趣闻（全局共享，不区分用户） */
+async function fetchFunFactFromAPI(): Promise<api.FunFact> {
   try {
-    return await api.getFunFact(
-      user?.total_votes ?? 0,
-      user?.correct_results ?? 0,
-      user?.correct_scores ?? 0,
-    )
+    return await api.getFunFact()
   } catch {
-    // API 失败时的兜底
     return { icon: '⚽', title: '足球小知识', text: '精彩内容正在生成中，稍后再来试试吧~' }
   }
 }
@@ -40,8 +36,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [pickingAvatar, setPickingAvatar] = useState(false)
   const [funFact, setFunFact] = useState<api.FunFact>({ icon: '🎵', title: '你知道吗？', text: '' })
-  const [factKey, setFactKey] = useState(0)
-  const [fetchingFact, setFetchingFact] = useState(false)
 
   // 分享给好友成功回调
   const handleShared = () => Taro.showToast({ title: '已分享', icon: 'success' })
@@ -87,21 +81,10 @@ export default function Profile() {
     }
   }, [user?.id, profileSetup])
 
-  // 动态趣闻：调用 DeepSeek API 生成，支持点击换一条
+  // 动态趣闻：全局共享，进入页面时获取一次
   useEffect(() => {
-    if (user) {
-      fetchFunFactFromAPI(user).then(f => setFunFact(f))
-    }
-  }, [user?.total_votes, user?.correct_results, user?.correct_scores])
-
-  const handleRefreshFact = async () => {
-    if (fetchingFact) return
-    setFetchingFact(true)
-    const next = await fetchFunFactFromAPI(user)
-    setFunFact(next)
-    setFactKey(k => k + 1)
-    setFetchingFact(false)
-  }
+    fetchFunFactFromAPI().then(f => setFunFact(f))
+  }, [])
 
   const handleReLogin = () => {
     Taro.login({
@@ -193,6 +176,10 @@ export default function Profile() {
     }
     if (label === '关于小程序') {
       Taro.navigateTo({ url: '/pages/about/index' })
+      return
+    }
+    if (label === '支持开发者') {
+      Taro.navigateTo({ url: '/pages/support/index' })
       return
     }
     if (!token && label !== '设置' && label !== '关于小程序') {
@@ -341,10 +328,9 @@ export default function Profile() {
         ))}
       </View>
 
-      <View className='fun-fact' key={factKey} onClick={handleRefreshFact}>
+      <View className='fun-fact'>
         <View className='fun-fact-header'>
           <Text className='fun-fact-title'>{funFact.icon} {funFact.title}</Text>
-          <Text className='fun-fact-refresh'>🔄</Text>
         </View>
         <Text className='fun-fact-text'>{funFact.text}</Text>
       </View>

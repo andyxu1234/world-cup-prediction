@@ -9,6 +9,7 @@ from loguru import logger
 
 from app.config import get_settings, Settings
 from app.core.scheduler import start_scheduler, stop_scheduler
+from app.core.cache import get_cache_stats, clear_all_caches
 from app.api.router import api_router
 
 
@@ -20,6 +21,14 @@ async def lifespan(app: FastAPI):
 
     # 确保头像存储目录存在
     settings.AVATAR_SAVE_PATH.mkdir(parents=True, exist_ok=True)
+
+    # 启动时预热缓存
+    try:
+        from app.core.cache_warmer import refresh_all_caches
+        await refresh_all_caches()
+        logger.info("Initial cache warm-up done")
+    except Exception as e:
+        logger.warning(f"Initial cache warm-up failed (non-fatal): {e}")
 
     start_scheduler()
     yield
@@ -59,3 +68,16 @@ app.mount("/static/avatars", StaticFiles(directory=str(settings.AVATAR_SAVE_PATH
 async def health_check():
     """健康检查"""
     return {"status": "ok"}
+
+
+@app.get("/cache-stats")
+async def cache_stats():
+    """缓存统计信息（监控用）"""
+    return get_cache_stats()
+
+
+@app.post("/cache/clear")
+async def cache_clear():
+    """手动清空所有缓存"""
+    clear_all_caches()
+    return {"status": "cleared"}

@@ -58,6 +58,8 @@ function getStatusLabel(status: string) {
   return null
 }
 
+
+
 export default function Index() {
   // 使用 shallow 浅比较：只有 matches 数组引用变化时才重渲染
   const matches = useMatchStore((s) => s.matches, shallow)
@@ -67,7 +69,6 @@ export default function Index() {
   const loginReady = useUserStore((s) => s.loginReady)
   const [activeChip, setActiveChip] = useState('小组赛')
   const navigatingRef = useRef<Set<number>>(new Set())
-
   // 所有 hooks 必须在条件返回之前调用（React Rules of Hooks）
   useEffect(() => {
     if (!loginReady) return

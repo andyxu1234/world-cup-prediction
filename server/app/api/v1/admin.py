@@ -11,7 +11,6 @@ from app.services.prediction_evaluator import evaluate_predictions
 from app.services.stats_sync import sync_standings_and_stats
 from app.services.h2h_sync import sync_all_h2h
 from app.services.sync_pipeline import sync_matches_and_respond
-from app.services.seed import seed_all, seed_ai_models, seed_teams, seed_matches, seed_predictions
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -91,14 +90,3 @@ async def trigger_evaluate_predictions():
     except Exception as e:
         logger.error(f"Prediction evaluation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Prediction evaluation failed: {e}")
-
-
-@router.post("/seed")
-async def trigger_seed_data():
-    """初始化种子数据（AI模型、球队、比赛、预测）— 与现有数据合并"""
-    try:
-        await seed_all()
-        return {"status": "ok", "message": "Seed data initialized successfully"}
-    except Exception as e:
-        logger.error(f"Seed data failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Seed data failed: {e}")

@@ -5,9 +5,9 @@ export default defineAppConfig({
     'pages/match-detail/index',
     'pages/leaderboard/index',
     'pages/face-slap/index',
+    'pages/support/index',
     'pages/profile/index',
     'pages/profile-setup/index',
-    'pages/share-card/index',
     'pages/vote-history/index',
     'pages/ai-detail/index',
     'pages/about/index'

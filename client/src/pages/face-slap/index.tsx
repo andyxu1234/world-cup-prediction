@@ -284,9 +284,12 @@ export default function FaceSlapPage() {
 
         {/* 空状态 */}
         {!loading && faceSlaps.length === 0 && (
-          <View className='fs-empty'>
-            <Text className='fs-empty-icon'>🤖</Text>
-            <Text className='fs-empty-text'>暂无打脸数据，比赛还没开始呢</Text>
+          <View className='fs-rich-empty'>
+            <View className='fs-re-glow' />
+            <Text className='fs-re-icon'>🤖</Text>
+            <Text className='fs-re-title'>AI 还没翻车呢</Text>
+            <Text className='fs-re-desc'>等比赛开始了，AI 的翻车名场面都在这里等着你</Text>
+            <Text className='fs-re-tip'>🍿 敬请期待，好戏即将上演</Text>
           </View>
         )}
       </ScrollView>

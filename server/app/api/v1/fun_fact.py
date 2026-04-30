@@ -1,11 +1,12 @@
 """动态生成趣味文案 — 调用 DeepSeek"""
 
 import json
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from pydantic import BaseModel
 from loguru import logger
 from openai import AsyncOpenAI
 from app.config import get_settings
+from app.core.cache import fun_fact_cache, get_or_set
 
 router = APIRouter(prefix="/fun-fact", tags=["fun-fact"])
 
@@ -18,13 +19,10 @@ SYSTEM_PROMPT = """你是一个足球世界杯小程序的"趣味小编"。你�
 5. 可以适当使用 emoji 增加趣味性
 6. 用中文输出"""
 
-USER_PROMPT_TEMPLATE = """请生成一条趣味文案。用户信息供参考（可以结合用户数据个性化，也可以忽略直接出通用趣闻）：
-- 预测场次: {total_votes}
-- 胜负正确: {correct_results}
-- 比分命中: {correct_scores}
+USER_PROMPT = """请生成一条趣味文案。
 
 请以 JSON 格式返回，包含字段：
-{{"icon": "一个emoji图标", "title": "标题（4-6字）", "text": "正文内容"}}"""
+{"icon": "一个emoji图标", "title": "标题（4-6字）", "text": "正文内容"}"""
 
 
 class FunFactOut(BaseModel):
@@ -33,7 +31,7 @@ class FunFactOut(BaseModel):
     text: str
 
 
-async def _call_deepseek(user_context: dict) -> dict:
+async def _call_deepseek() -> dict:
     settings = get_settings()
     if not settings.DEEPSEEK_API_KEY:
         raise ValueError("DEEPSEEK_API_KEY 未配置")
@@ -44,12 +42,11 @@ async def _call_deepseek(user_context: dict) -> dict:
     )
 
     try:
-        user_prompt = USER_PROMPT_TEMPLATE.format(**user_context)
         resp = await client.chat.completions.create(
             model="deepseek-chat",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": USER_PROMPT},
             ],
             temperature=0.9,
             max_tokens=200,
@@ -57,7 +54,6 @@ async def _call_deepseek(user_context: dict) -> dict:
         content = resp.choices[0].message.content.strip()
 
         # 解析 JSON 响应
-        # 策略 1: 直接解析
         try:
             return json.loads(content)
         except json.JSONDecodeError:
@@ -89,28 +85,22 @@ async def _call_deepseek(user_context: dict) -> dict:
 
 
 @router.get("", response_model=FunFactOut)
-async def get_fun_fact(
-    total_votes: int = Query(0, description="用户预测场次"),
-    correct_results: int = Query(0, description="胜负正确数"),
-    correct_scores: int = Query(0, description="比分命中数"),
-):
-    """调用 DeepSeek 动态生成趣味文案"""
-    user_context = {
-        "total_votes": total_votes,
-        "correct_results": correct_results,
-        "correct_scores": correct_scores,
-    }
+async def get_fun_fact():
+    """调用 DeepSeek 动态生成趣味文案（全局缓存 1 小时，所有用户共享）"""
+    cache_key = "latest"
 
-    try:
-        result = await _call_deepseek(user_context)
+    async def fetch():
+        result = await _call_deepseek()
         return FunFactOut(
             icon=result.get("icon", "🎵"),
             title=result.get("title", "你知道吗？"),
             text=result.get("text", "精彩内容加载中..."),
         )
+
+    try:
+        return await get_or_set(fun_fact_cache, cache_key, fetch)
     except Exception as e:
         logger.error(f"[fun-fact] 生成失败: {e}")
-        # fallback 兜底文案
         return FunFactOut(
             icon="⚽",
             title="足球小知识",
