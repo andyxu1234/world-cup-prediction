@@ -386,8 +386,10 @@ export default function Leaderboard() {
         </View>
       )}
 
-      {/* 世界杯倒计时翻页（放在 ScrollView 外部，与上方控件对齐） */}
-      <WorldCupCountdown />
+      {/* 世界杯倒计时翻页：仅在没有预测数据时显示 */}
+      {entries.length === 0 && mixedRank.length === 0 && (
+        <WorldCupCountdown />
+      )}
 
       {/* 人机对决：混合排行列表 */}
       {activeTab === 'human' && (

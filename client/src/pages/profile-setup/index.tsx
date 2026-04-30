@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View, Text, Input, Button, Image } from '@tarojs/components'
-import Taro, { useDidHide } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
@@ -28,11 +28,6 @@ export default function ProfileSetup() {
   const [saving, setSaving] = useState(false)
   const navHeight = getNavHeight()
 
-  // 无论用户以何种方式离开此页面（按钮/tabBar/返回），都放行首页
-  useDidHide(() => {
-    useUserStore.getState().setLoginReady()
-  })
-
   const handleChooseAvatar = async (e: any) => {
     const url = e.detail?.avatarUrl
     if (!url || !user?.id) return
@@ -52,6 +47,11 @@ export default function ProfileSetup() {
       Taro.showToast({ title: '请填写昵称', icon: 'none' })
       return
     }
+    const finalAvatar = avatarUrl || ''
+    if (!finalAvatar) {
+      Taro.showToast({ title: '请选择头像', icon: 'none' })
+      return
+    }
     setSaving(true)
     try {
       await updateProfile(nickname.trim(), avatarUrl || '')
@@ -67,13 +67,9 @@ export default function ProfileSetup() {
     }
   }
 
-  const handleSkip = () => {
-    useUserStore.getState().setLoginReady()
-    Taro.switchTab({ url: '/pages/index/index' })
-  }
-
   const displayAvatar = resolveAvatarUrl(avatarUrl)
-  const isReady = nickname.trim().length > 0 && !saving
+  // 保存条件：昵称和头像都必填
+  const isReady = nickname.trim().length > 0 && avatarUrl.length > 0 && !saving
 
   return (
     <View className='setup-page'>
@@ -167,12 +163,8 @@ export default function ProfileSetup() {
                 <Text>提交中...</Text>
               </View>
             ) : (
-              <Text>{isReady ? '开始预测 →' : '先填写昵称吧'}</Text>
+              <Text>{isReady ? '开始预测 →' : (nickname.trim() ? '请选择头像' : '先填写昵称吧')}</Text>
             )}
-          </View>
-          <View className='skip-row' onClick={handleSkip}>
-            <Text className='skip-text'>稍后再设置</Text>
-            <Text className='skip-arrow'>›</Text>
           </View>
         </View>
 

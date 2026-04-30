@@ -76,8 +76,10 @@ async def refresh_all_caches():
             await get_human_leaderboard(db, current_user_id=None, round_filter="全部")
             logger.debug("[CacheWarmer] leaderboard cached")
 
-            # 4. 打脸合集（默认参数）
+            # 4. 打脸合集（默认参数：只预热 latest）
+            # 注意：必须构建 FaceSlapOut 对象存入缓存，与 API 端点返回类型一致
             from app.models.match import Match as M
+            from app.schemas.prediction import FaceSlapOut
             base_stmt = (
                 select(Prediction)
                 .join(Prediction.match)
@@ -95,7 +97,33 @@ async def refresh_all_caches():
                 Prediction.is_correct_score == False,
             ).order_by(sa_desc(M.match_time)).limit(20)
             face_result = await db.execute(face_stmt)
-            face_slap_cache["face_slaps:latest:20"] = face_result.scalars().all()
+            face_predictions = face_result.scalars().all()
+
+            face_outs = []
+            for pred in face_predictions:
+                match = pred.match
+                score_diff = abs((match.home_score or 0) - (match.away_score or 0))
+                score_absurdity = abs((pred.score_home or 0) - (match.home_score or 0)) + abs((pred.score_away or 0) - (match.away_score or 0))
+                face_outs.append(FaceSlapOut(
+                    prediction_id=pred.id,
+                    model_name=pred.ai_model.name,
+                    model_avatar=pred.ai_model.avatar_url,
+                    match_id=match.id,
+                    home_team=match.home_team.cn_name or match.home_team.name,
+                    away_team=match.away_team.cn_name or match.away_team.name,
+                    home_team_flag=match.home_team.flag_url,
+                    away_team_flag=match.away_team.flag_url,
+                    predicted_result=pred.result,
+                    predicted_score=f"{pred.score_home}:{pred.score_away}",
+                    actual_result=match.result or "",
+                    actual_score=f"{match.home_score}:{match.away_score}",
+                    confidence=pred.confidence,
+                    analysis=pred.analysis,
+                    face_slap_index=(pred.confidence or 5) * (score_diff + 1),
+                    score_absurdity=score_absurdity,
+                    match_time=match.match_time.isoformat() if match.match_time else None,
+                ))
+            face_slap_cache["face_slaps:latest:20"] = face_outs
             logger.debug("[CacheWarmer] face-slaps cached")
 
             # 5. 长期预测
