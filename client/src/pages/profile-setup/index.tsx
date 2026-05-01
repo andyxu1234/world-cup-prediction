@@ -70,13 +70,16 @@ export default function ProfileSetup() {
   }
 
   const handleSkip = async () => {
-    // 稍后设置时，将默认头像写入 users 表
+    // 稍后设置时，将默认头像和昵称写入 users 表
     try {
       const nick = nickname.trim() || user?.nickname || ''
       const defaultAvatarUrl = `${API_BASE_URL}${DEFAULT_AVATAR_PATH}`
-      await api.updateUserProfile(user!.id, nick, defaultAvatarUrl)
+      console.log('[ProfileSkip] writing default avatar:', { userId: user?.id, nick, url: defaultAvatarUrl })
+      await updateProfile(nick, defaultAvatarUrl)
+      console.log('[ProfileSkip] default avatar written OK')
     } catch (err) {
       console.error('[ProfileSetup] skip set default avatar failed:', err)
+      Taro.showToast({ title: '默认头像设置失败', icon: 'none' })
     }
     setLoginReady()
     Taro.switchTab({ url: '/pages/index/index' })
