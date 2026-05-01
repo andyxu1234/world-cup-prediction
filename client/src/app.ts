@@ -16,8 +16,8 @@ function App({ children }: PropsWithChildren) {
         if (res.code) {
           try {
             const loginRes = await login(res.code)
-            console.log('Auto login success, profileSetup:', loginRes.profile_setup)
-            if (!loginRes.profile_setup) {
+            console.log('Auto login success, isNewUser:', loginRes.is_new_user)
+            if (loginRes.is_new_user) {
               Taro.redirectTo({ url: '/pages/profile-setup/index' })
             } else {
               setLoginReady()

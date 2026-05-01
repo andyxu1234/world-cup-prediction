@@ -75,11 +75,7 @@ export default function Profile() {
     }
   })
 
-  useEffect(() => {
-    if (user && token && !profileSetup) {
-      setEditing(true)
-    }
-  }, [user?.id, profileSetup])
+  // 不强制进入编辑模式，用户可通过点击头像手动编辑
 
   // 动态趣闻：全局共享，进入页面时获取一次
   useEffect(() => {
@@ -91,11 +87,8 @@ export default function Profile() {
       success: async (res) => {
         if (res.code) {
           try {
-            const loginRes = await login(res.code)
+            await login(res.code)
             Taro.showToast({ title: '登录成功', icon: 'success' })
-            if (!loginRes.profileSetup) {
-              Taro.navigateTo({ url: '/pages/profile-setup/index' })
-            }
           } catch {
             Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
           }

@@ -28,6 +28,7 @@ class LoginOut(BaseModel):
     token: str
     user: UserOut
     profile_setup: bool = False  # 是否已完善资料（设置了非默认昵称和头像）
+    is_new_user: bool = False    # 是否为新创建的用户（users 表中无记录）
 
 
 class VoteIn(BaseModel):

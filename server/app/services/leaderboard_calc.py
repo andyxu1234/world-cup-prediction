@@ -23,6 +23,9 @@ def _clean_avatar_url(url: str | None) -> str | None:
         from loguru import logger
         logger.warning(f"[Avatar] 清洗临时URL: {url[:60]}... -> None")
         return None
+    # 预设头像（如 preset://default_avatar）
+    if url.startswith("preset://"):
+        return url
     # 必须是合法 http(s) URL
     if not url.startswith("http"):
         return None

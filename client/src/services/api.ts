@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 
 // dev: http://127.0.0.1:8000 / prod: https://marathoninfo.top
-const API_BASE_URL = process.env.NODE_ENV === 'production'
+export const API_BASE_URL = process.env.NODE_ENV === 'production'
   ? 'https://marathoninfo.top'
   : 'http://127.0.0.1:8000'
 const BASE_URL = `${API_BASE_URL}/api/v1`
@@ -365,7 +365,7 @@ export interface UserProfile {
 }
 
 export function wxLogin(code: string) {
-  return request<{ token: string; user: UserProfile; profile_setup: boolean }>({ url: '/users/login', method: 'POST', data: { code } })
+  return request<{ token: string; user: UserProfile; profile_setup: boolean; is_new_user: boolean }>({ url: '/users/login', method: 'POST', data: { code } })
 }
 
 export function getUserProfile(userId: number) {

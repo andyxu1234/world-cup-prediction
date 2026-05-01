@@ -3,8 +3,11 @@ import { View, Text, Input, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
-import { resolveAvatarUrl } from '@/services/api'
+import { resolveAvatarUrl, API_BASE_URL } from '@/services/api'
 import './index.scss'
+
+// 默认头像路径（服务端 static/avatars 目录下的 default-avatar.svg）
+const DEFAULT_AVATAR_PATH = '/static/avatars/default-avatar.svg'
 
 // 获取导航栏高度（状态栏 + 胶囊按钮区域）
 function getNavHeight() {
@@ -22,7 +25,7 @@ function getNavHeight() {
 }
 
 export default function ProfileSetup() {
-  const { user, updateProfile } = useUserStore()
+  const { user, updateProfile, setLoginReady } = useUserStore()
   const [avatarUrl, setAvatarUrl] = useState('')
   const [nickname, setNickname] = useState('')
   const [saving, setSaving] = useState(false)
@@ -47,14 +50,13 @@ export default function ProfileSetup() {
       Taro.showToast({ title: '请填写昵称', icon: 'none' })
       return
     }
-    const finalAvatar = avatarUrl || ''
-    if (!finalAvatar) {
+    if (!avatarUrl) {
       Taro.showToast({ title: '请选择头像', icon: 'none' })
       return
     }
     setSaving(true)
     try {
-      await updateProfile(nickname.trim(), avatarUrl || '')
+      await updateProfile(nickname.trim(), avatarUrl)
       Taro.showToast({ title: '设置成功！', icon: 'success' })
       setTimeout(() => {
         Taro.switchTab({ url: '/pages/index/index' })
@@ -65,6 +67,19 @@ export default function ProfileSetup() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSkip = async () => {
+    // 稍后设置时，将默认头像写入 users 表
+    try {
+      const nick = nickname.trim() || user?.nickname || ''
+      const defaultAvatarUrl = `${API_BASE_URL}${DEFAULT_AVATAR_PATH}`
+      await api.updateUserProfile(user!.id, nick, defaultAvatarUrl)
+    } catch (err) {
+      console.error('[ProfileSetup] skip set default avatar failed:', err)
+    }
+    setLoginReady()
+    Taro.switchTab({ url: '/pages/index/index' })
   }
 
   const displayAvatar = resolveAvatarUrl(avatarUrl)
@@ -165,6 +180,9 @@ export default function ProfileSetup() {
             ) : (
               <Text>{isReady ? '开始预测 →' : (nickname.trim() ? '请选择头像' : '先填写昵称吧')}</Text>
             )}
+          </View>
+          <View className='skip-btn' onClick={handleSkip}>
+            <Text>稍后设置</Text>
           </View>
         </View>
 
