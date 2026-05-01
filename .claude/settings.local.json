@@ -21,7 +21,8 @@
       "Bash(curl -s \"https://www.football-data.org/documentation/quickstart\")",
       "Bash(gh api *)",
       "Read(//tmp/**)",
-      "Read(//tmp/XhsSkills/skills/**)"
+      "Read(//tmp/XhsSkills/skills/**)",
+      "Bash(chmod +x C:/andy/codebase/world-cup-prediction/server/app/test/hey_test.sh C:/andy/codebase/world-cup-prediction/server/app/test/run_locust.sh)"
     ]
   }
 }

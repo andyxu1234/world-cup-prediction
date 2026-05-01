@@ -18,3 +18,5 @@ eval_type_backport==0.3.1
 openai>=1.50.0
 langgraph>=0.6.0
 python-jose[cryptography]==3.3.0
+locust==2.20.1
+gevent==23.9.1
