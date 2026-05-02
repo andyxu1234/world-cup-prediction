@@ -17,11 +17,7 @@ function App({ children }: PropsWithChildren) {
           try {
             const loginRes = await login(res.code)
             console.log('Auto login success, isNewUser:', loginRes.is_new_user)
-            if (loginRes.is_new_user) {
-              Taro.redirectTo({ url: '/pages/profile-setup/index' })
-            } else {
-              setLoginReady()
-            }
+            setLoginReady()
           } catch (err) {
             console.warn('Auto login failed:', err)
             // 登录失败但有本地 token，仍允许页面正常加载

@@ -107,7 +107,7 @@ function renderStyleTags(tags: Record<string, any> | null | undefined) {
 /** 计算距离世界杯开幕的倒计时（2026-06-11 开幕） */
 function getCountdown(): { days: number; hours: number; mins: number; secs: number } {
   // 使用 Date 构造函数避免时区解析差异（月份从0开始）
-  const target = new Date(Date.UTC(2026, 5, 11, 0, 0, 0))
+  const target = new Date(Date.UTC(2026, 5, 11, 21, 0, 0))
   const now = new Date()
   const diff = Math.max(0, target.getTime() - now.getTime())
   return {

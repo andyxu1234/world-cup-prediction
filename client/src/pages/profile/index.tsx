@@ -10,7 +10,6 @@ const MENU_ITEMS = [
   { icon: '🏆', label: '我的战绩', color: 'rgba(0,255,135,0.1)', textColor: '#00ff87' },
   { icon: '🔗', label: '分享给好友', color: 'rgba(168,85,247,0.1)', textColor: '#a855f7' },
   { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
-  { icon: '☕', label: '支持开发者', color: 'rgba(245,158,11,0.1)', textColor: '#f59e0b' },
 ]
 
 const DEFAULT_AI_RANKING = [
@@ -182,12 +181,11 @@ export default function Profile() {
   }
 
   const isLoggedIn = !!user && !!token
-  const hasProfile = !!isLoggedIn && !!profileSetup
-  // 编辑模式下优先显示刚选的头像，否则用已有头像
+  // 始终优先使用服务端返回的用户数据，不依赖 profileSetup 标志判断是否展示
   const displayAvatar = editing
     ? resolveAvatarUrl(avatarUrl || (user?.avatar_url || ''))
     : resolveAvatarUrl(user?.avatar_url || '')
-  const displayName = hasProfile ? (user!.nickname || '微信用户') : (nickname || '微信用户')
+  const displayName = user?.nickname || nickname || '微信用户'
   // 保存条件：昵称不为空 且 有头像（新选的 或 已有的均可）
   const hasAvatar = avatarUrl.length > 0 || (user?.avatar_url?.length > 0)
   const canSave = nickname.trim().length > 0 && hasAvatar
