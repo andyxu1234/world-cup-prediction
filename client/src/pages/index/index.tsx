@@ -68,7 +68,41 @@ export default function Index() {
   const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
   const [activeChip, setActiveChip] = useState('小组赛')
   const navigatingRef = useRef<Set<number>>(new Set())
+  // 动态计算 ScrollView 高度，精确适配不同设备屏幕（解决 iPhone 7 Plus 等设备底部留白问题）
+  // 根因：CSS 中 calc(100vh - 560px) 的 560px 是 CSS px，但页面元素全部用 rpx，
+  //       不同设备的 rpx→px 转换比例不同，导致固定 px 减去值在部分设备上不准确
+  const [scrollHeight, setScrollHeight] = useState<string>('')
   // 所有 hooks 必须在条件返回之前调用（React Rules of Hooks）
+  useEffect(() => {
+    // 延迟到首帧渲染完成后查询布局，确保 DOM 已就位
+    const timer = setTimeout(() => {
+      try {
+        const query = Taro.createSelectorQuery()
+        query.select('.hero').boundingClientRect()
+        query.select('.chips-scroll').boundingClientRect()
+        query.exec((res) => {
+          const heroRect = res[0]
+          const chipsRect = res[1]
+          if (!heroRect || !chipsRect) {
+            setScrollHeight('calc(100vh - 560px)')
+            return
+          }
+          const sysInfo = Taro.getSystemInfoSync()
+          const { windowHeight } = sysInfo
+          // ScrollView 高度 = 屏幕可用高度 - Hero实际高度 - Chips实际高度
+          // 不再用硬编码像素值估算
+          const available = Math.max(
+            windowHeight - heroRect.height - chipsRect.height,
+            200 // 兜底最小高度，防止极端情况
+          )
+          setScrollHeight(`${available}px`)
+        })
+      } catch {
+        setScrollHeight('calc(100vh - 560px)')
+      }
+    }, 300) // 等待首帧渲染完成
+    return () => clearTimeout(timer)
+  }, [])
   useEffect(() => {
     fetchHomeStats()
   }, [fetchHomeStats])
@@ -199,7 +233,7 @@ export default function Index() {
       </ScrollView>
 
       {/* 比赛列表 */}
-      <ScrollView scrollY className='match-list'>
+      <ScrollView scrollY className='match-list' style={scrollHeight ? { height: scrollHeight } : undefined}>
         {matches.length === 0 && (
           <View className='empty'>
             <Text className='empty-icon'>⚽</Text>
