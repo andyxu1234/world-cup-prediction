@@ -5,33 +5,29 @@ import { useUserStore } from '@/stores'
 import './styles/global.scss'
 
 function App({ children }: PropsWithChildren) {
-  const { login, token, setLoginReady } = useUserStore()
+  const { login, setLoginReady } = useUserStore()
 
   useLaunch(() => {
     console.log('App launched.')
 
-    // 每次启动都调微信静默登录，确保登录态最新
+    // 立即放行页面渲染，登录在后台静默完成
+    // 这样分享到朋友圈的场景不会卡在"加载中"
+    setLoginReady()
+
+    // 后台静默登录：成功后更新用户状态，失败也不影响页面展示
     Taro.login({
       success: async (res) => {
         if (res.code) {
           try {
             const loginRes = await login(res.code)
             console.log('Auto login success, isNewUser:', loginRes.is_new_user)
-            setLoginReady()
           } catch (err) {
-            console.warn('Auto login failed:', err)
-            // 登录失败但有本地 token，仍允许页面正常加载
-            if (token) {
-              setLoginReady()
-            }
+            console.warn('[App] Silent login failed, page already rendered:', err)
           }
         }
       },
       fail: (err) => {
-        console.warn('Taro.login failed:', err)
-        if (token) {
-          setLoginReady()
-        }
+        console.warn('[App] Taro.login failed, page already rendered:', err)
       },
     })
   })

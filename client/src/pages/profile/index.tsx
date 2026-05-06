@@ -170,10 +170,6 @@ export default function Profile() {
       Taro.navigateTo({ url: '/pages/about/index' })
       return
     }
-    if (label === '支持开发者') {
-      Taro.navigateTo({ url: '/pages/support/index' })
-      return
-    }
     if (!token && label !== '设置' && label !== '关于小程序') {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
-import { useMatchStore, useUserStore, useLeaderboardStore } from '@/stores'
+import { useMatchStore, useLeaderboardStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
 
@@ -66,14 +66,12 @@ export default function Index() {
   const homeStats = useMatchStore((s) => s.homeStats)
   const fetchMatches = useMatchStore((s) => s.fetchMatches)
   const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
-  const loginReady = useUserStore((s) => s.loginReady)
   const [activeChip, setActiveChip] = useState('小组赛')
   const navigatingRef = useRef<Set<number>>(new Set())
   // 所有 hooks 必须在条件返回之前调用（React Rules of Hooks）
   useEffect(() => {
-    if (!loginReady) return
     fetchHomeStats()
-  }, [fetchHomeStats, loginReady])
+  }, [fetchHomeStats])
 
   const goToDetail = useCallback((id: number) => {
     if (navigatingRef.current.has(id)) return
@@ -98,7 +96,6 @@ export default function Index() {
   }))
 
   useEffect(() => {
-    if (!loginReady) return
     const params: any = {}
     // 已结束：只展示所有已完成的比赛（不限轮次、不限日期）
     if (activeChip === '已结束') {
@@ -116,11 +113,10 @@ export default function Index() {
       params.date = d.toISOString().slice(0, 10)
     }
     fetchMatches(params)
-  }, [activeChip, fetchMatches, loginReady])
+  }, [activeChip, fetchMatches])
 
   // Tab 切换回来时刷新数据
   useDidShow(() => {
-    if (!loginReady) return
     fetchHomeStats()
     const params: any = {}
     if (activeChip === '已结束') {
@@ -138,15 +134,6 @@ export default function Index() {
     }
     fetchMatches(params)
   })
-
-  // ===== loginReady 为 false 时返回加载页 =====
-  if (!loginReady) {
-    return (
-      <View className='index-page loading-page'>
-        <Text className='loading-text'>加载中...</Text>
-      </View>
-    )
-  }
 
   return (
     <View className='index-page'>

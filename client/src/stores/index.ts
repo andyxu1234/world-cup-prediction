@@ -314,7 +314,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   token: Taro.getStorageSync('token') || null,
   myVote: null,
   profileSetup: Taro.getStorageSync('profile_setup') || false,
-  loginReady: false, // 每次启动都从 false 开始，等 login 接口返回后再设为 true
+  loginReady: true, // 启动即放行，登录在后台静默完成
 
   setLoginReady: () => {
     if (!get().loginReady) {
@@ -325,8 +325,8 @@ export const useUserStore = create<UserState>((set, get) => ({
   login: async (code) => {
     const res = await api.wxLogin(code)
     const profileSetup = res.profile_setup ?? false
-    // loginReady 跟随 profileSetup：未完善资料时不放行首页
-    set({ user: res.user, token: res.token, profileSetup, loginReady: profileSetup })
+    // 不再通过 loginReady 控制页面放行（app.ts 已启动即放行）
+    set({ user: res.user, token: res.token, profileSetup, loginReady: true })
     Taro.setStorageSync('token', res.token)
     Taro.setStorageSync('profile_setup', profileSetup)
     // 登录后刷新排行榜（获取我的排名）
