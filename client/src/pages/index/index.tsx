@@ -240,37 +240,39 @@ export default function Index() {
             <Text className='empty-text'>暂无比赛数据</Text>
           </View>
         )}
-        {matches.map((match) => {
+        {matches.map((match, idx) => {
           const statusInfo = getStatusLabel(match.status)
           return (
-            <View key={match.id} className='m-card' onClick={() => goToDetail(match.id)}>
-              <View className='m-card-hd'>
-                <Text className='m-round'>{getRoundLabel(match.round)}</Text>
-                {statusInfo && (
-                  <Text className={`badge ${statusInfo.cls}`}>{statusInfo.text}</Text>
-                )}
-                <Text className='m-time'>{formatMatchTime(match.match_time)}</Text>
-              </View>
-              <View className='m-teams'>
-                <View className='m-team'>
-                  <FlagImage src={match.home_team.flag_url || ''} className='flag-img' />
-                  <Text className='m-team-name'>{match.home_team.cn_name || match.home_team.name}</Text>
+            <View key={match.id}>
+              <View className='m-card' onClick={() => goToDetail(match.id)}>
+                <View className='m-card-hd'>
+                  <Text className='m-round'>{getRoundLabel(match.round)}</Text>
+                  {statusInfo && (
+                    <Text className={`badge ${statusInfo.cls}`}>{statusInfo.text}</Text>
+                  )}
+                  <Text className='m-time'>{formatMatchTime(match.match_time)}</Text>
                 </View>
-                {match.status === 'finished' ? (
-                  <Text className='m-score mono'>{match.home_score}:{match.away_score}</Text>
-                ) : (
-                  <Text className='m-vs mono'>VS</Text>
-                )}
-                <View className='m-team'>
-                  <FlagImage src={match.away_team.flag_url || ''} className='flag-img' />
-                  <Text className='m-team-name'>{match.away_team.cn_name || match.away_team.name}</Text>
+                <View className='m-teams'>
+                  <View className='m-team'>
+                    <FlagImage src={match.home_team.flag_url || ''} className='flag-img' />
+                    <Text className='m-team-name'>{match.home_team.cn_name || match.home_team.name}</Text>
+                  </View>
+                  {match.status === 'finished' ? (
+                    <Text className='m-score mono'>{match.home_score}:{match.away_score}</Text>
+                  ) : (
+                    <Text className='m-vs mono'>VS</Text>
+                  )}
+                  <View className='m-team'>
+                    <FlagImage src={match.away_team.flag_url || ''} className='flag-img' />
+                    <Text className='m-team-name'>{match.away_team.cn_name || match.away_team.name}</Text>
+                  </View>
                 </View>
-              </View>
-              <View className='m-card-ft'>
-                <Text className='m-consensus'>
-                  AI 共识：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
-                </Text>
-                <Text className='m-action'>查看预测 ›</Text>
+                <View className='m-card-ft'>
+                  <Text className='m-consensus'>
+                    AI 共识：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
+                  </Text>
+                  <Text className='m-action'>查看预测 ›</Text>
+                </View>
               </View>
             </View>
           )

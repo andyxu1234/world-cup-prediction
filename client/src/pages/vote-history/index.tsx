@@ -67,6 +67,8 @@ export default function VoteHistory() {
   const { user } = useUserStore()
   const [list, setList] = useState<VoteHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  // 动态计算列表高度，解决 iOS 设备底部空白问题
+  const [scrollHeight, setScrollHeight] = useState<string>('')
 
   useEffect(() => {
     if (!user?.id) return
@@ -76,6 +78,23 @@ export default function VoteHistory() {
       .catch(() => Taro.showToast({ title: '加载失败', icon: 'none' }))
       .finally(() => setLoading(false))
   }, [user?.id])
+
+  // 动态测量 Hero 高度，精确计算列表可用空间
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const query = Taro.createSelectorQuery()
+        query.select('.vh-hero').boundingClientRect()
+        query.exec((res) => {
+          const heroRect = res[0]
+          if (!heroRect) { setScrollHeight('calc(100vh - 340px)'); return }
+          const { windowHeight } = Taro.getSystemInfoSync()
+          setScrollHeight(`${Math.max(windowHeight - heroRect.height - 30, 200)}px`)
+        })
+      } catch { setScrollHeight('calc(100vh - 340px)') }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
 
   // 仅已结束的比赛参与命中率计算
   const finishedList = list.filter((i) => i.match_status === 'finished')
@@ -112,7 +131,7 @@ export default function VoteHistory() {
       </View>
 
       {/* 列表 */}
-      <ScrollView scrollY className='vh-list' enableBackToTop>
+      <ScrollView scrollY className='vh-list' enableBackToTop style={scrollHeight ? { height: scrollHeight } : undefined}>
         {loading ? (
           <View className='vh-loading'>加载中...</View>
         ) : list.length === 0 ? (

@@ -157,7 +157,6 @@
 
 .lb-page {
   min-height: 100vh;
-  padding-bottom: 120px;
 }
 
 // ── Tabs ───────────────────────────────────────────────
@@ -307,13 +306,12 @@
 
 // ── List Container ─────────────────────────────────────
 .lb-list {
-  padding: 0 10px 120px;
+  padding: 0 10px 30px;
   height: calc(100vh - 290px);
 }
 
-/** AI 排行无人类卡片，可用空间更大 */
+/** AI 排行无人类卡片，可用空间更大 — 高度由 JS 动态控制 */
 .lb-list-ai {
-  height: calc(100vh - 175px);
 }
 
 // ── Rich Empty State ─────────────────────────────────────

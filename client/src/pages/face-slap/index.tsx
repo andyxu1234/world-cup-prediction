@@ -65,6 +65,8 @@ export default function FaceSlapPage() {
   const [faceSlaps, setFaceSlaps] = useState<FaceSlap[]>([])
   const [activeSort, setActiveSort] = useState<FaceSlapSort>('latest')
   const [loading, setLoading] = useState(false)
+  // 动态计算列表高度，解决 iOS 设备底部空白问题
+  const [scrollHeight, setScrollHeight] = useState<string>('')
   
   // 分批渲染：控制当前渲染的卡片数量
   const [visibleCount, setVisibleCount] = useState(8)
@@ -84,6 +86,25 @@ export default function FaceSlapPage() {
 
   useEffect(() => {
     fetchData(activeSort)
+  }, [])
+
+  // 动态测量 Header+Chips 高度，精确计算列表可用空间
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const query = Taro.createSelectorQuery()
+        query.select('.fs-header').boundingClientRect()
+        query.select('.fs-chips-scroll').boundingClientRect()
+        query.exec((res) => {
+          const hdrRect = res[0]
+          const chipRect = res[1]
+          if (!hdrRect || !chipRect) { setScrollHeight('calc(100vh - 280px)'); return }
+          const { windowHeight } = Taro.getSystemInfoSync()
+          setScrollHeight(`${Math.max(windowHeight - hdrRect.height - chipRect.height - 20, 200)}px`)
+        })
+      } catch { setScrollHeight('calc(100vh - 280px)') }
+    }, 300)
+    return () => clearTimeout(timer)
   }, [])
 
   // 分享给好友
@@ -145,6 +166,7 @@ export default function FaceSlapPage() {
         scrollWithAnimation
         onScrollToLower={handleScrollToLower}
         lowerThreshold={100}
+        style={scrollHeight ? { height: scrollHeight } : undefined}
       >
         {/* Loading 状态 */}
         {loading && (

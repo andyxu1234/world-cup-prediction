@@ -275,10 +275,31 @@ export default function Leaderboard() {
   } = useLeaderboardStore()
   const loginReady = useUserStore((s) => s.loginReady)
   const homeStats = useMatchStore((s) => s.homeStats)
+  // 动态计算列表高度，解决 iOS 设备底部空白问题
+  const [listHeight, setListHeight] = useState<string>('')
 
   useEffect(() => {
     if (loginReady) fetchLeaderboard()
   }, [loginReady])
+
+  // 动态测量 Tabs+Controls 高度（高度随 Tab/轮次变化）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const query = Taro.createSelectorQuery()
+        query.select('.lb-tabs').boundingClientRect()
+        query.select('.lb-controls').boundingClientRect()
+        query.exec((res) => {
+          const tabRect = res[0]
+          const ctrlRect = res[1]
+          if (!tabRect || !ctrlRect) { setListHeight('calc(100vh - 290px)'); return }
+          const { windowHeight } = Taro.getSystemInfoSync()
+          setListHeight(`${Math.max(windowHeight - tabRect.height - ctrlRect.height - 20, 200)}px`)
+        })
+      } catch { setListHeight('calc(100vh - 290px)') }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [activeTab, activeRound])
 
   // 分享给好友
   useShareAppMessage(() => ({
@@ -393,7 +414,7 @@ export default function Leaderboard() {
 
       {/* 人机对决：混合排行列表 */}
       {activeTab === 'human' && (
-        <ScrollView scrollY className='lb-list lb-list-ai'>
+        <ScrollView scrollY className='lb-list' style={listHeight ? { height: listHeight } : undefined}>
           {mixedRank.length === 0 && !useLeaderboardStore.getState().loading && (
             <View className='rich-empty'>
               <View className='rich-empty-glow' />
@@ -416,7 +437,7 @@ export default function Leaderboard() {
 
       {/* AI 排行：纯 AI 列表 */}
       {activeTab === 'ai' && (
-        <ScrollView scrollY className='lb-list lb-list-ai'>
+        <ScrollView scrollY className='lb-list' style={listHeight ? { height: listHeight } : undefined}>
           {entries.length === 0 && !useLeaderboardStore.getState().loading && (
             <View className='rich-empty'>
               <View className='rich-empty-glow' />

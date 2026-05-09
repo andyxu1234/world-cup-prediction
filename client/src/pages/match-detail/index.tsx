@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { View, Text, Input, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useMatchStore, useUserStore } from '@/stores'
+import { AD_UNIT_IDS, isAdUnlocked, showRewardedVideo, setAdUnlocked } from '@/utils/ad'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -90,6 +91,15 @@ export default function MatchDetail() {
   const [awayScore, setAwayScore] = useState('0')
   const [pageReady, setPageReady] = useState(false)
   const [voteValidationError, setVoteValidationError] = useState('')
+  // 广告解锁 — 显式三态状态机，无中间态
+  // 'cinema' = 广告加载中(影院动画) | 'locked' = 锁+按钮 | 'unlocked' = 预测数据
+  const [adPhase, setAdPhase] = useState<'cinema' | 'locked' | 'unlocked'>('cinema')
+  // 防止广告并发重入
+  const adPlayingRef = useRef(false)
+  // 动态计算 AI 预测列表区高度，解决 iOS 设备底部空白导致预测表单被推到屏幕外的问题
+  // 根因：CSS 中 calc(100vh - 400px) 的 400px 是硬编码 CSS px，
+  //       页面元素全部用 rpx 编写，不同设备 rpx→px 转换比例不同（尤其 iOS）
+  const [predListHeight, setPredListHeight] = useState<string>('')
 
   useEffect(() => {
     if (matchId) {
@@ -164,6 +174,72 @@ export default function MatchDetail() {
     }
   })
 
+  // 动态计算主内容滚动区高度（仅测量 Hero，summary+预测+投票统一在内部滚动）
+  useEffect(() => {
+    if (!pageReady || !currentMatch) return
+    const timer = setTimeout(() => {
+      try {
+        const query = Taro.createSelectorQuery()
+        query.select('.match-hero').boundingClientRect()
+        query.exec((res) => {
+          const heroRect = res[0]
+          if (!heroRect) {
+            setPredListHeight('calc(100vh - 280px)')
+            return
+          }
+          const sysInfo = Taro.getSystemInfoSync()
+          const { windowHeight } = sysInfo
+          // 主滚动区高度 = 屏幕高度 - Hero高度 - 间距余量
+          const available = Math.max(windowHeight - heroRect.height - 10, 300)
+          setPredListHeight(`${available}px`)
+        })
+      } catch {
+        setPredListHeight('calc(100vh - 280px)')
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [pageReady, currentMatch])
+
+  // 广告解锁逻辑 — 显式三态状态机，无中间态闪烁
+  // adPhase: 'cinema'(影院加载) | 'locked'(锁+按钮) | 'unlocked'(预测数据)
+  useEffect(() => {
+    if (!pageReady || !currentMatch) return
+    if (adPlayingRef.current) return
+
+    // 无需广告：已结束 / 无预测 / 已缓存解锁 → 直接到预测数据页
+    if (
+      currentMatch.status === 'finished' ||
+      predictions.length === 0 ||
+      isAdUnlocked(matchId)
+    ) {
+      setAdPhase('unlocked')
+      return
+    }
+
+    // 需要广告：自动播放（当前已在 cinema 态，无需再设置）
+    const playAd = async () => {
+      adPlayingRef.current = true
+      try {
+        const { completed, available } = await showRewardedVideo()
+        await new Promise(r => setTimeout(r, 150))
+        if (completed || !available) {
+          setAdUnlocked(matchId)
+          setAdPhase('unlocked')  // 看完/无广告 → 直接切到预测数据，无中间态
+        } else {
+          setAdPhase('locked')    // 未看完 → 切到锁+按钮
+        }
+      } catch {
+        await new Promise(r => setTimeout(r, 200))
+        setAdUnlocked(matchId)
+        setAdPhase('unlocked')    // 广告失败 → 降级解锁
+      } finally {
+        adPlayingRef.current = false
+      }
+    }
+    playAd()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageReady, currentMatch, matchId])
+
   if (!pageReady || !currentMatch) {
     return <View className='detail-page'><Text className='loading'>加载中...</Text></View>
   }
@@ -231,8 +307,10 @@ export default function MatchDetail() {
         </Text>
       </View>
 
-      {/* AI 综合总结 — 放在头部和预测列表之间 */}
-      {currentMatch?.summary && (
+      {/* 主内容区 — 统一滚动：AI综合分析 + AI预测列表 + 投票区域 一起下滑 */}
+      <ScrollView scrollY className='main-scroll' style={predListHeight ? { height: predListHeight } : undefined}>
+        {/* AI 综合总结 */}
+        {adPhase === 'unlocked' && currentMatch?.summary && (
         <View className='summary-card'>
           <View className='summary-hd'>
             <Text className='summary-title'>📊 AI 综合分析</Text>
@@ -280,78 +358,127 @@ export default function MatchDetail() {
         </View>
       )}
 
-      {/* AI 预测卡片 */}
-      <ScrollView scrollY className='pred-list'>
-        {predictions.length === 0 && (
-          <View className='pred-empty'>
-            <Text className='pred-empty-icon'>🤖</Text>
-            <Text className='pred-empty-title'>AI 预测尚未生成</Text>
-            <Text className='pred-empty-desc'>AI 分析结果将于比赛前三天生成，届时将为你呈现多模型智能预测</Text>
-          </View>
-        )}
-        {predictions.map((pred, idx) => {
-          const avatarUrl = MODEL_AVATARS[pred.model_name]
-          const fallback = MODEL_FALLBACKS[pred.model_name] || { gradient: 'linear-gradient(135deg, #666, #999)', letter: '?' }
-          const resultInfo = getResultLabel(pred.result)
-          const confColor = (pred.confidence || 5) >= 7 ? '#00ff87' : (pred.confidence || 5) >= 5 ? '#ffd700' : '#ff3b5c'
-          const scores = (pred.score || '0:0').split(':')
-          return (
-            <View key={idx} className='pred-card'>
-              <View className='pred-hd'>
-                <View className='pred-model'>
-                  {avatarUrl ? (
-                    <Image className='model-av-img' src={avatarUrl} mode='aspectFit' />
-                  ) : (
-                    <View className='model-av' style={{ background: fallback.gradient }}>
-                      {fallback.letter}
+      {/* 信息流广告 */}
+      <ad unit-id={AD_UNIT_IDS.feed} ad-intervals={30} />
+
+      {/* AI 预测卡片 — 三态显式切换，无中间态 */}
+      {adPhase === 'unlocked' ? (
+        <>
+          {predictions.length === 0 && (
+            <View className='pred-empty'>
+              <Text className='pred-empty-icon'>🤖</Text>
+              <Text className='pred-empty-title'>AI 预测尚未生成</Text>
+              <Text className='pred-empty-desc'>AI 分析结果将于比赛前三天生成，届时将为你呈现多模型智能预测</Text>
+            </View>
+          )}
+          {predictions.map((pred, idx) => {
+            const avatarUrl = MODEL_AVATARS[pred.model_name]
+            const fallback = MODEL_FALLBACKS[pred.model_name] || { gradient: 'linear-gradient(135deg, #666, #999)', letter: '?' }
+            const resultInfo = getResultLabel(pred.result)
+            const confColor = (pred.confidence || 5) >= 7 ? '#00ff87' : (pred.confidence || 5) >= 5 ? '#ffd700' : '#ff3b5c'
+            const scores = (pred.score || '0:0').split(':')
+            return (
+              <View key={idx} className='pred-card'>
+                <View className='pred-hd'>
+                  <View className='pred-model'>
+                    {avatarUrl ? (
+                      <Image className='model-av-img' src={avatarUrl} mode='aspectFit' />
+                    ) : (
+                      <View className='model-av' style={{ background: fallback.gradient }}>
+                        {fallback.letter}
+                      </View>
+                    )}
+                    <View>
+                      <Text className='pred-name'>{pred.model_name}</Text>
+                    </View>
+                  </View>
+                  <Text className={`pred-result ${resultInfo.cls}`}>{resultInfo.text}</Text>
+                </View>
+                <View className='pred-score-area'>
+                  <View className='pred-score-col'>
+                    <Text className='pred-score-big' style={{ color: '#00ff87' }}>{scores[0] || '0'}</Text>
+                    <Text className='pred-score-label'>{currentMatch.home_team.cn_name || currentMatch.home_team.name}</Text>
+                    {currentMatch.home_team.group_name && (
+                      <Text className='pred-team-sub'>{currentMatch.home_team.group_name}组 · FIFA #{currentMatch.home_team.fifa_rank || '?'}</Text>
+                    )}
+                  </View>
+                  <Text className='pred-colon mono'>:</Text>
+                  <View className='pred-score-col'>
+                    <Text className='pred-score-big' style={{ color: '#00b4d8' }}>{scores[1] || '0'}</Text>
+                    <Text className='pred-score-label'>{currentMatch.away_team.cn_name || currentMatch.away_team.name}</Text>
+                    {currentMatch.away_team.group_name && (
+                      <Text className='pred-team-sub'>{currentMatch.away_team.group_name}组 · FIFA #{currentMatch.away_team.fifa_rank || '?'}</Text>
+                    )}
+                  </View>
+                </View>
+                <View className='pred-conf'>
+                  <View className='pred-conf-hd'>
+                    <Text>信心指数</Text>
+                    <Text style={{ color: confColor }}>{pred.confidence || '-'}/10</Text>
+                  </View>
+                  <View className='conf-bar'>
+                    <View className='conf-fill' style={{ width: `${(pred.confidence || 0) * 10}%`, background: confColor }} />
+                  </View>
+                  {/* 备选分数 */}
+                  {pred.score_alt && (
+                    <View className='pred-alt-score'>
+                      <Text className='pred-alt-label'>备选：{pred.score_alt} ({pred.score_alt_prob ? pred.score_alt_prob.toFixed(0) : 0}%)</Text>
                     </View>
                   )}
-                  <View>
-                    <Text className='pred-name'>{pred.model_name}</Text>
-                  </View>
                 </View>
-                <Text className={`pred-result ${resultInfo.cls}`}>{resultInfo.text}</Text>
-              </View>
-              <View className='pred-score-area'>
-                <View className='pred-score-col'>
-                  <Text className='pred-score-big' style={{ color: '#00ff87' }}>{scores[0] || '0'}</Text>
-                  <Text className='pred-score-label'>{currentMatch.home_team.cn_name || currentMatch.home_team.name}</Text>
-                  {currentMatch.home_team.group_name && (
-                    <Text className='pred-team-sub'>{currentMatch.home_team.group_name}组 · FIFA #{currentMatch.home_team.fifa_rank || '?'}</Text>
-                  )}
-                </View>
-                <Text className='pred-colon mono'>:</Text>
-                <View className='pred-score-col'>
-                  <Text className='pred-score-big' style={{ color: '#00b4d8' }}>{scores[1] || '0'}</Text>
-                  <Text className='pred-score-label'>{currentMatch.away_team.cn_name || currentMatch.away_team.name}</Text>
-                  {currentMatch.away_team.group_name && (
-                    <Text className='pred-team-sub'>{currentMatch.away_team.group_name}组 · FIFA #{currentMatch.away_team.fifa_rank || '?'}</Text>
-                  )}
-                </View>
-              </View>
-              <View className='pred-conf'>
-                <View className='pred-conf-hd'>
-                  <Text>信心指数</Text>
-                  <Text style={{ color: confColor }}>{pred.confidence || '-'}/10</Text>
-                </View>
-                <View className='conf-bar'>
-                  <View className='conf-fill' style={{ width: `${(pred.confidence || 0) * 10}%`, background: confColor }} />
-                </View>
-                {/* 备选分数 */}
-                {pred.score_alt && (
-                  <View className='pred-alt-score'>
-                    <Text className='pred-alt-label'>备选：{pred.score_alt} ({pred.score_alt_prob ? pred.score_alt_prob.toFixed(0) : 0}%)</Text>
-                  </View>
+                {/* AI 分析 */}
+                {pred.analysis && (
+                  <Text className='pred-analysis'>{pred.analysis}</Text>
                 )}
               </View>
-              {/* AI 分析 */}
-              {pred.analysis && (
-                <Text className='pred-analysis'>{pred.analysis}</Text>
-              )}
+            )
+          })}
+        </>
+      ) : adPhase === 'cinema' ? (
+        <View className='ad-cinema-wrap'>
+          <View className='cinema-bg-glow' />
+          <View className='cinema-spinner-ring'>
+            <View className='cinema-spinner-core' />
+            <View className='cinema-spinner-orbit' />
+          </View>
+          <Text className='cinema-title'>广告加载中</Text>
+          <Text className='cinema-subtitle'>观看完短视频即可解锁 AI 预测</Text>
+          <View className='cinema-progress'>
+            <View className='cinema-progress-bar' />
+          </View>
+        </View>
+      ) : (
+        <View className='ad-lock-wrap'>
+          <View className='ad-lock-overlay'>
+            <Text className='ad-lock-icon'>🔒</Text>
+            <Text className='ad-lock-title'>观看视频解锁 AI 预测</Text>
+            <Text className='ad-lock-desc'>完整观看短视频即可解锁全部 AI 模型预测结果</Text>
+            <View className='ad-unlock-btn' onClick={async () => {
+              if (adPlayingRef.current) return
+              adPlayingRef.current = true
+              setAdPhase('cinema')  // 先切到影院加载态
+              try {
+                const { completed, available } = await showRewardedVideo()
+                await new Promise(r => setTimeout(r, 150))
+                if (completed || !available) {
+                  setAdUnlocked(matchId)
+                  setAdPhase('unlocked')
+                } else {
+                  setAdPhase('locked')
+                }
+              } catch {
+                await new Promise(r => setTimeout(r, 200))
+                setAdUnlocked(matchId)
+                setAdPhase('unlocked')
+              } finally {
+                adPlayingRef.current = false
+              }
+            }}>
+              <Text className='ad-unlock-btn-text'>观看视频解锁</Text>
             </View>
-          )
-        })}
-      </ScrollView>
+          </View>
+        </View>
+      )}
 
       {/* 投票区域：比赛未结束时允许修改预测 */}
       <View className='vote-card'>
@@ -406,6 +533,9 @@ export default function MatchDetail() {
           </>
         )}
       </View>
+
+      {/* 主内容区滚动结束 */}
+      </ScrollView>
 
       {/* 分享按钮（固定右下角，直接转发小程序） */}
       <View className='share-fab-wrap'>

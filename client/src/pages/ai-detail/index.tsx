@@ -105,6 +105,8 @@ export default function AIDetail() {
 
   const [detail, setDetail] = useState<AIDetailOut | null>(null)
   const [loading, setLoading] = useState(true)
+  // 动态计算列表高度，解决 iOS 设备底部空白问题
+  const [scrollHeight, setScrollHeight] = useState<string>('')
 
   useEffect(() => {
     if (!modelId) return
@@ -114,6 +116,24 @@ export default function AIDetail() {
       .catch(() => Taro.showToast({ title: '加载失败', icon: 'none' }))
       .finally(() => setLoading(false))
   }, [modelId])
+
+  // 动态测量 Hero 高度，精确计算列表可用空间
+  useEffect(() => {
+    if (!detail) return
+    const timer = setTimeout(() => {
+      try {
+        const query = Taro.createSelectorQuery()
+        query.select('.ad-hero').boundingClientRect()
+        query.exec((res) => {
+          const heroRect = res[0]
+          if (!heroRect) { setScrollHeight('calc(100vh - 360px)'); return }
+          const { windowHeight } = Taro.getSystemInfoSync()
+          setScrollHeight(`${Math.max(windowHeight - heroRect.height - 30, 200)}px`)
+        })
+      } catch { setScrollHeight('calc(100vh - 360px)') }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [detail])
 
   if (!modelId) {
     return (
@@ -173,7 +193,7 @@ export default function AIDetail() {
       </View>
 
       {/* 预测列表 */}
-      <ScrollView scrollY className='ad-list' enableBackToTop>
+      <ScrollView scrollY className='ad-list' enableBackToTop style={scrollHeight ? { height: scrollHeight } : undefined}>
         {predictions.length === 0 ? (
           <View className='ad-empty'>
             <View className='ad-empty-icon'>📋</View>
