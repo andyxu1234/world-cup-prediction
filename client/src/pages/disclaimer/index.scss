@@ -1,0 +1,345 @@
+// Variables injected globally via sass.data
+// Design: Editorial Futurism — 深绿主调 + 绿色点缀 + 玻璃拟态 + 杂志排版
+// Theme accent: GREEN ($green)
+
+.disclaimer-page {
+  min-height: 100vh;
+  background: #0a0f0d;
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  flex-direction: column;
+}
+
+// ==================== Hero — 深绿沉浸式头部 ====================
+
+.hero {
+  position: relative;
+  margin: 0 0 20px;
+  padding: 56px 24px 48px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #0d2818 0%, #0f3d22 40%, #14532d 100%);
+  overflow: hidden;
+}
+
+// 动态光球
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.hero-orb-1 {
+  top: -60px;
+  right: -40px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+  animation: orbFloat1 8s ease-in-out infinite alternate;
+}
+
+.hero-orb-2 {
+  bottom: -80px;
+  left: -30px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, transparent 70%);
+  animation: orbFloat2 10s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes orbFloat1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-20px, 20px) scale(1.15); }
+}
+
+@keyframes orbFloat2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(18px, -14px) scale(1.1); }
+}
+
+// 网格背景
+.hero-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-block;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: $green;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  margin-bottom: 20px;
+}
+
+.hero-title {
+  display: block;
+  font-size: 42px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 3px;
+  line-height: 1.2;
+  margin-bottom: 10px;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.hero-sub {
+  display: block;
+  font-size: 21px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+// 底部装饰线
+.hero-deco-line {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, $green, transparent);
+  opacity: 0.5;
+}
+
+// ==================== 内容区 ====================
+
+.body {
+  flex: 1;
+  padding: 16px 16px 0;
+}
+
+// ====== 卡片通用 ======
+.card {
+  margin: 0 0 20px;
+  padding: 28px 22px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px);
+  animation: cardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  &:nth-child(1) { animation-delay: 0.05s; }
+  &:nth-child(2) { animation-delay: 0.15s; }
+  &:nth-child(3) { animation-delay: 0.25s; }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-tag-row {
+  margin-bottom: 16px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.tag-blue {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.tag-green {
+  background: rgba(16, 185, 129, 0.12);
+  color: $green;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.tag-yellow {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.card-head {
+  display: block;
+  font-size: 29px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+.card-body-text {
+  display: block;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+// ====== 免责条款 ======
+
+.clause-list {
+  margin-top: 8px;
+}
+
+.clause-item {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.clause-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  text {
+    font-size: 18px;
+    font-weight: 800;
+    color: #fbbf24;
+  }
+}
+
+.clause-content {
+  flex: 1;
+}
+
+.clause-title {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 8px;
+}
+
+.clause-text {
+  display: block;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.7;
+}
+
+// ====== 温馨提示 ======
+
+.tips-highlight {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  text-align: center;
+}
+
+.tips-highlight-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: $green;
+}
+
+// ====== 版本信息卡片（紧凑行风格） ======
+
+.card-meta {
+  padding: 6px 22px !important;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+}
+
+.meta-label {
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+}
+
+.meta-value {
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+}
+
+.mono {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: $green;
+}
+
+.mono-sm {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.meta-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+// ==================== 底部签名 ====================
+
+.footer {
+  text-align: center;
+  padding: 32px 24px 48px;
+  margin-top: auto;
+}
+
+.footer-line {
+  width: 80px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  margin: 0 auto 20px;
+}
+
+.footer-brand {
+  display: block;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: rgba(255, 255, 255, 0.25);
+  margin-bottom: 8px;
+}
+
+.footer-slogan {
+  display: block;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.18);
+  letter-spacing: 3px;
+}

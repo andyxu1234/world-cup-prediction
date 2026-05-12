@@ -307,6 +307,12 @@ export default function MatchDetail() {
         </Text>
       </View>
 
+      {/* 风险提醒 — 顶部醒目位置 */}
+      <View className='risk-reminder'>
+        <Text className='risk-reminder-icon'>⚠️</Text>
+        <Text className='risk-reminder-text'>AI预测仅供参考，不构成投注建议，请理性娱乐</Text>
+      </View>
+
       {/* 主内容区 — 统一滚动：AI综合分析 + AI预测列表 + 投票区域 一起下滑 */}
       <ScrollView scrollY className='main-scroll' style={predListHeight ? { height: predListHeight } : undefined}>
         {/* AI 综合总结 */}
@@ -329,28 +335,33 @@ export default function MatchDetail() {
                 <Text className='summary-colon mono'>:</Text>
                 <Text className='summary-sc-big mono' style={{ color: '#00b4d8' }}>{currentMatch.summary.score_away}</Text>
               </View>
+              {/* 综合信心 */}
+              {currentMatch.summary.confidence != null && (
+                <View className='pred-conf'>
+                  <View className='pred-conf-hd'>
+                    <Text>综合信心</Text>
+                    <Text style={{ color: (currentMatch.summary.confidence || 0) >= 7 ? '#00ff87' : '#ffd700' }}>
+                      {currentMatch.summary.confidence}/10
+                    </Text>
+                  </View>
+                  <View className='conf-bar'>
+                    <View
+                      className='conf-fill'
+                      style={{
+                        width: `${(currentMatch.summary.confidence || 0) * 10}%`,
+                        background: (currentMatch.summary.confidence || 0) >= 7 ? '#00ff87' : '#ffd700'
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
               {/* 备选比分 */}
               {currentMatch.summary.score_alt_home != null && currentMatch.summary.score_alt_away != null && (
-                <Text className='summary-alt-score'>备选：{currentMatch.summary.score_alt_home}:{currentMatch.summary.score_alt_away}</Text>
+                <View className='pred-alt-score'>
+                  <Text className='pred-alt-label'>备选：{currentMatch.summary.score_alt_home}:{currentMatch.summary.score_alt_away}</Text>
+                </View>
               )}
             </>
-          )}
-          {currentMatch.summary.confidence != null && (
-            <View className='summary-conf-row'>
-              <Text className='summary-conf-label'>综合信心</Text>
-              <Text className='summary-conf-val' style={{ color: (currentMatch.summary.confidence || 0) >= 7 ? '#00ff87' : '#ffd700' }}>
-                {currentMatch.summary.confidence}/10
-              </Text>
-              <View className='conf-bar-sm'>
-                <View
-                  className='conf-fill'
-                  style={{
-                    width: `${(currentMatch.summary.confidence || 0) * 10}%`,
-                    background: (currentMatch.summary.confidence || 0) >= 7 ? '#00ff87' : '#ffd700'
-                  }}
-                />
-              </View>
-            </View>
           )}
           {currentMatch.summary.summary && (
             <Text className='summary-text'>{currentMatch.summary.summary}</Text>
@@ -422,7 +433,7 @@ export default function MatchDetail() {
                   {/* 备选分数 */}
                   {pred.score_alt && (
                     <View className='pred-alt-score'>
-                      <Text className='pred-alt-label'>备选：{pred.score_alt} ({pred.score_alt_prob ? pred.score_alt_prob.toFixed(0) : 0}%)</Text>
+                      <Text className='pred-alt-label'>备选：{pred.score_alt}</Text>
                     </View>
                   )}
                 </View>

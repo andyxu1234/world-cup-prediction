@@ -10,6 +10,7 @@ const MENU_ITEMS = [
   { icon: '🏆', label: '我的战绩', color: 'rgba(0,255,135,0.1)', textColor: '#00ff87' },
   { icon: '🔗', label: '分享给好友', color: 'rgba(168,85,247,0.1)', textColor: '#a855f7' },
   { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
+  { icon: '⚠️', label: '免责声明', color: 'rgba(251,191,36,0.1)', textColor: '#fbbf24' },
 ]
 
 const DEFAULT_AI_RANKING = [
@@ -170,6 +171,10 @@ export default function Profile() {
       Taro.navigateTo({ url: '/pages/about/index' })
       return
     }
+    if (label === '免责声明') {
+      Taro.navigateTo({ url: '/pages/disclaimer/index' })
+      return
+    }
     if (!token && label !== '设置' && label !== '关于小程序') {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
@@ -322,9 +327,6 @@ export default function Profile() {
         <Text className='fun-fact-text'>{funFact.text}</Text>
       </View>
 
-      <View className='disclaimer'>
-        <Text className='disclaimer-text'>AI 预测结果由模型自动生成，仅供参考，不构成任何投资或竞彩建议</Text>
-      </View>
 
       {pickingAvatar && (
         <View

@@ -222,9 +222,9 @@
 }
 
 .pred-alt-label {
-  font-size: 18px;
-  color: $text3;
-  font-weight: 500;
+  font-size: 22px;
+  color: #059669;
+  font-weight: 600;
 }
 
 // AI 分析文字
@@ -304,42 +304,9 @@
   color: $text3;
 }
 
-// 综合备选比分
-.summary-alt-score {
-  display: block;
-  text-align: center;
-  font-size: 18px;
-  color: $text3;
-  margin-top: 6px;
-}
+// 综合备选比分 — 复用 pred-alt-score 样式
 
-// 综合信心
-.summary-conf-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.summary-conf-label {
-  font-size: 19px;
-  color: $text2;
-  flex-shrink: 0;
-}
-
-.summary-conf-val {
-  font-size: 19px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.conf-bar-sm {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-}
+// 综合信心 — 复用 pred-conf / pred-conf-hd / conf-bar 样式
 
 // 总结文字
 .summary-text {
@@ -527,6 +494,31 @@
     border: 2px solid $green;
     box-shadow: none;
   }
+}
+
+// ==================== 风险提醒 ====================
+.risk-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 16px 28px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.12));
+  border-top: 1px solid rgba(251, 191, 36, 0.25);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.risk-reminder-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.risk-reminder-text {
+  font-size: 22px;
+  color: #92400e;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 // ==================== AI 预测解锁遮罩 — 自动播放广告 ====================
