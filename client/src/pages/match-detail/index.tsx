@@ -206,11 +206,12 @@ export default function MatchDetail() {
     if (!pageReady || !currentMatch) return
     if (adPlayingRef.current) return
 
-    // 无需广告：已结束 / 无预测 / 已缓存解锁 → 直接到预测数据页
+    // 无需广告：已结束 / 无预测 / 已缓存解锁 / 首场免费 → 直接到预测数据页
     if (
       currentMatch.status === 'finished' ||
       predictions.length === 0 ||
-      isAdUnlocked(matchId)
+      isAdUnlocked(matchId) ||
+      matchId === 72  // 墨西哥 VS 南非 — 首场免费，新用户体验用
     ) {
       setAdPhase('unlocked')
       return
@@ -379,7 +380,7 @@ export default function MatchDetail() {
             <View className='pred-empty'>
               <Text className='pred-empty-icon'>🤖</Text>
               <Text className='pred-empty-title'>AI 预测尚未生成</Text>
-              <Text className='pred-empty-desc'>AI 分析结果将于比赛前三天生成，届时将为你呈现多模型智能预测</Text>
+              <Text className='pred-empty-desc'>AI 分析结果将于比赛前一周生成，届时将为你呈现多模型智能预测</Text>
             </View>
           )}
           {predictions.map((pred, idx) => {

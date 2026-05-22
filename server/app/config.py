@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # OfoxAI 统一 AI 网关
     OFOXAI_API_KEY: str = ""
-    OFOXAI_BASE_URL: str = "https://api.ofox.ai/v1"
+    OFOXAI_BASE_URL: str = "https://api.ofox.io/v1"
 
     # DeepSeek 配置保留用于向后兼容，实际调用统一走 OfoxAI 网关
     DEEPSEEK_API_KEY: str = ""

@@ -88,9 +88,9 @@ async def load_match(state: PredictionState) -> PredictionState:
                 raise ValueError(f"Match {state['match_id']} not found")
             matches = [match]
         else:
-            # 批量模式：未来 3 天的 upcoming 比赛
+            # 批量模式：未来 7 天的 upcoming 比赛
             now = dt.datetime.now(dt.timezone.utc)
-            deadline = now + timedelta(days=3)
+            deadline = now + timedelta(days=7)
             stmt = (
                 select(Match)
                 .where(Match.status == MatchStatus.upcoming)
@@ -342,6 +342,7 @@ def _should_retry(state: PredictionState) -> str:
 
 async def retry_failed(state: PredictionState) -> PredictionState:
     """重试校验失败的预测"""
+    import time as _time
     from app.core.ofoxai import OfoxAIClient
     from app.config import get_settings
     from app.database import async_session_factory
@@ -358,12 +359,23 @@ async def retry_failed(state: PredictionState) -> PredictionState:
     retry_count = state.get("retry_count", 0) + 1
     succeeded = []
     still_failed = []
+    _failed_list = state.get("failed", [])
+
+    logger.info(f"[Retry] ====== START (attempt {retry_count}/2) ====== | "
+                f"total_failed={len(_failed_list)} | base_url={settings.OFOXAI_BASE_URL}")
+
+    _retry_start = _time.monotonic()
 
     try:
         async with async_session_factory() as session:
-            for failed_pred in state.get("failed", []):
+            for idx, failed_pred in enumerate(_failed_list):
                 match_id = failed_pred.get("match_id")
                 model_name = failed_pred.get("model_name", "")
+                _model_start = _time.monotonic()
+
+                logger.info(f"[Retry] --- [{idx+1}/{len(_failed_list)}] START | "
+                            f"model={model_name} | match_id={match_id} | "
+                            f"prev_error={failed_pred.get('error', 'N/A')!r}")
 
                 # 找到模型信息
                 model_info = None
@@ -372,10 +384,12 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                         model_info = m
                         break
                 if not model_info:
+                    logger.warning(f"[Retry] [{model_name}] SKIP: model_info not found")
                     still_failed.append(failed_pred)
                     continue
 
                 # 加载比赛 + H2H
+                _db_start = _time.monotonic()
                 stmt = (
                     select(Match)
                     .where(Match.id == match_id)
@@ -384,6 +398,7 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                 result = await session.execute(stmt)
                 match = result.scalar_one_or_none()
                 if not match:
+                    logger.warning(f"[Retry] [{model_name}] SKIP: match {match_id} not found")
                     still_failed.append(failed_pred)
                     continue
 
@@ -401,6 +416,7 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                 except Exception:
                     pass
 
+                _db_elapsed = _time.monotonic() - _db_start
                 user_prompt = build_user_prompt(
                     home_team=match.home_team,
                     away_team=match.away_team,
@@ -409,15 +425,18 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                 )
 
                 try:
+                    _ai_start = _time.monotonic()
                     raw = await client.predict_match(
                         model=model_info["model_id"],
                         system_prompt=SYSTEM_PROMPT,
                         user_prompt=user_prompt,
                     )
+                    _ai_elapsed = _time.monotonic() - _ai_start
                     parser = get_parser(model_name)
                     parsed = parser.parse(raw, model_name)
                     parsed = parser.validate(parsed, model_name)
 
+                    _total_elapsed = _time.monotonic() - _model_start
                     succeeded.append({
                         "match_id": match_id,
                         "model_id": model_info["id"],
@@ -425,21 +444,33 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                         "raw": raw,
                         "parsed": parsed,
                     })
-                    logger.info(f"  [{model_name}] Retry OK")
+                    logger.info(
+                        f"  [{model_name}] Retry OK | "
+                        f"db_cost={_db_elapsed:.2f}s | ai_cost={_ai_elapsed:.2f}s | total={_total_elapsed:.2f}s"
+                    )
                 except Exception as exc:
-                    logger.error(f"  [{model_name}] Retry FAILED: {exc}")
+                    _total_elapsed = _time.monotonic() - _model_start
+                    _exc_type = type(exc).__name__
+                    _exc_msg = str(exc)[:300]
+                    logger.error(
+                        f"  [{model_name}] Retry FAILED: {_exc_type}: {_exc_msg} | "
+                        f"db_cost={_db_elapsed:.2f}s | total={_total_elapsed:.2f}s"
+                    )
                     failed_pred["retries"] = retry_count
                     still_failed.append(failed_pred)
 
     finally:
         await client.close()
 
+    _retry_total = _time.monotonic() - _retry_start
+
     # 合并成功重试的到 predictions
     state["predictions"] = state.get("predictions", []) + succeeded
     state["failed"] = still_failed
     state["retry_count"] = retry_count
 
-    logger.info(f"Retry done: {len(succeeded)} recovered, {len(still_failed)} still failed")
+    logger.info(f"[Retry] ====== DONE ====== | recovered={len(succeeded)} | still_failed={len(still_failed)} | "
+                f"total_time={_retry_total:.2f}s | avg_per_model={(_retry_total/max(len(_failed_list),1)):.2f}s")
     return state
 
 

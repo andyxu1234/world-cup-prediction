@@ -10,6 +10,7 @@ const MENU_ITEMS = [
   { icon: '🏆', label: '我的战绩', color: 'rgba(0,255,135,0.1)', textColor: '#00ff87' },
   { icon: '🔗', label: '分享给好友', color: 'rgba(168,85,247,0.1)', textColor: '#a855f7' },
   { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
+  { icon: '💬', label: '联系作者', color: 'rgba(16,185,129,0.1)', textColor: '#10b981' },
   { icon: '⚠️', label: '免责声明', color: 'rgba(251,191,36,0.1)', textColor: '#fbbf24' },
 ]
 
@@ -169,6 +170,10 @@ export default function Profile() {
     }
     if (label === '关于小程序') {
       Taro.navigateTo({ url: '/pages/about/index' })
+      return
+    }
+    if (label === '联系作者') {
+      Taro.navigateTo({ url: '/pages/contact/index' })
       return
     }
     if (label === '免责声明') {

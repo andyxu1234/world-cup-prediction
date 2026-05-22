@@ -10,7 +10,9 @@ export default defineAppConfig({
     'pages/vote-history/index',
     'pages/ai-detail/index',
     'pages/about/index',
-    'pages/disclaimer/index'
+    'pages/disclaimer/index',
+    'pages/contact/index',
+    'pages/webview/index'
   ],
   window: {
     backgroundTextStyle: 'light',

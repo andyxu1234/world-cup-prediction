@@ -1,5 +1,5 @@
-// 关于小程序页 — 与小程序整体一致的浅色主题
-.about-page {
+// 联系作者页 — 与小程序整体一致的浅色主题
+.contact-page {
   min-height: 100vh;
   background: $bg-primary;
   display: flex;
@@ -85,19 +85,14 @@
   color: $green;
 }
 
-.tag-gold {
-  background: rgba(245, 158, 11, 0.1);
-  color: $gold;
-}
-
-.tag-red {
-  background: rgba(239, 68, 68, 0.1);
-  color: $red;
-}
-
 .tag-blue {
   background: rgba(59, 130, 246, 0.1);
   color: $blue;
+}
+
+.tag-purple {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
 }
 
 .card-title {
@@ -116,76 +111,29 @@
   margin-bottom: 16px;
 }
 
-// ==================== Tab 页面介绍卡片 ====================
-.card-tab {
-  padding-bottom: 20px;
-}
-
-.tab-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.tab-icon {
-  font-size: 28px;
-}
-
-.tab-title {
-  font-size: 26px;
-  font-weight: 800;
-  color: $text1;
-}
-
-// ==================== 功能列表 ====================
-.feature-list {
-  margin-top: 4px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 10px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.feature-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: $green;
-  flex-shrink: 0;
-  margin-top: 9px;
-}
-
-.feature-text {
-  font-size: 18px;
-  color: $text2;
-  line-height: 1.6;
-}
-
-// ==================== 链接框 ====================
-.link-box {
+// ==================== 操作框 ====================
+.action-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px;
   border-radius: 12px;
-  background: rgba(59, 130, 246, 0.04);
-  border: 1px solid rgba(59, 130, 246, 0.1);
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.1);
 
   &:active {
-    background: rgba(59, 130, 246, 0.08);
+    background: rgba(16, 185, 129, 0.08);
     transform: scale(0.99);
   }
 }
 
-.link-left {
+.action-box-secondary {
+  margin-top: 12px;
+  background: rgba(59, 130, 246, 0.04);
+  border-color: rgba(59, 130, 246, 0.1);
+}
+
+.action-left {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -193,83 +141,73 @@
   min-width: 0;
 }
 
-.link-icon-wrap {
+.action-icon-wrap {
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.link-icon {
-  font-size: 20px;
-  color: $blue;
-  font-weight: 700;
+.action-icon-purple {
+  background: rgba(168, 85, 247, 0.1);
 }
 
-.link-info {
+.action-icon-blue {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.action-icon {
+  font-size: 20px;
+}
+
+.action-info {
   min-width: 0;
 }
 
-.link-label {
+.action-label {
   display: block;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
   color: $text1;
   margin-bottom: 2px;
 }
 
-.link-url {
+.action-value {
   display: block;
-  font-size: 16px;
-  color: $text3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.link-action {
   font-size: 18px;
   font-weight: 700;
-  color: $blue;
+  color: $green;
+}
+
+.action-sub {
+  display: block;
+  font-size: 17px;
+  color: $text3;
+}
+
+.action-btn {
+  font-size: 18px;
+  font-weight: 700;
+  color: $green;
   flex-shrink: 0;
   padding-left: 12px;
 }
 
-// ==================== 元信息 ====================
-.card-meta {
-  padding: 8px 24px;
+.action-btn-purple {
+  color: #a855f7;
 }
 
-.meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 0;
-}
-
-.meta-label {
-  font-size: 18px;
-  color: $text3;
-}
-
-.meta-value {
-  font-size: 18px;
-  font-weight: 600;
-  color: $text1;
+.action-btn-blue {
+  color: $blue;
 }
 
 .mono {
   font-family: 'SF Mono', 'Menlo', monospace;
   font-weight: 800;
-}
-
-.meta-divider {
-  height: 1px;
-  background: $border;
 }
 
 // ==================== 底部 ====================

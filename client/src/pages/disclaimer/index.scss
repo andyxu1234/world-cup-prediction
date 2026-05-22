@@ -1,216 +1,120 @@
-// Variables injected globally via sass.data
-// Design: Editorial Futurism — 深绿主调 + 绿色点缀 + 玻璃拟态 + 杂志排版
-// Theme accent: GREEN ($green)
-
+// 免责声明页 — 与小程序整体一致的浅色主题
 .disclaimer-page {
   min-height: 100vh;
-  background: #0a0f0d;
-  padding-bottom: env(safe-area-inset-bottom);
+  background: $bg-primary;
   display: flex;
   flex-direction: column;
 }
 
-// ==================== Hero — 深绿沉浸式头部 ====================
-
+// ==================== Hero ====================
 .hero {
-  position: relative;
-  margin: 0 0 20px;
-  padding: 56px 24px 48px;
+  margin: 8px 0 20px;
+  padding: 36px 30px;
   border-radius: 24px;
-  background: linear-gradient(160deg, #0d2818 0%, #0f3d22 40%, #14532d 100%);
-  overflow: hidden;
-}
-
-// 动态光球
-.hero-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-}
-
-.hero-orb-1 {
-  top: -60px;
-  right: -40px;
-  width: 260px;
-  height: 260px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
-  animation: orbFloat1 8s ease-in-out infinite alternate;
-}
-
-.hero-orb-2 {
-  bottom: -80px;
-  left: -30px;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, transparent 70%);
-  animation: orbFloat2 10s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes orbFloat1 {
-  0%   { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-20px, 20px) scale(1.15); }
-}
-
-@keyframes orbFloat2 {
-  0%   { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(18px, -14px) scale(1.1); }
-}
-
-// 网格背景
-.hero-grid-bg {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
-  pointer-events: none;
-}
-
-.hero-content {
+  background: linear-gradient(135deg, #10b981 0%, #059669 40%, #047857 100%);
   position: relative;
-  z-index: 1;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
 }
 
-.hero-badge {
-  display: inline-block;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: 4px;
-  color: $green;
-  padding: 6px 16px;
-  border-radius: 20px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  margin-bottom: 20px;
+.hero-glow {
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  animation: heroGlow 6s ease-in-out infinite;
+}
+
+@keyframes heroGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
 }
 
 .hero-title {
   display: block;
-  font-size: 42px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 44px;
   font-weight: 900;
   color: #ffffff;
-  letter-spacing: 3px;
-  line-height: 1.2;
-  margin-bottom: 10px;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  letter-spacing: 2px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-bottom: 8px;
 }
 
 .hero-sub {
   display: block;
-  font-size: 21px;
-  color: rgba(255, 255, 255, 0.55);
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.7);
   font-weight: 500;
-  letter-spacing: 1px;
-}
-
-// 底部装饰线
-.hero-deco-line {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 4px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, transparent, $green, transparent);
-  opacity: 0.5;
 }
 
 // ==================== 内容区 ====================
-
-.body {
+.content {
+  padding: 20px 28px 0;
   flex: 1;
-  padding: 16px 16px 0;
 }
 
-// ====== 卡片通用 ======
+// ==================== 卡片 ====================
 .card {
-  margin: 0 0 20px;
-  padding: 28px 22px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(10px);
-  animation: cardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-
-  &:nth-child(1) { animation-delay: 0.05s; }
-  &:nth-child(2) { animation-delay: 0.15s; }
-  &:nth-child(3) { animation-delay: 0.25s; }
+  background: $bg-card;
+  border-radius: $radius;
+  padding: 24px;
+  margin: 0 0 16px;
+  border: 1px solid $border;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
 }
 
-@keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.card-tag-row {
-  margin-bottom: 16px;
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 14px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 2px;
-}
-
-.tag-blue {
-  background: rgba(59, 130, 246, 0.12);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.tag-green {
-  background: rgba(16, 185, 129, 0.12);
-  color: $green;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.tag-yellow {
-  background: rgba(251, 191, 36, 0.12);
-  color: #fbbf24;
-  border: 1px solid rgba(251, 191, 36, 0.2);
-}
-
-.card-head {
-  display: block;
-  font-size: 29px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 1px;
+.card-header {
   margin-bottom: 14px;
 }
 
-.card-body-text {
-  display: block;
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.7;
-  margin-bottom: 20px;
+.card-tag {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 5px 12px;
+  border-radius: 6px;
 }
 
-// ====== 免责条款 ======
+.tag-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: $green;
+}
 
+.tag-warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: $gold;
+}
+
+.card-title {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  color: $text1;
+  margin-bottom: 12px;
+}
+
+.card-desc {
+  display: block;
+  font-size: 19px;
+  color: $text2;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+// ==================== 条款列表 ====================
 .clause-list {
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .clause-item {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 14px;
+  margin-bottom: 20px;
 
   &:last-child {
     margin-bottom: 0;
@@ -218,11 +122,10 @@
 }
 
 .clause-num {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(251, 191, 36, 0.15);
-  border: 1px solid rgba(251, 191, 36, 0.25);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -231,115 +134,96 @@
   text {
     font-size: 18px;
     font-weight: 800;
-    color: #fbbf24;
+    color: $green;
   }
 }
 
-.clause-content {
+.clause-body {
   flex: 1;
 }
 
 .clause-title {
   display: block;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 8px;
+  color: $text1;
+  margin-bottom: 6px;
 }
 
 .clause-text {
   display: block;
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.7;
+  font-size: 18px;
+  color: $text2;
+  line-height: 1.6;
 }
 
-// ====== 温馨提示 ======
-
-.tips-highlight {
-  margin-top: 20px;
-  padding: 16px;
+// ==================== 高亮框 ====================
+.highlight-box {
+  margin-top: 16px;
+  padding: 16px 18px;
   border-radius: 12px;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(59, 130, 246, 0.06));
+  border: 1px solid rgba(16, 185, 129, 0.1);
   text-align: center;
 }
 
-.tips-highlight-text {
-  font-size: 22px;
+.highlight-text {
+  font-size: 20px;
   font-weight: 700;
   color: $green;
 }
 
-// ====== 版本信息卡片（紧凑行风格） ======
-
+// ==================== 元信息 ====================
 .card-meta {
-  padding: 6px 22px !important;
+  padding: 8px 24px;
 }
 
 .meta-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
+  padding: 14px 0;
 }
 
 .meta-label {
-  font-size: 19px;
-  color: rgba(255, 255, 255, 0.4);
-  font-weight: 500;
+  font-size: 18px;
+  color: $text3;
 }
 
 .meta-value {
-  font-size: 19px;
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 600;
+  color: $text1;
 }
 
 .mono {
   font-family: 'SF Mono', 'Menlo', monospace;
-  color: $green;
-}
-
-.mono-sm {
-  font-family: 'SF Mono', 'Menlo', monospace;
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.55);
+  font-weight: 800;
 }
 
 .meta-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  background: $border;
 }
 
-// ==================== 底部签名 ====================
-
+// ==================== 底部 ====================
 .footer {
   text-align: center;
   padding: 32px 24px 48px;
-  margin-top: auto;
-}
-
-.footer-line {
-  width: 80px;
-  height: 3px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
-  margin: 0 auto 20px;
 }
 
 .footer-brand {
   display: block;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: 6px;
-  color: rgba(255, 255, 255, 0.25);
-  margin-bottom: 8px;
+  letter-spacing: 4px;
+  color: $text3;
+  margin-bottom: 4px;
 }
 
 .footer-slogan {
   display: block;
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.18);
-  letter-spacing: 3px;
+  font-size: 17px;
+  color: $text3;
+  letter-spacing: 1px;
 }

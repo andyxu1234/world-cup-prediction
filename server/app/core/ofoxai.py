@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 class OfoxAIClient:
     """OfoxAI 统一 AI 网关客户端 — 通过 OpenAI 兼容接口调用所有 LLM 模型"""
 
-    def __init__(self, api_key: str, base_url: str = "https://api.ofox.ai/v1"):
+    def __init__(self, api_key: str, base_url: str = "https://api.ofox.io/v1"):
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     async def chat_completion(
@@ -19,15 +19,44 @@ class OfoxAIClient:
         max_tokens: int = 1024,
     ) -> str:
         """调用 OfoxAI Chat Completions API（OpenAI 兼容格式）"""
-        resp = await self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        content = resp.choices[0].message.content
-        logger.info(f"OfoxAI [{model}] response length: {len(content)}")
-        return content
+        import time
+        _t_start = time.monotonic()
+        logger.info(f"[OfoxAI] >>> REQUEST START | model={model} | base_url={self.client.base_url} | "
+                     f"messages_count={len(messages)} | temperature={temperature} | max_tokens={max_tokens}")
+
+        try:
+            resp = await self.client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            _t_elapsed = time.monotonic() - _t_start
+            content = resp.choices[0].message.content
+            usage = getattr(resp, 'usage', None)
+            finish_reason = resp.choices[0].finish_reason if resp.choices else 'unknown'
+            logger.info(
+                f"[OfoxAI] <<< REQUEST OK  | model={model} | "
+                f"elapsed={_t_elapsed:.2f}s | "
+                f"content_len={len(content)} | "
+                f"finish_reason={finish_reason} | "
+                f"usage={usage}"
+            )
+            return content
+        except Exception as e:
+            _t_elapsed = time.monotonic() - _t_start
+            _exc_type = type(e).__name__
+            _exc_msg = str(e)
+            # 截断过长的错误信息
+            if len(_exc_msg) > 500:
+                _exc_msg = _exc_msg[:500] + '...(truncated)'
+            logger.error(
+                f"[OfoxAI] <<< REQUEST FAIL| model={model} | "
+                f"elapsed={_t_elapsed:.2f}s | "
+                f"exception={_exc_type} | "
+                f"error={_exc_msg}"
+            )
+            raise
 
     async def predict_match(self, model: str, system_prompt: str, user_prompt: str) -> dict:
         """单场预测便捷方法：构建 messages 并解析 JSON 响应"""
