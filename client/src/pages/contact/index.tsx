@@ -84,8 +84,8 @@ export default function Contact() {
           </View>
         </View>
 
-        {/* 公众号 */}
-        <View className='card'>
+        {/* 公众号 - 暂时隐藏，需要时取消注释即可恢复 */}
+        {/* <View className='card'>
           <Text className='card-title'>关注公众号</Text>
           <Text className='card-desc'>
             点击下方按钮阅读公众号文章，在文章页面即可关注公众号，获取最新世界杯动态和AI预测分析。
@@ -114,7 +114,7 @@ export default function Contact() {
             </View>
             <Text className='action-btn action-btn-blue'>前往 ›</Text>
           </View>
-        </View>
+        </View> */}
       </View>
 
       {/* 底部 */}
