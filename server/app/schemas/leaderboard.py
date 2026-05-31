@@ -29,6 +29,8 @@ class HumanUserRankItem(BaseModel):
     result_accuracy: float
     correct_score: int
     score_accuracy: float
+    is_me: bool = False
+    real_rank: int = 0
 
     model_config = {"from_attributes": True, "protected_namespaces": ()}
 
@@ -48,8 +50,6 @@ class MyRankItem(BaseModel):
 
 
 class HumanLeaderboardOut(BaseModel):
-    human: Dict
-    ai_models: List[AILeaderboardItem]
     top_users: List[HumanUserRankItem] = []
     my_rank: Optional[MyRankItem] = None
 
@@ -70,6 +70,9 @@ class AIDetailPredictionOut(BaseModel):
     predicted_result: str
     predicted_home_score: int | None = None
     predicted_away_score: int | None = None
+    score_alt_home: int | None = None
+    score_alt_away: int | None = None
+    score_alt_prob: float | None = None
     is_correct_result: bool | None = None
     is_correct_score: bool | None = None
     confidence: float | None = None

@@ -252,6 +252,8 @@ export interface HumanUserRankItem {
   result_accuracy: number
   correct_score: number
   score_accuracy: number
+  is_me?: boolean
+  real_rank: number
 }
 
 export interface MyRankItem extends HumanUserRankItem {
@@ -259,15 +261,6 @@ export interface MyRankItem extends HumanUserRankItem {
 }
 
 export interface HumanLeaderboardOut {
-  human: {
-    name: string
-    total: number
-    correct_result: number
-    result_accuracy: number
-    correct_score: number
-    score_accuracy: number
-  }
-  ai_models: AILeaderboardItem[]
   top_users: HumanUserRankItem[]
   my_rank: MyRankItem | null
 }
@@ -292,6 +285,9 @@ export interface AIDetailPrediction {
   predicted_result: string
   predicted_home_score: number | null
   predicted_away_score: number | null
+  score_alt_home: number | null
+  score_alt_away: number | null
+  score_alt_prob: number | null
   is_correct_result: boolean | null
   is_correct_score: boolean | null
   confidence: number | null

@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useLeaderboardStore, useUserStore, useMatchStore } from '@/stores'
-import type { MixedRankItem } from '@/stores'
 import { resolveAvatarUrl } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
@@ -45,7 +44,7 @@ const ORIGIN_LABELS: Record<string, string> = {
 
 const TABS = [
   { key: 'ai' as const, label: 'AI 排行' },
-  { key: 'human' as const, label: '人机对决' },
+  { key: 'human' as const, label: '人类排行' },
 ]
 
 const ROUNDS = ['全部', '小组赛', '淘汰赛']
@@ -200,77 +199,9 @@ function WorldCupCountdown() {
   )
 }
 
-/** 混合排行条目（人机合一） */
-function MixedRankRow({ item, rank }: { item: MixedRankItem; rank: number }) {
-  const isMe = !!item.isMe
-  const hasResult = item.total > 0
-
-  const handlePress = () => {
-    if (item.type === 'ai' && item.model_id) {
-      Taro.navigateTo({ url: `/pages/ai-detail/index?modelId=${item.model_id}` })
-    }
-  }
-
-  return (
-    <View
-      key={`${item.type}-${item.user_id ?? item.model_id}`}
-      className={`lb-item ${isMe ? 'lb-item-me' : ''} ${rank <= 3 && !isMe ? 'lb-item-top3' : ''} ${item.type === 'ai' ? 'lb-item-clickable' : ''}`}
-      onClick={handlePress}
-    >
-      <View className='lb-rank'>
-        <Text className='lb-rank-badge'>#{rank}</Text>
-      </View>
-
-      {item.type === 'human' ? (
-        <UserAvatar avatarUrl={item.avatar_url} nickname={item.nickname} />
-      ) : (
-        <ModelAvatar name={item.name || ''} size={rank === 1 && !isMe ? 'lb-av-top1' : rank <= 3 && !isMe ? 'lb-av-top3' : 'lb-av'} />
-      )}
-
-      <View className='lb-body'>
-        <View className='lb-header'>
-          <Text className='lb-name'>{item.name}{isMe ? ' (我)' : ''}</Text>
-          {item.type === 'ai' && (
-            <View className='lb-tags'>
-              {renderStyleTags(item.style_tags)}
-            </View>
-          )}
-        </View>
-        <View className='lb-metrics'>
-          <View className='metric-group'>
-            {hasResult ? (
-              <>
-                <Text className='metric-text'>胜负命中率：</Text>
-                <Text className={`metric-num metric-ok`}>{item.result_accuracy}%</Text>
-              </>
-            ) : (
-              <>
-                <Text className='metric-text'>胜负：</Text>
-                <Text className={`metric-num metric-none`}>-</Text>
-              </>
-            )}
-          </View>
-          {hasResult && (
-            <View className='metric-group'>
-              <Text className='metric-text'>比分命中率：</Text>
-              <Text className={`metric-num metric-sub`}>{item.score_accuracy}%</Text>
-            </View>
-          )}
-          {item.total > 0 && (
-            <View className='metric-group'>
-              <Text className='metric-text'>{item.type === 'human' ? '投票' : '预测场次'}：</Text>
-              <Text className='metric-total'>{item.total}{item.type === 'human' ? '场' : '场'}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </View>
-  )
-}
-
 export default function Leaderboard() {
   const {
-    activeTab, activeRound, sortMode, sortBy, sortOrder, entries, humanData, mixedRank,
+    activeTab, activeRound, sortMode, sortBy, sortOrder, entries, topUsers,
     setActiveTab, setActiveRound, setSortMode, setSort, fetchLeaderboard,
   } = useLeaderboardStore()
   const loginReady = useUserStore((s) => s.loginReady)
@@ -377,58 +308,72 @@ export default function Leaderboard() {
         )}
       </View>
 
-      {/* 人机对决特有：人类统计卡片 */}
-      {activeTab === 'human' && humanData && (
-        <View className='human-card'>
-          <View className='human-av'>👥</View>
-          <View className='human-info'>
-            <Text className='human-name'>人类平均</Text>
-            <View className='human-metrics'>
-              <View className='metric-group'>
-                <>
-                  <Text className='metric-text'>胜负命中率：</Text>
-                  <Text className={`metric-num metric-ok`}>{humanData.human.result_accuracy}%</Text>
-                </>
-              </View>
-              <View className='metric-group'>
-                <>
-                  <Text className='metric-text'>比分命中率：</Text>
-                  <Text className={`metric-num metric-sub`}>{humanData.human.score_accuracy}%</Text>
-                </>
-              </View>
-              {humanData.human.total > 0 && (
-                <View className='metric-group'>
-                  <Text className='metric-text'>投票：</Text>
-                  <Text className='metric-total'>{humanData.human.total}场</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-      )}
-
       {/* 世界杯倒计时翻页：仅在没有预测数据时显示 */}
-      {entries.length === 0 && mixedRank.length === 0 && (
+      {entries.length === 0 && topUsers.length === 0 && (
         <WorldCupCountdown />
       )}
 
-      {/* 人机对决：混合排行列表 */}
+      {/* 人类排行 */}
       {activeTab === 'human' && (
         <ScrollView scrollY className='lb-list' style={listHeight ? { height: listHeight } : undefined}>
-          {mixedRank.length === 0 && !useLeaderboardStore.getState().loading && (
+          {topUsers.length === 0 && !useLeaderboardStore.getState().loading && (
             <View className='rich-empty'>
               <View className='rich-empty-glow' />
-              <Text className='rich-empty-icon'>⚔️</Text>
-              <Text className='rich-empty-title'>对决即将开始</Text>
-              <Text className='rich-empty-desc'>比赛开始后，AI 与人类预测实力对比将在这里实时更新</Text>
-              <Text className='rich-empty-tip'>
-                💡 已有 {homeStats?.active_ai_models ?? 0} 个 AI 模型蓄势待发
-              </Text>
+              <Text className='rich-empty-icon'>👥</Text>
+              <Text className='rich-empty-title'>暂无投票数据</Text>
+              <Text className='rich-empty-desc'>比赛开始后，人类投票排行将在这里实时更新</Text>
             </View>
           )}
-          {mixedRank.map((item, idx) => (
-            <MixedRankRow key={`${item.type}-${item.user_id ?? item.model_id}`} item={item} rank={idx + 1} />
-          ))}
+          {topUsers.map((item, idx) => {
+            const isMe = !!item.is_me
+            const hasResult = item.total > 0
+            const rank = item.real_rank || idx + 1  // 使用真实排名
+            return (
+              <View
+                key={item.user_id}
+                className={`lb-item ${isMe ? 'lb-item-me' : ''} ${rank <= 3 && !isMe ? 'lb-item-top3' : ''}`}
+              >
+                <View className='lb-rank'>
+                  <Text className='lb-rank-badge'>#{rank}</Text>
+                </View>
+
+                <UserAvatar avatarUrl={item.avatar_url} nickname={item.nickname} />
+
+                <View className='lb-body'>
+                  <View className='lb-header'>
+                    <Text className='lb-name'>{item.nickname}{isMe ? ' (我)' : ''}</Text>
+                  </View>
+                  <View className='lb-metrics'>
+                    <View className='metric-group'>
+                      {hasResult ? (
+                        <>
+                          <Text className='metric-text'>胜负命中率：</Text>
+                          <Text className={`metric-num metric-ok`}>{item.result_accuracy}%</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text className='metric-text'>胜负：</Text>
+                          <Text className={`metric-num metric-none`}>-</Text>
+                        </>
+                      )}
+                    </View>
+                    {hasResult && (
+                      <View className='metric-group'>
+                        <Text className='metric-text'>比分命中率：</Text>
+                        <Text className={`metric-num metric-sub`}>{item.score_accuracy}%</Text>
+                      </View>
+                    )}
+                    {item.total > 0 && (
+                      <View className='metric-group'>
+                        <Text className='metric-text'>投票：</Text>
+                        <Text className='metric-total'>{item.total}场</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )
+          })}
           <View className='lb-footnote'>
             <Text className='lb-footnote-text'>* 胜负/比分命中率仅对已结束的比赛进行统计</Text>
           </View>

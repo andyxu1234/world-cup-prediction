@@ -9,6 +9,7 @@ client/dist/
 .vscode/
 .idea/
 .claude/
+.understand-anything/
 
 # OS
 .DS_Store

@@ -248,12 +248,19 @@ export default function AIDetail() {
                   </View>
                 </View>
                 <View className='ad-card-ft'>
-                  <Text className='ad-prediction'>
-                    预测：{getResultLabel(item.predicted_result)}
-                    {item.predicted_home_score != null
-                      ? ` ${item.predicted_home_score}-${item.predicted_away_score}`
-                      : ''}
-                  </Text>
+                  <View className='ad-prediction-group'>
+                    <Text className='ad-prediction'>
+                      预测：{getResultLabel(item.predicted_result)}
+                      {item.predicted_home_score != null
+                        ? ` ${item.predicted_home_score}-${item.predicted_away_score}`
+                        : ''}
+                    </Text>
+                    {item.score_alt_home != null && item.score_alt_away != null && (
+                      <Text className='ad-prediction-alt'>
+                        备选：{item.score_alt_home}-{item.score_alt_away}
+                      </Text>
+                    )}
+                  </View>
                   <View className='ad-time-wrapper'>
                     <Text className='ad-time-label'>比赛时间：</Text>
                     <Text className='ad-time'>{formatTime(item.match_time)}</Text>

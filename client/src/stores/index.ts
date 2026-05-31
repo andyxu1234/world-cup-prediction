@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
-import type { Match, Prediction, AILeaderboardItem, HumanLeaderboardOut, HumanUserRankItem, MyRankItem, ComparePredictionsOut, HomeStats } from '@/services/api'
+import type { Match, Prediction, AILeaderboardItem, HumanUserRankItem, ComparePredictionsOut, HomeStats } from '@/services/api'
 import * as api from '@/services/api'
 
 // ==================== 比赛状态 ====================
@@ -83,9 +83,7 @@ interface LeaderboardState {
   sortBy: 'result_accuracy' | 'score_accuracy'
   sortOrder: 'asc' | 'desc'
   entries: AILeaderboardItem[]
-  humanData: HumanLeaderboardOut | null
   topUsers: HumanUserRankItem[]
-  mixedRank: MixedRankItem[]
   loading: boolean
   setActiveTab: (tab: 'ai' | 'human') => void
   setActiveRound: (round: string) => void
@@ -121,85 +119,6 @@ function applyUserSort(entries: HumanUserRankItem[], sortBy: 'result_accuracy' |
   })
 }
 
-/** 混合排行条目：人机合一 */
-export interface MixedRankItem {
-  type: 'human' | 'ai'
-  name: string
-  total: number
-  result_accuracy: number
-  score_accuracy: number
-  // human 特有
-  user_id?: number
-  nickname?: string
-  avatar_url?: string | null
-  isMe?: boolean
-  // ai 特有
-  model_id?: number
-  style_tags?: Record<string, any> | null
-}
-
-/** 合并并排序人机排行（取前20条） */
-function buildMixedRank(
-  users: HumanUserRankItem[],
-  ais: AILeaderboardItem[],
-  myRank: MyRankItem | null,
-  currentUserId: number | undefined,
-  sortBy: string,
-  sortOrder: string,
-): MixedRankItem[] {
-  const humanItems: MixedRankItem[] = users.map(u => ({
-    type: 'human' as const,
-    name: u.nickname || '匿名用户',
-    total: u.total,
-    result_accuracy: u.result_accuracy,
-    score_accuracy: u.score_accuracy,
-    user_id: u.user_id,
-    nickname: u.nickname || '匿名用户',
-    avatar_url: u.avatar_url,
-    isMe: currentUserId === u.user_id,
-  }))
-
-  // 如果我的排名不在 topUsers 中，追加进去
-  if (myRank && !users.some(u => u.user_id === myRank.user_id)) {
-    humanItems.push({
-      type: 'human' as const,
-      name: myRank.nickname || '我',
-      total: myRank.total,
-      result_accuracy: myRank.result_accuracy,
-      score_accuracy: myRank.score_accuracy,
-      user_id: myRank.user_id,
-      nickname: myRank.nickname || '我',
-      avatar_url: myRank.avatar_url,
-      isMe: true,
-    })
-  }
-
-  const aiItems: MixedRankItem[] = ais.map(a => ({
-    type: 'ai' as const,
-    name: a.name,
-    total: a.total,
-    result_accuracy: a.result_accuracy,
-    score_accuracy: a.score_accuracy,
-    model_id: a.model_id,
-    style_tags: a.style_tags,
-  }))
-
-  const all = [...humanItems, ...aiItems]
-  const dir = sortOrder === 'asc' ? 1 : -1
-  const sortKey = sortBy as keyof Pick<MixedRankItem, 'result_accuracy' | 'score_accuracy'>
-  const subKey = sortKey === 'result_accuracy' ? 'score_accuracy' : 'result_accuracy'
-
-  all.sort((a, b) => {
-    const diff = (a[sortKey] ?? 0) - (b[sortKey] ?? 0)
-    if (diff !== 0) return diff * dir
-    const diff2 = (a[subKey] ?? 0) - (b[subKey] ?? 0)
-    if (diff2 !== 0) return -diff2
-    return (b.total ?? 0) - (a.total ?? 0)
-  })
-
-  return all.slice(0, 20)
-}
-
 export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
   activeTab: 'ai',
   activeRound: '全部',
@@ -228,33 +147,34 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
     } else {
       set({ sortMode: 'field' })
     }
-    const { entries, topUsers, humanData, activeTab } = get()
+    const { entries, topUsers } = get()
     const sb = get().sortBy
     const so = get().sortOrder
     const newEntries = applySort(entries, sb, so)
-    const newTopUsers = applyUserSort(topUsers, sb, so)
-    let mr: MixedRankItem[] = []
-    if (activeTab === 'human' && humanData) {
-      const uid = useUserStore.getState().user?.id
-      mr = buildMixedRank(topUsers, newEntries, humanData.my_rank ?? null, uid, sb, so)
+    let newTopUsers = applyUserSort(topUsers, sb, so)
+    // 当前置顶
+    const meIdx = newTopUsers.findIndex(u => u.is_me)
+    if (meIdx > 0) {
+      const [me] = newTopUsers.splice(meIdx, 1)
+      newTopUsers.unshift(me)
     }
-    set({ entries: newEntries, topUsers: newTopUsers, mixedRank: mr })
+    set({ entries: newEntries, topUsers: newTopUsers })
   },
 
   setSort: (sortBy, sortOrder) => {
-    const { entries, topUsers, humanData, activeTab } = get()
+    const { entries, topUsers } = get()
     const newEntries = applySort(entries, sortBy, sortOrder)
-    const newTopUsers = applyUserSort(topUsers, sortBy, sortOrder)
-    let mr: MixedRankItem[] = []
-    if (activeTab === 'human' && humanData) {
-      const uid = useUserStore.getState().user?.id
-      mr = buildMixedRank(topUsers, newEntries, humanData.my_rank ?? null, uid, sortBy, sortOrder)
+    let newTopUsers = applyUserSort(topUsers, sortBy, sortOrder)
+    // 当前置顶
+    const meIdx = newTopUsers.findIndex(u => u.is_me)
+    if (meIdx > 0) {
+      const [me] = newTopUsers.splice(meIdx, 1)
+      newTopUsers.unshift(me)
     }
     set({
       sortMode: 'field', sortBy, sortOrder,
       entries: newEntries,
       topUsers: newTopUsers,
-      mixedRank: mr,
     })
   },
 
@@ -267,22 +187,15 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
         const rawEntries = await api.getAILeaderboard(resolvedRound)
         set({
           entries: applySort(rawEntries as AILeaderboardItem[], sortBy, sortOrder),
-          humanData: null,
           topUsers: [],
-          mixedRank: [],
           loading: false,
         })
       } else {
         const userId = useUserStore.getState().user?.id
         const humanData = await api.getHumanLeaderboard(userId, resolvedRound)
-        const sortedAis = applySort(humanData.ai_models as AILeaderboardItem[], sortBy, sortOrder)
-        const sortedUsers = applyUserSort(humanData.top_users as HumanUserRankItem[], sortBy, sortOrder)
-        const mixed = buildMixedRank(sortedUsers, sortedAis, humanData.my_rank ?? null, userId, sortBy, sortOrder)
         set({
-          entries: sortedAis,
-          topUsers: sortedUsers,
-          mixedRank: mixed,
-          humanData,
+          entries: [],
+          topUsers: humanData.top_users as HumanUserRankItem[],
           loading: false,
         })
       }
