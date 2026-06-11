@@ -512,7 +512,54 @@ async def aggregate(state: PredictionState) -> PredictionState:
                 if not match_info:
                     continue
 
-                # 构建汇总 prompt
+                # ── 加载历史预测（补充被跳过的模型）─────────────
+                existing_model_ids_from_new = {p["model_id"] for p in match_preds}
+                
+                # 从数据库查询该比赛的所有历史预测（预加载 ai_model 关系避免异步懒加载错误）
+                from sqlalchemy.orm import selectinload
+                hist_stmt = (
+                    select(Prediction)
+                    .options(selectinload(Prediction.ai_model))  # 预加载模型关系
+                    .where(Prediction.match_id == match_id)
+                    .where(Prediction.model_id.notin_(existing_model_ids_from_new))
+                )
+                hist_result = await session.execute(hist_stmt)
+                historical_predictions = list(hist_result.scalars().all())
+
+                # 转换历史预测为统一格式
+                for hp in historical_predictions:
+                    try:
+                        # 尝试解析 raw_response 为 JSON
+                        import json as _json
+                        raw_parsed = _json.loads(hp.raw_response) if hp.raw_response else {}
+                    except (TypeError, ValueError):
+                        raw_parsed = {}
+
+                    match_preds.append({
+                        "match_id": match_id,
+                        "model_id": hp.model_id,
+                        "model_name": getattr(hp.ai_model, 'name', f'Model_{hp.model_id}'),
+                        "raw": raw_parsed,
+                        "parsed": {
+                            "result": hp.result.value if hasattr(hp.result, 'value') else str(hp.result),
+                            "score": {
+                                "home": hp.score_home,
+                                "away": hp.score_away,
+                            },
+                            "confidence": hp.confidence,
+                            "analysis": hp.analysis or "",
+                        },
+                        "_is_historical": True,  # 标记为历史数据
+                    })
+
+                logger.info(
+                    f"Aggregate match {match_id}: "
+                    f"{len(match_preds) - len(historical_predictions)} new + "
+                    f"{len(historical_predictions)} historical = "
+                    f"{len(match_preds)} total predictions"
+                )
+
+                # 构建汇总 prompt（使用合并后的完整数据）
                 pred_data = []
                 for p in match_preds:
                     parsed = p.get("parsed", p.get("raw", {}))
@@ -554,8 +601,9 @@ async def aggregate(state: PredictionState) -> PredictionState:
                     state["summary_raw"] = summary_raw
                     state["summary"] = parsed_summary
 
-                    # 写入数据库 — 保存每个预测 + 汇总
-                    for p in match_preds:
+                    # 写入数据库 — 仅保存本次新生成的预测（跳过历史数据避免重复）
+                    new_predictions = [p for p in match_preds if not p.get("_is_historical")]
+                    for p in new_predictions:
                         parsed = p.get("parsed", p.get("raw", {}))
                         score = parsed.get("score", {})
                         score_alt = parsed.get("score_alt", {})
