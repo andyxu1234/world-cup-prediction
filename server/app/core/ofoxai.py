@@ -64,9 +64,9 @@ class OfoxAIClient:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        # 预测响应通常包含结构化JSON，需要较大输出窗口（部分模型如Gemini容易截断）
+        # 预测响应通常包含结构化JSON，需要较大输出窗口（部分模型如Gemini容易截断，推理模型如Qwen3.6需要更大空间给reasoning_tokens+输出）
         content = await self.chat_completion(
-            model=model, messages=messages, max_tokens=2048,
+            model=model, messages=messages, max_tokens=8192,
         )
         # 尝试解析 JSON（AI 可能返回 markdown 代码块包裹的 JSON）
         parsed = self._extract_json(content)
