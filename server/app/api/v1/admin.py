@@ -11,8 +11,16 @@ from app.services.prediction_evaluator import evaluate_predictions
 from app.services.stats_sync import sync_standings_and_stats
 from app.services.h2h_sync import sync_all_h2h
 from app.services.sync_pipeline import sync_matches_and_respond
+from app.core.cache import clear_all_caches
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.post("/cache/clear")
+async def trigger_clear_cache():
+    """手动清空所有缓存（用于代码更新后立即生效）"""
+    clear_all_caches()
+    return {"message": "All caches cleared"}
 
 
 @router.post("/pipeline/sync")

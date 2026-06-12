@@ -552,9 +552,19 @@
 // ── Metrics Row (结构化数据行) ─────────────────────────
 .lb-metrics {
   display: flex;
-  align-items: baseline;
-  gap: 20px;
+  flex-direction: column;
+  gap: 4px;
   padding-top: 4px;
+}
+
+.metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px 20px;
+
+  .metric-group {
+    flex: 1;
+  }
 }
 
 .metric-group {

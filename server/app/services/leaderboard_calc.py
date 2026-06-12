@@ -55,14 +55,17 @@ async def get_ai_leaderboard(
     if sort_order not in ("asc", "desc"):
         sort_order = "desc"
 
-    # 基础查询：按模型聚合（不过滤 is_correct_result，展示所有预测数据）
+    # 基础查询：按模型聚合
+    # 命中率计算：只统计已结算的预测（is_correct_result IS NOT NULL），避免未结算比赛拉低命中率
     query = (
         select(
             AIModel.id,
             AIModel.name,
             AIModel.avatar_url,
             AIModel.style_tags,
-            func.count(Prediction.id).label("total"),
+            func.count(Prediction.id).label("total"),                                    # 总预测数（所有预测）
+            # 已结算预测数：is_correct_result 不为空（即比赛已结束并已评估）
+            func.count(case((Prediction.is_correct_result.isnot(None), 1))).label("settled"),
             func.sum(case((Prediction.is_correct_result == True, 1), else_=0)).label("correct_result"),
             func.sum(case((Prediction.is_correct_score == True, 1), else_=0)).label("correct_score"),
         )
@@ -77,9 +80,9 @@ async def get_ai_leaderboard(
         elif len(rounds) > 1:
             query = query.where(Match.round.in_(rounds))
 
-    # 层级排序：主排字段 → 副排字段 → 总票数
-    main_col = func.sum(case((Prediction.is_correct_result == True, 1), else_=0)) / func.count(Prediction.id)
-    sub_col = func.sum(case((Prediction.is_correct_score == True, 1), else_=0)) / func.count(Prediction.id)
+    # 层级排序：主排字段 → 副排字段 → 总票数（基于已结算数据计算命中率）
+    main_col = func.sum(case((Prediction.is_correct_result == True, 1), else_=0)) / func.count(case((Prediction.is_correct_result.isnot(None), 1)))
+    sub_col = func.sum(case((Prediction.is_correct_score == True, 1), else_=0)) / func.count(case((Prediction.is_correct_result.isnot(None), 1)))
     count_col = func.count(Prediction.id)
 
     # 确定主排序方向
@@ -103,6 +106,7 @@ async def get_ai_leaderboard(
     leaderboard = []
     for row in rows:
         total = row.total or 0
+        settled = row.settled or 0
         correct_result = row.correct_result or 0
         correct_score = row.correct_score or 0
         leaderboard.append({
@@ -110,11 +114,12 @@ async def get_ai_leaderboard(
             "name": row.name,
             "avatar_url": row.avatar_url,
             "style_tags": row.style_tags,
-            "total": total,
+            "total": total,                          # 总预测场次
+            "settled": settled,                        # 已结算（已结束）场次
             "correct_result": correct_result,
-            "result_accuracy": round(correct_result / total * 100, 1) if total > 0 else 0,
+            "result_accuracy": round(correct_result / settled * 100, 1) if settled > 0 else 0,
             "correct_score": correct_score,
-            "score_accuracy": round(correct_score / total * 100, 1) if total > 0 else 0,
+            "score_accuracy": round(correct_score / settled * 100, 1) if settled > 0 else 0,
         })
 
     return leaderboard
@@ -133,6 +138,7 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
             User.nickname,
             User.avatar_url,
             func.count(UserVote.id).label("total"),
+            func.count(case((UserVote.is_correct_result.isnot(None), 1))).label("settled"),
             func.sum(case((UserVote.is_correct_result == True, 1), else_=0)).label("correct_result"),
             func.sum(case((UserVote.is_correct_score == True, 1), else_=0)).label("correct_score"),
         )
@@ -146,10 +152,10 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
         elif len(rounds) > 1:
             user_query = user_query.where(Match.round.in_(rounds))
 
-    # 排序：胜负命中率 DESC → 比分命中率 DESC → 投票场次 DESC → 用户ID ASC
+    # 排序：胜负命中率 DESC → 比分命中率 DESC → 投票场次 DESC → 用户ID ASC（命中率基于已结算场次）
     user_query = user_query.group_by(User.id).order_by(
-        (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(UserVote.id)).desc(),
-        (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(UserVote.id)).desc(),
+        (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).desc(),
+        (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).desc(),
         func.count(UserVote.id).desc(),
         User.id.asc(),
     ).limit(100)
@@ -161,6 +167,7 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
     current_user_in_top = False
     for idx, row in enumerate(user_rows):
         utotal = row.total or 0
+        usettled = row.settled or 0
         ucr = row.correct_result or 0
         ucs = row.correct_score or 0
         real_rank = idx + 1  # 真实排名（从1开始）
@@ -172,10 +179,11 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
             "nickname": row.nickname or "匿名用户",
             "avatar_url": _clean_avatar_url(row.avatar_url),
             "total": utotal,
+            "settled": usettled,
             "correct_result": ucr,
-            "result_accuracy": round(ucr / utotal * 100, 1) if utotal > 0 else 0,
+            "result_accuracy": round(ucr / usettled * 100, 1) if usettled > 0 else 0,
             "correct_score": ucs,
-            "score_accuracy": round(ucs / utotal * 100, 1) if utotal > 0 else 0,
+            "score_accuracy": round(ucs / usettled * 100, 1) if usettled > 0 else 0,
             "is_me": is_current,
             "real_rank": real_rank,
         }
@@ -192,6 +200,7 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
                 User.nickname,
                 User.avatar_url,
                 func.count(UserVote.id).label("total"),
+                func.count(case((UserVote.is_correct_result.isnot(None), 1))).label("settled"),
                 func.sum(case((UserVote.is_correct_result == True, 1), else_=0)).label("correct_result"),
                 func.sum(case((UserVote.is_correct_score == True, 1), else_=0)).label("correct_score"),
             )
@@ -211,30 +220,15 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
 
         if my_row and my_row.total and my_row.total > 0:
             utotal = my_row.total or 0
+            usettled = my_row.settled or 0
             ucr = my_row.correct_result or 0
             ucs = my_row.correct_score or 0
             # 计算真实排名：比当前用户成绩好的人数 + 1
-            rank_query = (
-                select(func.count())
-                .select_from(
-                    select(
-                        User.id,
-                        (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(UserVote.id)).label("ra"),
-                        (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(UserVote.id)).label("sa"),
-                        func.count(UserVote.id).label("cnt"),
-                    )
-                    .join(UserVote, UserVote.user_id == User.id)
-                    .join(Match, Match.id == UserVote.match_id)
-                    .group_by(User.id)
-                    .subquery()
-                )
-            )
-            # 简化：直接查询排名
             rank_sub = (
                 select(
                     User.id,
-                    (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(UserVote.id)).label("ra"),
-                    (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(UserVote.id)).label("sa"),
+                    (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).label("ra"),
+                    (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).label("sa"),
                     func.count(UserVote.id).label("cnt"),
                 )
                 .join(UserVote, UserVote.user_id == User.id)
@@ -243,8 +237,8 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
             )
             rank_result = await db.execute(rank_sub)
             all_users = rank_result.all()
-            my_ra = ucr / utotal if utotal > 0 else 0
-            my_sa = ucs / utotal if utotal > 0 else 0
+            my_ra = ucr / usettled if usettled > 0 else 0
+            my_sa = ucs / usettled if usettled > 0 else 0
             real_rank = 1
             for u in all_users:
                 u_ra = (u.ra or 0)
@@ -258,10 +252,11 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
                 "nickname": my_row.nickname or "我",
                 "avatar_url": _clean_avatar_url(my_row.avatar_url),
                 "total": utotal,
+                "settled": usettled,
                 "correct_result": ucr,
-                "result_accuracy": round(ucr / utotal * 100, 1) if utotal > 0 else 0,
+                "result_accuracy": round(ucr / usettled * 100, 1) if usettled > 0 else 0,
                 "correct_score": ucs,
-                "score_accuracy": round(ucs / utotal * 100, 1) if utotal > 0 else 0,
+                "score_accuracy": round(ucs / usettled * 100, 1) if usettled > 0 else 0,
                 "is_me": True,
                 "real_rank": real_rank,
             }
@@ -292,10 +287,11 @@ async def get_ai_model_detail(db: AsyncSession, model_id: int) -> dict:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="AI 模型不存在")
 
-    # 模型统计（所有预测，不过滤 is_correct_result）
+    # 模型统计（命中率基于已结算场次）
     pred_stats = (
         select(
             func.count(Prediction.id).label("total"),
+            func.count(case((Prediction.is_correct_result.isnot(None), 1))).label("settled"),
             func.sum(case((Prediction.is_correct_result == True, 1), else_=0)).label("correct_result"),
             func.sum(case((Prediction.is_correct_score == True, 1), else_=0)).label("correct_score"),
         )
@@ -303,6 +299,7 @@ async def get_ai_model_detail(db: AsyncSession, model_id: int) -> dict:
     )
     stats_row = (await db.execute(pred_stats)).one()
     total = stats_row.total or 0
+    settled = stats_row.settled or 0
     correct_result = stats_row.correct_result or 0
     correct_score = stats_row.correct_score or 0
 
@@ -353,10 +350,11 @@ async def get_ai_model_detail(db: AsyncSession, model_id: int) -> dict:
         "avatar_url": ai_model.avatar_url,
         "style_tags": ai_model.style_tags,
         "total_predictions": total,
+        "settled_predictions": settled,
         "correct_results": correct_result,
-        "result_accuracy": round(correct_result / total * 100, 1) if total > 0 else 0,
+        "result_accuracy": round(correct_result / settled * 100, 1) if settled > 0 else 0,
         "correct_scores": correct_score,
-        "score_accuracy": round(correct_score / total * 100, 1) if total > 0 else 0,
+        "score_accuracy": round(correct_score / settled * 100, 1) if settled > 0 else 0,
         "predictions": predictions,
     }
 

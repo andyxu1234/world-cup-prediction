@@ -344,31 +344,41 @@ export default function Leaderboard() {
                     <Text className='lb-name'>{item.nickname}{isMe ? ' (我)' : ''}</Text>
                   </View>
                   <View className='lb-metrics'>
-                    <View className='metric-group'>
-                      {hasResult ? (
-                        <>
-                          <Text className='metric-text'>胜负命中率：</Text>
-                          <Text className={`metric-num metric-ok`}>{item.result_accuracy}%</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Text className='metric-text'>胜负：</Text>
-                          <Text className={`metric-num metric-none`}>-</Text>
-                        </>
+                    <View className='metric-row'>
+                      <View className='metric-group'>
+                        {hasResult ? (
+                          <>
+                            <Text className='metric-text'>胜负命中率：</Text>
+                            <Text className={`metric-num metric-ok`}>{item.result_accuracy}%</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Text className='metric-text'>胜负：</Text>
+                            <Text className={`metric-num metric-none`}>-</Text>
+                          </>
+                        )}
+                      </View>
+                      {hasResult && (
+                        <View className='metric-group'>
+                          <Text className='metric-text'>比分命中率：</Text>
+                          <Text className={`metric-num metric-sub`}>{item.score_accuracy}%</Text>
+                        </View>
                       )}
                     </View>
-                    {hasResult && (
-                      <View className='metric-group'>
-                        <Text className='metric-text'>比分命中率：</Text>
-                        <Text className={`metric-num metric-sub`}>{item.score_accuracy}%</Text>
-                      </View>
-                    )}
-                    {item.total > 0 && (
-                      <View className='metric-group'>
-                        <Text className='metric-text'>投票：</Text>
-                        <Text className='metric-total'>{item.total}场</Text>
-                      </View>
-                    )}
+                    <View className='metric-row'>
+                      {item.total > 0 && (
+                        <View className='metric-group'>
+                          <Text className='metric-text'>投票：</Text>
+                          <Text className='metric-total'>{item.total}场</Text>
+                        </View>
+                      )}
+                      {item.settled > 0 && (
+                        <View className='metric-group'>
+                          <Text className='metric-text'>已结束：</Text>
+                          <Text className='metric-total'>{item.settled}场</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
               </View>
@@ -411,40 +421,50 @@ export default function Leaderboard() {
                     </View>
                   </View>
                   <View className='lb-metrics'>
-                    <View className='metric-group'>
-                      {hasResult ? (
-                        <>
-                          <Text className='metric-text'>胜负命中率：</Text>
-                          <Text className={`metric-num metric-ok`}>{entry.result_accuracy}%</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Text className='metric-text'>胜负：</Text>
-                          <Text className={`metric-num ${entry.total > 0 ? 'metric-pending' : 'metric-none'}`}>-</Text>
-                        </>
-                      )}
-                    </View>
-                    {(hasResult || entry.total > 0) && (
+                    <View className='metric-row'>
                       <View className='metric-group'>
                         {hasResult ? (
                           <>
-                            <Text className='metric-text'>比分命中率：</Text>
-                            <Text className={`metric-num metric-sub`}>{entry.score_accuracy}%</Text>
+                            <Text className='metric-text'>胜负命中率：</Text>
+                            <Text className={`metric-num metric-ok`}>{entry.result_accuracy}%</Text>
                           </>
                         ) : (
                           <>
-                            <Text className='metric-text'>比分命中率：</Text>
-                            <Text className={`metric-num metric-pending`}>--</Text>
+                            <Text className='metric-text'>胜负：</Text>
+                            <Text className={`metric-num ${entry.total > 0 ? 'metric-pending' : 'metric-none'}`}>-</Text>
                           </>
                         )}
                       </View>
-                    )}
-                    {entry.total > 0 && (
-                      <View className='metric-group'>
-                        <Text className='metric-text'>预测场次：</Text>
-                        <Text className='metric-total'>{entry.total}场</Text>
-                      </View>
-                    )}
+                      {(hasResult || entry.total > 0) && (
+                        <View className='metric-group'>
+                          {hasResult ? (
+                            <>
+                              <Text className='metric-text'>比分命中率：</Text>
+                              <Text className={`metric-num metric-sub`}>{entry.score_accuracy}%</Text>
+                            </>
+                          ) : (
+                            <>
+                              <Text className='metric-text'>比分命中率：</Text>
+                              <Text className={`metric-num metric-pending`}>--</Text>
+                            </>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                    <View className='metric-row'>
+                      {entry.total > 0 && (
+                        <View className='metric-group'>
+                          <Text className='metric-text'>总预测：</Text>
+                          <Text className='metric-total'>{entry.total}场</Text>
+                        </View>
+                      )}
+                      {entry.settled > 0 && (
+                        <View className='metric-group'>
+                          <Text className='metric-text'>已结束：</Text>
+                          <Text className='metric-total'>{entry.settled}场</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
               </View>

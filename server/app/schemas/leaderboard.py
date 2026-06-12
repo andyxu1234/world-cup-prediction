@@ -11,7 +11,8 @@ class AILeaderboardItem(BaseModel):
     name: str
     avatar_url: Optional[str] = None
     style_tags: Optional[Dict] = None
-    total: int
+    total: int                              # 总预测场次
+    settled: int = 0                        # 已结算（已结束）场次
     correct_result: int
     result_accuracy: float
     correct_score: int
@@ -25,6 +26,7 @@ class HumanUserRankItem(BaseModel):
     nickname: str
     avatar_url: Optional[str] = None
     total: int
+    settled: int = 0                        # 已结算（已结束）场次
     correct_result: int
     result_accuracy: float
     correct_score: int
@@ -87,6 +89,7 @@ class AIDetailOut(BaseModel):
     avatar_url: Optional[str] = None
     style_tags: Optional[Dict] = None
     total_predictions: int
+    settled_predictions: int = 0            # 已结算（已结束）场次
     correct_results: int
     result_accuracy: float
     correct_scores: int

@@ -237,6 +237,7 @@ export interface AILeaderboardItem {
   avatar_url: string | null
   style_tags: Record<string, any> | null
   total: number
+  settled: number
   correct_result: number
   result_accuracy: number
   correct_score: number
@@ -248,6 +249,7 @@ export interface HumanUserRankItem {
   nickname: string
   avatar_url: string | null
   total: number
+  settled: number
   correct_result: number
   result_accuracy: number
   correct_score: number
@@ -300,6 +302,7 @@ export interface AIDetailOut {
   avatar_url: string | null
   style_tags: Record<string, any> | null
   total_predictions: number
+  settled_predictions: number
   correct_results: number
   result_accuracy: float
   correct_scores: number

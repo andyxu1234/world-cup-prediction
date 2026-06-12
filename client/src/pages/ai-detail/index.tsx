@@ -179,7 +179,11 @@ export default function AIDetail() {
         <View className='ad-hero-stats'>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.total_predictions}</Text>
-            <Text className='ad-hero-stat-label'>预测场次</Text>
+            <Text className='ad-hero-stat-label'>总预测</Text>
+          </View>
+          <View className='ad-hero-stat'>
+            <Text className='ad-hero-stat-num'>{detail.settled_predictions}</Text>
+            <Text className='ad-hero-stat-label'>已结束</Text>
           </View>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.result_accuracy}%</Text>
