@@ -224,9 +224,9 @@ interface UserState {
 
 export const useUserStore = create<UserState>((set, get) => ({
   user: null,
-  token: Taro.getStorageSync('token') || null,
+  token: null,
   myVote: null,
-  profileSetup: Taro.getStorageSync('profile_setup') || false,
+  profileSetup: false,
   loginReady: true, // 启动即放行，登录在后台静默完成
 
   setLoginReady: () => {

@@ -15,16 +15,31 @@ export interface AdResult {
 // ==================== 激励视频广告 ====================
 
 /**
- * 展示激励视频广告
- * 每次创建新实例，避免复用导致 SystemError
+ * 创建激励视频广告实例
+ * 必须在页面组件内调用，确保广告与页面绑定
+ * @returns 广告实例和清理函数
+ */
+export function createRewardedVideoAd() {
+  const ad = Taro.createRewardedVideoAd({ adUnitId: AD_UNIT_IDS.rewardedVideo })
+
+  const destroy = () => {
+    try {
+      ad.destroy()
+    } catch {
+      // ignore destroy errors
+    }
+  }
+
+  return { ad, destroy }
+}
+
+/**
+ * 展示激励视频广告（使用已创建的广告实例）
+ * @param ad 已创建的广告实例（必须在当前页面创建）
  * @returns completed: 用户是否完整看完视频, available: 广告是否可用
  */
-export function showRewardedVideo(): Promise<AdResult> {
+export function showRewardedVideo(ad: any): Promise<AdResult> {
   return new Promise((resolve) => {
-    // 每次创建新实例，避免复用导致内部视图状态错乱
-    const ad = Taro.createRewardedVideoAd({ adUnitId: AD_UNIT_IDS.rewardedVideo })
-    let adLoaded = false
-
     const onRes = (res: any) => {
       cleanup()
       resolve({ completed: res?.isEnded === true, available: true })
@@ -39,19 +54,13 @@ export function showRewardedVideo(): Promise<AdResult> {
       resolve({ completed: false, available: !isNoAd })
     }
 
-    const onLoad = () => {
-      adLoaded = true
-    }
-
     const cleanup = () => {
       ad.offClose(onRes)
       ad.offError(onErr)
-      ad.offLoad(onLoad)
     }
 
     ad.onClose(onRes)
     ad.onError(onErr)
-    ad.onLoad(onLoad)
 
     ad.show().catch(() => {
       ad.load()

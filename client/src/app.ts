@@ -10,6 +10,15 @@ function App({ children }: PropsWithChildren) {
   useLaunch(() => {
     console.log('App launched.')
 
+    // 从本地存储加载 token 和 profileSetup（避免模块初始化时 Taro API 未就绪）
+    try {
+      const token = Taro.getStorageSync('token') || null
+      const profileSetup = Taro.getStorageSync('profile_setup') || false
+      useUserStore.setState({ token, profileSetup })
+    } catch (e) {
+      console.warn('[App] Failed to load storage:', e)
+    }
+
     // 立即放行页面渲染，登录在后台静默完成
     // 这样分享到朋友圈的场景不会卡在"加载中"
     setLoginReady()

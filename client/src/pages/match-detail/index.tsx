@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { View, Text, Input, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useMatchStore, useUserStore } from '@/stores'
-import { AD_UNIT_IDS, isAdUnlocked, showRewardedVideo, setAdUnlocked } from '@/utils/ad'
+import { AD_UNIT_IDS, isAdUnlocked, showRewardedVideo, setAdUnlocked, createRewardedVideoAd } from '@/utils/ad'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -96,6 +96,8 @@ export default function MatchDetail() {
   const [adPhase, setAdPhase] = useState<'cinema' | 'locked' | 'unlocked'>('cinema')
   // 防止广告并发重入
   const adPlayingRef = useRef(false)
+  // 广告实例引用（在页面内创建，避免页面上下文不一致问题）
+  const adInstanceRef = useRef<any>(null)
   // 动态计算 AI 预测列表区高度，解决 iOS 设备底部空白导致预测表单被推到屏幕外的问题
   // 根因：CSS 中 calc(100vh - 400px) 的 400px 是硬编码 CSS px，
   //       页面元素全部用 rpx 编写，不同设备 rpx→px 转换比例不同（尤其 iOS）
@@ -106,7 +108,7 @@ export default function MatchDetail() {
       setPageReady(false)  // 进入页面时先设置为未就绪
       // 先清空旧数据
       useMatchStore.setState({ currentMatch: null, predictions: [] })
-      
+
       Promise.all([
         fetchMatchDetail(matchId),
         fetchPredictions(matchId)
@@ -116,6 +118,16 @@ export default function MatchDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId])
+
+  // 页面卸载时销毁广告实例
+  useEffect(() => {
+    return () => {
+      if (adInstanceRef.current) {
+        adInstanceRef.current.destroy()
+        adInstanceRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (user && matchId) {
@@ -221,7 +233,13 @@ export default function MatchDetail() {
     const playAd = async () => {
       adPlayingRef.current = true
       try {
-        const { completed, available } = await showRewardedVideo()
+        // 确保广告实例已创建（在当前页面上下文中）
+        if (!adInstanceRef.current) {
+          const { ad, destroy } = createRewardedVideoAd()
+          adInstanceRef.current = ad
+          // 注意：destroy 会在页面卸载时调用
+        }
+        const { completed, available } = await showRewardedVideo(adInstanceRef.current)
         await new Promise(r => setTimeout(r, 150))
         if (completed || !available) {
           setAdUnlocked(matchId)
@@ -470,7 +488,12 @@ export default function MatchDetail() {
               adPlayingRef.current = true
               setAdPhase('cinema')  // 先切到影院加载态
               try {
-                const { completed, available } = await showRewardedVideo()
+                // 确保广告实例已创建（在当前页面上下文中）
+                if (!adInstanceRef.current) {
+                  const { ad } = createRewardedVideoAd()
+                  adInstanceRef.current = ad
+                }
+                const { completed, available } = await showRewardedVideo(adInstanceRef.current)
                 await new Promise(r => setTimeout(r, 150))
                 if (completed || !available) {
                   setAdUnlocked(matchId)
