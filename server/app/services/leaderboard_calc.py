@@ -81,8 +81,9 @@ async def get_ai_leaderboard(
             query = query.where(Match.round.in_(rounds))
 
     # 层级排序：主排字段 → 副排字段 → 总票数（基于已结算数据计算命中率）
-    main_col = func.sum(case((Prediction.is_correct_result == True, 1), else_=0)) / func.count(case((Prediction.is_correct_result.isnot(None), 1)))
-    sub_col = func.sum(case((Prediction.is_correct_score == True, 1), else_=0)) / func.count(case((Prediction.is_correct_result.isnot(None), 1)))
+    # 百分比计算：用于排序
+    result_accuracy_col = func.sum(case((Prediction.is_correct_result == True, 1), else_=0)) / func.count(case((Prediction.is_correct_result.isnot(None), 1)))
+    score_accuracy_col = func.sum(case((Prediction.is_correct_score == True, 1), else_=0)) / func.count(case((Prediction.is_correct_result.isnot(None), 1)))
     count_col = func.count(Prediction.id)
 
     # 确定主排序方向
@@ -93,10 +94,13 @@ async def get_ai_leaderboard(
 
     if sort_by == "score_accuracy":
         # 主排：比分命中率 → 副排：胜负正确率 → 票数
-        order_clause = sub_col, main_dir(main_col), count_dir(count_col)
+        order_clause = main_dir(score_accuracy_col), result_accuracy_col.desc(), count_dir(count_col)
+    elif sort_by == "result_accuracy":
+        # 主排：胜负正确率 → 副排：比分命中 → 票数
+        order_clause = main_dir(result_accuracy_col), score_accuracy_col.desc(), count_dir(count_col)
     else:
-        # 默认：胜负正确率 → 比分命中 → 票数
-        order_clause = main_dir(main_col), sub_dir(sub_col), count_dir(count_col)
+        # 综合排序：票数 → 比分命中率 → 胜负正确率
+        order_clause = count_col.desc(), score_accuracy_col.desc(), result_accuracy_col.desc()
 
     query = query.group_by(AIModel.id).order_by(*order_clause)
 
@@ -152,11 +156,11 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
         elif len(rounds) > 1:
             user_query = user_query.where(Match.round.in_(rounds))
 
-    # 排序：胜负命中率 DESC → 比分命中率 DESC → 投票场次 DESC → 用户ID ASC（命中率基于已结算场次）
+    # 排序：预测总场次 DESC → 比分命中率 DESC → 胜负命中率 DESC → 用户ID ASC（命中率基于已结算场次）
     user_query = user_query.group_by(User.id).order_by(
-        (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).desc(),
-        (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).desc(),
         func.count(UserVote.id).desc(),
+        (func.sum(case((UserVote.is_correct_score == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).desc(),
+        (func.sum(case((UserVote.is_correct_result == True, 1), else_=0)) / func.count(case((UserVote.is_correct_result.isnot(None), 1)))).desc(),
         User.id.asc(),
     ).limit(100)
     user_result = await db.execute(user_query)

@@ -80,7 +80,7 @@ interface LeaderboardState {
   activeTab: 'ai' | 'human'
   activeRound: string
   sortMode: 'composite' | 'field'
-  sortBy: 'result_accuracy' | 'score_accuracy'
+  sortBy: 'composite' | 'result_accuracy' | 'score_accuracy'
   sortOrder: 'asc' | 'desc'
   entries: AILeaderboardItem[]
   topUsers: HumanUserRankItem[]
@@ -93,9 +93,18 @@ interface LeaderboardState {
 }
 
 /** 对 entries 做客户端排序 */
-function applySort(entries: AILeaderboardItem[], sortBy: 'result_accuracy' | 'score_accuracy', sortOrder: 'asc' | 'desc'): AILeaderboardItem[] {
+function applySort(entries: AILeaderboardItem[], sortBy: 'composite' | 'result_accuracy' | 'score_accuracy', sortOrder: 'asc' | 'desc'): AILeaderboardItem[] {
   const dir = sortOrder === 'asc' ? 1 : -1
   return [...entries].sort((a, b) => {
+    // 综合排序：票数 → 比分命中率 → 胜负正确率
+    if (sortBy === 'composite') {
+      const diff1 = (b.total ?? 0) - (a.total ?? 0)
+      if (diff1 !== 0) return diff1
+      const diff2 = (b.score_accuracy ?? 0) - (a.score_accuracy ?? 0)
+      if (diff2 !== 0) return diff2
+      return (b.result_accuracy ?? 0) - (a.result_accuracy ?? 0)
+    }
+    // 其他排序：主排序 → 副排序 → 票数
     const diff = (a[sortBy] ?? 0) - (b[sortBy] ?? 0)
     if (diff !== 0) return diff * dir
     // 相同时按另一字段降序，再按票数降序
@@ -123,12 +132,10 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
   activeTab: 'ai',
   activeRound: '全部',
   sortMode: 'composite',   // 默认综合排序
-  sortBy: 'score_accuracy',  // 默认以比分命中率排序
+  sortBy: 'composite',  // 默认综合排序：票数 → 比分命中率 → 胜负正确率
   sortOrder: 'desc',
   entries: [],
-  humanData: null,
   topUsers: [],
-  mixedRank: [],
   loading: false,
 
   setActiveTab: (tab) => {
@@ -143,22 +150,37 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
 
   setSortMode: (mode) => {
     if (mode === 'composite') {
-      set({ sortMode: 'composite', sortBy: 'score_accuracy', sortOrder: 'desc' })
+      set({ sortMode: 'composite', sortBy: 'composite', sortOrder: 'desc' })
+      const { entries, topUsers } = get()
+      const newEntries = applySort(entries, 'composite', 'desc')
+      // 综合模式：人类排行也按 预测总数 → 比分命中率 → 胜负命中率 排序
+      let newTopUsers = [...topUsers].sort((a, b) => {
+        const d1 = (b.total ?? 0) - (a.total ?? 0)
+        if (d1 !== 0) return d1
+        const d2 = (b.score_accuracy ?? 0) - (a.score_accuracy ?? 0)
+        if (d2 !== 0) return d2
+        return (b.result_accuracy ?? 0) - (a.result_accuracy ?? 0)
+      })
+      // 当前置顶
+      const meIdx = newTopUsers.findIndex(u => u.is_me)
+      if (meIdx > 0) {
+        const [me] = newTopUsers.splice(meIdx, 1)
+        newTopUsers.unshift(me)
+      }
+      set({ entries: newEntries, topUsers: newTopUsers })
     } else {
       set({ sortMode: 'field' })
+      const { entries, topUsers, sortBy, sortOrder } = get()
+      const newEntries = applySort(entries, sortBy, sortOrder)
+      let newTopUsers = applyUserSort(topUsers, sortBy, sortOrder)
+      // 当前置顶
+      const meIdx = newTopUsers.findIndex(u => u.is_me)
+      if (meIdx > 0) {
+        const [me] = newTopUsers.splice(meIdx, 1)
+        newTopUsers.unshift(me)
+      }
+      set({ entries: newEntries, topUsers: newTopUsers })
     }
-    const { entries, topUsers } = get()
-    const sb = get().sortBy
-    const so = get().sortOrder
-    const newEntries = applySort(entries, sb, so)
-    let newTopUsers = applyUserSort(topUsers, sb, so)
-    // 当前置顶
-    const meIdx = newTopUsers.findIndex(u => u.is_me)
-    if (meIdx > 0) {
-      const [me] = newTopUsers.splice(meIdx, 1)
-      newTopUsers.unshift(me)
-    }
-    set({ entries: newEntries, topUsers: newTopUsers })
   },
 
   setSort: (sortBy, sortOrder) => {

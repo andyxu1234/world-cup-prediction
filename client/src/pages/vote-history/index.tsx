@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useRouter } from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import { getUserVoteHistory, VoteHistoryItem } from '@/services/api'
 import './index.scss'
@@ -64,20 +64,25 @@ function formatTime(iso: string | null): string {
 }
 
 export default function VoteHistory() {
+  const router = useRouter()
   const { user } = useUserStore()
   const [list, setList] = useState<VoteHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   // 动态计算列表高度，解决 iOS 设备底部空白问题
   const [scrollHeight, setScrollHeight] = useState<string>('')
 
+  // 支持从 URL 参数获取 userId，否则使用当前登录用户
+  const targetUserId = router.params.userId ? Number(router.params.userId) : user?.id
+  const isViewingOther = targetUserId !== user?.id
+
   useEffect(() => {
-    if (!user?.id) return
+    if (!targetUserId) return
     setLoading(true)
-    getUserVoteHistory(user.id, 50)
+    getUserVoteHistory(targetUserId, 200)
       .then(setList)
       .catch(() => Taro.showToast({ title: '加载失败', icon: 'none' }))
       .finally(() => setLoading(false))
-  }, [user?.id])
+  }, [targetUserId])
 
   // 动态测量 Hero 高度，精确计算列表可用空间
   useEffect(() => {
@@ -108,7 +113,7 @@ export default function VoteHistory() {
       {/* 顶部统计区域 */}
       <View className='vh-hero'>
         <View className='vh-hero-glow' />
-        <Text className='vh-hero-title'>我的战绩</Text>
+        <Text className='vh-hero-title'>{isViewingOther ? 'TA的战绩' : '我的战绩'}</Text>
         <Text className='vh-hero-sub'>预测表现 · 数据追踪</Text>
         <View className='vh-hero-stats'>
           <View className='vh-hero-stat'>
@@ -219,3 +224,4 @@ export default function VoteHistory() {
     </View>
   )
 }
+

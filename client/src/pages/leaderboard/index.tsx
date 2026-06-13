@@ -331,7 +331,12 @@ export default function Leaderboard() {
             return (
               <View
                 key={item.user_id}
-                className={`lb-item ${isMe ? 'lb-item-me' : ''} ${rank <= 3 && !isMe ? 'lb-item-top3' : ''}`}
+                className={`lb-item lb-item-clickable ${isMe ? 'lb-item-me' : ''} ${rank <= 3 && !isMe ? 'lb-item-top3' : ''}`}
+                onClick={() => {
+                  // 非VIP只能看自己的预测
+                  if (!isMe && !useUserStore.getState().isVip) return
+                  Taro.navigateTo({ url: `/pages/vote-history/index?userId=${item.user_id}` })
+                }}
               >
                 <View className='lb-rank'>
                   <Text className='lb-rank-badge'>#{rank}</Text>
