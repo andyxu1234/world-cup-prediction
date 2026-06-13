@@ -355,3 +355,49 @@ async def update_profile(
     # 写后失效缓存
     invalidate_user(user_id)
     return UserOut.model_validate(user)
+
+
+@router.get("/vip-status")
+async def get_vip_status_api(
+    user_id: int = Query(..., description="用户ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取用户 VIP 状态"""
+    from app.services.vip_service import get_vip_status
+
+    try:
+        status = await get_vip_status(db=db, user_id=user_id)
+        return status
+    except Exception as e:
+        logger.error(f"获取 VIP 状态失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取 VIP 状态失败: {e}")
+
+
+@router.get("/search")
+async def search_users(
+    keyword: str = Query(..., description="搜索关键词（昵称）"),
+    db: AsyncSession = Depends(get_db),
+):
+    """通过昵称搜索用户"""
+    try:
+        # 模糊搜索用户
+        stmt = (
+            select(User)
+            .where(User.nickname.ilike(f"%{keyword}%"))
+            .limit(20)
+        )
+        result = await db.execute(stmt)
+        users = result.scalars().all()
+
+        return [
+            {
+                "id": u.id,
+                "openid": u.openid,
+                "nickname": u.nickname,
+                "avatar_url": u.avatar_url,
+            }
+            for u in users
+        ]
+    except Exception as e:
+        logger.error(f"搜索用户失败: {e}")
+        raise HTTPException(status_code=500, detail=f"搜索用户失败: {e}")

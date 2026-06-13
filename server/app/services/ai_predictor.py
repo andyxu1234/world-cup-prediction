@@ -28,7 +28,7 @@ def _default_state(match_id=None) -> dict:
 
 
 async def generate_predictions():
-    """定时任务：为未来7天内未预测的比赛生成 AI 预测 (LangGraph 版)"""
+    """定时任务：为未来3天内未预测的比赛生成 AI 预测 (LangGraph 版)"""
     logger.info("Starting AI prediction generation (LangGraph)")
 
     app = get_prediction_app()

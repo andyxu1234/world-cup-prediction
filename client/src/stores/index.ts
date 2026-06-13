@@ -123,7 +123,7 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
   activeTab: 'ai',
   activeRound: '全部',
   sortMode: 'composite',   // 默认综合排序
-  sortBy: 'result_accuracy',
+  sortBy: 'score_accuracy',  // 默认以比分命中率排序
   sortOrder: 'desc',
   entries: [],
   humanData: null,
@@ -143,7 +143,7 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
 
   setSortMode: (mode) => {
     if (mode === 'composite') {
-      set({ sortMode: 'composite', sortBy: 'result_accuracy', sortOrder: 'desc' })
+      set({ sortMode: 'composite', sortBy: 'score_accuracy', sortOrder: 'desc' })
     } else {
       set({ sortMode: 'field' })
     }
@@ -213,12 +213,17 @@ interface UserState {
   myVote: api.VoteOut | null
   profileSetup: boolean
   loginReady: boolean
+  isVip: boolean
+  vipExpireAt: string | null
+  vipPlanType: string | null
+  vipDaysRemaining: number
   setLoginReady: () => void
   login: (code: string) => Promise<void>
   fetchProfile: (userId: number) => Promise<void>
   updateProfile: (nickname: string, avatarUrl: string) => Promise<void>
   fetchVote: (userId: number, matchId: number) => Promise<void>
   vote: (matchId: number, result: string, homeScore: number, awayScore: number) => Promise<void>
+  fetchVipStatus: () => Promise<void>
   logout: () => void
 }
 
@@ -228,6 +233,10 @@ export const useUserStore = create<UserState>((set, get) => ({
   myVote: null,
   profileSetup: false,
   loginReady: true, // 启动即放行，登录在后台静默完成
+  isVip: false,
+  vipExpireAt: null,
+  vipPlanType: null,
+  vipDaysRemaining: 0,
 
   setLoginReady: () => {
     if (!get().loginReady) {
@@ -244,6 +253,8 @@ export const useUserStore = create<UserState>((set, get) => ({
     Taro.setStorageSync('profile_setup', profileSetup)
     // 登录后刷新排行榜（获取我的排名）
     useLeaderboardStore.getState().fetchLeaderboard()
+    // 登录后获取 VIP 状态
+    get().fetchVipStatus()
     return res
   },
 
@@ -277,8 +288,35 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({ myVote: voteOut })
   },
 
+  fetchVipStatus: async () => {
+    const user = get().user
+    if (!user) {
+      set({ isVip: false, vipExpireAt: null, vipPlanType: null, vipDaysRemaining: 0 })
+      return
+    }
+    try {
+      const status = await api.getVipStatus(user.id)
+      set({
+        isVip: status.is_vip,
+        vipExpireAt: status.expire_at,
+        vipPlanType: status.plan_type,
+        vipDaysRemaining: status.days_remaining,
+      })
+    } catch {
+      set({ isVip: false, vipExpireAt: null, vipPlanType: null, vipDaysRemaining: 0 })
+    }
+  },
+
   logout: () => {
-    set({ user: null, token: null, profileSetup: false, loginReady: false })
+    set({
+      user: null,
+      token: null,
+      profileSetup: false,
+      loginReady: false,
+      isVip: false,
+      vipExpireAt: null,
+      vipPlanType: null,
+    })
     Taro.removeStorageSync('token')
     Taro.removeStorageSync('profile_setup')
   }

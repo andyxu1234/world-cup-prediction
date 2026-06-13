@@ -59,7 +59,13 @@ async function request<T = any>(options: RequestOptions): Promise<T> {
         Taro.removeStorageSync('token')
         Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
       }
-      throw new Error(`API Error: ${res.statusCode}`)
+      // 提取后端返回的错误信息
+      const errorData = res.data as any
+      const errorMsg = errorData?.detail || errorData?.message || `请求失败 (${res.statusCode})`
+      const error = new Error(errorMsg)
+      ;(error as any).statusCode = res.statusCode
+      ;(error as any).data = errorData
+      throw error
     } catch (err: any) {
       const isLastAttempt = attempt >= retry
       const msg = String(err?.errMsg || err?.message || '').toLowerCase()
@@ -465,6 +471,84 @@ export function syncMatches() {
 export function generatePredictions(matchId?: number) {
   const url = matchId ? `/admin/predictions/generate/${matchId}` : '/admin/predictions/generate'
   return request<any>({ url, method: 'POST' })
+}
+
+// ==================== VIP 管理 ====================
+
+export interface VipStatus {
+  is_vip: boolean
+  plan_type: string | null
+  expire_at: string | null
+  days_remaining: number
+}
+
+export interface VipMember {
+  id: number
+  user_id: number
+  openid: string
+  nickname: string | null
+  avatar_url: string | null
+  plan_type: string
+  start_at: string | null
+  expire_at: string | null
+  remark: string | null
+  created_at: string | null
+}
+
+export interface VipStats {
+  total: number
+  monthly: number
+  quarterly: number
+  yearly: number
+  permanent: number
+}
+
+export interface AddVipRequest {
+  openid: string
+  plan_type: string
+  remark?: string
+}
+
+export interface RenewVipRequest {
+  user_id: number
+  plan_type: string
+}
+
+export function getVipStatus(userId: number) {
+  return request<VipStatus>({ url: `/users/vip-status?user_id=${userId}` })
+}
+
+export function addVip(data: AddVipRequest) {
+  return request<any>({ url: '/admin/vip/add', method: 'POST', data })
+}
+
+export function getVipList() {
+  return request<VipMember[]>({ url: '/admin/vip/list' })
+}
+
+export function renewVip(data: RenewVipRequest) {
+  return request<any>({ url: '/admin/vip/renew', method: 'POST', data })
+}
+
+export function deleteVip(memberId: number) {
+  return request<any>({ url: `/admin/vip/${memberId}`, method: 'DELETE' })
+}
+
+export function getVipStats() {
+  return request<VipStats>({ url: '/admin/vip/stats' })
+}
+
+// ==================== 用户搜索 ====================
+
+export interface SearchResult {
+  id: number
+  openid: string
+  nickname: string | null
+  avatar_url: string | null
+}
+
+export function searchUsers(keyword: string) {
+  return request<SearchResult[]>({ url: `/users/search?keyword=${encodeURIComponent(keyword)}` })
 }
 
 export function evaluatePredictions() {

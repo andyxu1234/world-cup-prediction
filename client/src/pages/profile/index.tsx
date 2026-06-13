@@ -4,6 +4,7 @@ import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
+import { isAdmin } from '@/utils/admin'
 import './index.scss'
 
 const MENU_ITEMS = [
@@ -12,6 +13,8 @@ const MENU_ITEMS = [
   { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
   { icon: '💬', label: '联系作者', color: 'rgba(16,185,129,0.1)', textColor: '#10b981' },
   { icon: '⚠️', label: '免责声明', color: 'rgba(251,191,36,0.1)', textColor: '#fbbf24' },
+  // 管理员专属菜单项
+  { icon: '⚙️', label: '后台管理', color: 'rgba(239,68,68,0.1)', textColor: '#ef4444', adminOnly: true },
 ]
 
 const DEFAULT_AI_RANKING = [
@@ -29,14 +32,29 @@ async function fetchFunFactFromAPI(): Promise<api.FunFact> {
   }
 }
 
+/** 格式化 VIP 到期时间 */
+function formatVipExpire(expireAt: string | null): string {
+  if (!expireAt) return '永久'
+  const date = new Date(expireAt)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${year}年${month}月${day}日`
+}
+
 export default function Profile() {
-  const { user, token, profileSetup, fetchProfile, login, updateProfile } = useUserStore()
+  const { user, token, profileSetup, fetchProfile, login, updateProfile, isVip, vipExpireAt, vipPlanType, vipDaysRemaining } = useUserStore()
   const [avatarUrl, setAvatarUrl] = useState('')
   const [nickname, setNickname] = useState('')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pickingAvatar, setPickingAvatar] = useState(false)
   const [funFact, setFunFact] = useState<api.FunFact>({ icon: '🎵', title: '你知道吗？', text: '' })
+
+  // 判断是否曾经是 VIP（包括过期的）
+  const wasVip = vipPlanType !== null
+  // 判断是否即将过期（7天内）
+  const isExpiringSoon = isVip && vipPlanType !== 'permanent' && vipDaysRemaining <= 7 && vipDaysRemaining > 0
 
   // 分享给好友成功回调
   const handleShared = () => Taro.showToast({ title: '已分享', icon: 'success' })
@@ -180,11 +198,24 @@ export default function Profile() {
       Taro.navigateTo({ url: '/pages/disclaimer/index' })
       return
     }
+    if (label === '后台管理') {
+      Taro.navigateTo({ url: '/pages/admin/index' })
+      return
+    }
     if (!token && label !== '设置' && label !== '关于小程序') {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }
   }
+
+  // 根据用户身份过滤菜单项
+  const filteredMenuItems = MENU_ITEMS.filter(item => {
+    // 如果是管理员专属菜单，需要判断是否是管理员
+    if (item.adminOnly) {
+      return isAdmin(user?.openid)
+    }
+    return true
+  })
 
   const isLoggedIn = !!user && !!token
   // 始终优先使用服务端返回的用户数据，不依赖 profileSetup 标志判断是否展示
@@ -260,6 +291,31 @@ export default function Profile() {
             setAvatarUrl('')
             setEditing(true)
           }}>
+            {/* VIP 皇冠 + 标签 */}
+            {wasVip && (
+              <View className={`prof-vip-area ${!isVip ? 'expired' : ''}`}>
+                {/* 皇冠居中，VIP标签靠右 */}
+                <View className='prof-vip-row'>
+                  <Text className='prof-crown'>👑</Text>
+                  <View className='prof-vip-right'>
+                    <Text className={`prof-vip-tag ${!isVip ? 'expired' : ''}`}>
+                      {!isVip
+                        ? 'VIP已过期，请续费'
+                        : vipPlanType === 'permanent'
+                          ? '尊贵的永久VIP'
+                          : `VIP · 到期 ${formatVipExpire(vipExpireAt)}`
+                      }
+                    </Text>
+                    {/* 即将过期提醒 - VIP标签正下方 */}
+                    {isExpiringSoon && (
+                      <Text className='prof-expire-warn'>
+                        ⚠️ VIP将在{vipDaysRemaining}天后过期，请续费
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
             <View className='prof-av prof-av-clickable'>
               {displayAvatar ? (
                 <Image className='prof-avatar-img' src={displayAvatar} mode='aspectFill' />
@@ -291,7 +347,7 @@ export default function Profile() {
       </View>
 
       <View className='prof-menu'>
-        {MENU_ITEMS.map((item) => (
+        {filteredMenuItems.map((item) => (
           item.label === '分享给好友' ? (
             <Button
               key={item.label}

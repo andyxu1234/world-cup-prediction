@@ -32,11 +32,11 @@ def _clean_avatar_url(url: str | None) -> str | None:
     return url
 
 
-@cached(leaderboard_cache, key_fn=lambda db, round_filter="全部", sort_by="result_accuracy", sort_order="desc": f"ai_leaderboard:{round_filter}:{sort_by}:{sort_order}")
+@cached(leaderboard_cache, key_fn=lambda db, round_filter="全部", sort_by="score_accuracy", sort_order="desc": f"ai_leaderboard:{round_filter}:{sort_by}:{sort_order}")
 async def get_ai_leaderboard(
     db: AsyncSession,
     round_filter: str = "全部",
-    sort_by: str = "result_accuracy",
+    sort_by: str = "score_accuracy",
     sort_order: str = "desc",
 ) -> list[dict]:
     """AI 模型排行榜
@@ -51,7 +51,7 @@ async def get_ai_leaderboard(
 
     # 安全校验
     if sort_by not in ("result_accuracy", "score_accuracy"):
-        sort_by = "result_accuracy"
+        sort_by = "score_accuracy"
     if sort_order not in ("asc", "desc"):
         sort_order = "desc"
 

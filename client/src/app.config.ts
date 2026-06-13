@@ -12,7 +12,8 @@ export default defineAppConfig({
     'pages/about/index',
     'pages/disclaimer/index',
     'pages/contact/index',
-    'pages/webview/index'
+    'pages/webview/index',
+    'pages/admin/index'
   ],
   window: {
     backgroundTextStyle: 'light',

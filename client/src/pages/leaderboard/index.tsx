@@ -53,8 +53,8 @@ const ROUNDS = ['全部', '小组赛', '淘汰赛']
 type SortByType = 'default' | 'result_accuracy' | 'score_accuracy'
 const SORT_OPTIONS: { by: SortByType; label: string }[] = [
   { by: 'default', label: '综合' },
-  { by: 'result_accuracy', label: '胜负' },
   { by: 'score_accuracy', label: '比分' },
+  { by: 'result_accuracy', label: '胜负' },
 ]
 
 function ModelAvatar({ name, size = '' }: { name: string; size?: string }) {
@@ -348,20 +348,20 @@ export default function Leaderboard() {
                       <View className='metric-group'>
                         {hasResult ? (
                           <>
-                            <Text className='metric-text'>胜负命中率：</Text>
-                            <Text className={`metric-num metric-ok`}>{item.result_accuracy}%</Text>
+                            <Text className='metric-text'>比分命中率：</Text>
+                            <Text className={`metric-num metric-ok`}>{item.score_accuracy}%</Text>
                           </>
                         ) : (
                           <>
-                            <Text className='metric-text'>胜负：</Text>
+                            <Text className='metric-text'>比分：</Text>
                             <Text className={`metric-num metric-none`}>-</Text>
                           </>
                         )}
                       </View>
                       {hasResult && (
                         <View className='metric-group'>
-                          <Text className='metric-text'>比分命中率：</Text>
-                          <Text className={`metric-num metric-sub`}>{item.score_accuracy}%</Text>
+                          <Text className='metric-text'>胜负命中率：</Text>
+                          <Text className={`metric-num metric-sub`}>{item.result_accuracy}%</Text>
                         </View>
                       )}
                     </View>
@@ -385,7 +385,7 @@ export default function Leaderboard() {
             )
           })}
           <View className='lb-footnote'>
-            <Text className='lb-footnote-text'>* 胜负/比分命中率仅对已结束的比赛进行统计</Text>
+            <Text className='lb-footnote-text'>* 比分/胜负命中率仅对已结束的比赛进行统计</Text>
           </View>
         </ScrollView>
       )}
@@ -425,12 +425,12 @@ export default function Leaderboard() {
                       <View className='metric-group'>
                         {hasResult ? (
                           <>
-                            <Text className='metric-text'>胜负命中率：</Text>
-                            <Text className={`metric-num metric-ok`}>{entry.result_accuracy}%</Text>
+                            <Text className='metric-text'>比分命中率：</Text>
+                            <Text className={`metric-num metric-ok`}>{entry.score_accuracy}%</Text>
                           </>
                         ) : (
                           <>
-                            <Text className='metric-text'>胜负：</Text>
+                            <Text className='metric-text'>比分：</Text>
                             <Text className={`metric-num ${entry.total > 0 ? 'metric-pending' : 'metric-none'}`}>-</Text>
                           </>
                         )}
@@ -439,12 +439,12 @@ export default function Leaderboard() {
                         <View className='metric-group'>
                           {hasResult ? (
                             <>
-                              <Text className='metric-text'>比分命中率：</Text>
-                              <Text className={`metric-num metric-sub`}>{entry.score_accuracy}%</Text>
+                              <Text className='metric-text'>胜负命中率：</Text>
+                              <Text className={`metric-num metric-sub`}>{entry.result_accuracy}%</Text>
                             </>
                           ) : (
                             <>
-                              <Text className='metric-text'>比分命中率：</Text>
+                              <Text className='metric-text'>胜负命中率：</Text>
                               <Text className={`metric-num metric-pending`}>--</Text>
                             </>
                           )}
@@ -471,7 +471,7 @@ export default function Leaderboard() {
             )
           })}
           <View className='lb-footnote'>
-            <Text className='lb-footnote-text'>* 胜负/比分命中率仅对已结束的比赛进行统计</Text>
+            <Text className='lb-footnote-text'>* 比分/胜负命中率仅对已结束的比赛进行统计</Text>
           </View>
         </ScrollView>
       )}

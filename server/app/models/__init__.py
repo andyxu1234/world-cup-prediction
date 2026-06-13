@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.user_vote import UserVote
 from app.models.head_to_head import HeadToHead
 from app.models.prediction_summary import PredictionSummary
+from app.models.vip_member import VipMember
 
 __all__ = [
     "Team",
@@ -18,4 +19,5 @@ __all__ = [
     "UserVote",
     "HeadToHead",
     "PredictionSummary",
+    "VipMember",
 ]

@@ -408,3 +408,62 @@
 .prof-menu-item[open-type="share"] {
   &::after { display: none !important; border: none !important; }
 }
+
+// ==================== VIP 标志 ====================
+
+.prof-vip-area {
+  width: 100%;
+  margin-bottom: 6px;
+
+  &.expired {
+    .prof-crown {
+      filter: grayscale(100%);
+      opacity: 0.5;
+    }
+  }
+}
+
+.prof-vip-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+}
+
+.prof-crown {
+  font-size: 48px;
+}
+
+.prof-vip-right {
+  position: absolute;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.prof-vip-tag {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #ffd700, #f59e0b);
+  padding: 4px 12px;
+  border-radius: 12px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+
+  &.expired {
+    background: linear-gradient(135deg, #9ca3af, #6b7280);
+    box-shadow: none;
+  }
+}
+
+.prof-expire-warn {
+  font-size: 20px;
+  color: #f59e0b;
+  margin-top: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}

@@ -67,6 +67,11 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
 }
 
+.card-vip {
+  border-color: rgba(239, 68, 68, 0.15);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.02), rgba(239, 68, 68, 0.05));
+}
+
 .card-header {
   margin-bottom: 14px;
 }
@@ -203,6 +208,23 @@
 
 .action-btn-blue {
   color: $blue;
+}
+
+.action-box-vip {
+  background: rgba(239, 68, 68, 0.04);
+  border-color: rgba(239, 68, 68, 0.1);
+
+  &:active {
+    background: rgba(239, 68, 68, 0.08);
+  }
+}
+
+.action-icon-vip {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.action-btn-vip {
+  color: #ef4444;
 }
 
 .mono {

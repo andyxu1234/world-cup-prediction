@@ -2,15 +2,15 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
 
-const WECHAT_ID = 'AndyXu2020May'
+const WECHAT_IDS = ['xyhu2890', 'AndyXu2020May']
 const EMAIL = 'andyxu199510@gmail.com'
 const OFFICIAL_ACCOUNT_NAME = 'AI足球先知'
 const OFFICIAL_ARTICLE_URL = 'https://mp.weixin.qq.com/s/7Pe3v1qGNt66adAR2vvp_A'
 
 export default function Contact() {
-  const handleCopyWechat = () => {
+  const handleCopyWechat = (id: string) => {
     Taro.setClipboardData({
-      data: WECHAT_ID,
+      data: id,
       success: () => Taro.showToast({ title: '微信号已复制', icon: 'success' }),
     })
   }
@@ -44,29 +44,62 @@ export default function Contact() {
           <Text className='hero-title'>联系作者</Text>
           <Text className='hero-sub'>期待与你交流</Text>
         </View>
+
+        {/* 去广告入口 */}
+        <View className='card card-vip'>
+          <Text className='card-title'>🚫 去除广告</Text>
+          <Text className='card-desc'>
+            如果广告影响了你的体验，可以添加作者微信获取帮助，享受纯净无广告体验。添加任意微信即可，备注「去广告」。
+          </Text>
+          {WECHAT_IDS.map((id, index) => (
+            <View
+              key={id}
+              className={`action-box action-box-vip ${index > 0 ? 'action-box-secondary' : ''}`}
+              onClick={() => handleCopyWechat(id)}
+            >
+              <View className='action-left'>
+                <View className='action-icon-wrap action-icon-vip'>
+                  <Text className='action-icon'>💬</Text>
+                </View>
+                <View className='action-info'>
+                  <Text className='action-label'>微信号 {index + 1}</Text>
+                  <Text className='action-value mono'>{id}</Text>
+                </View>
+              </View>
+              <Text className='action-btn action-btn-vip'>点击复制</Text>
+            </View>
+          ))}
+        </View>
+
         {/* 微信号 */}
         <View className='card'>
-          <Text className='card-title'>添加作者微信</Text>
+          <Text className='card-title'>交流或反馈</Text>
           <Text className='card-desc'>
             点击下方微信号即可复制，打开微信搜索添加好友。备注技术交流或者世界杯交流，加你进群。
           </Text>
-          <View className='action-box' onClick={handleCopyWechat}>
-            <View className='action-left'>
-              <View className='action-icon-wrap'>
-                <Text className='action-icon'>💬</Text>
+          {WECHAT_IDS.map((id, index) => (
+            <View
+              key={id}
+              className={`action-box ${index > 0 ? 'action-box-secondary' : ''}`}
+              onClick={() => handleCopyWechat(id)}
+            >
+              <View className='action-left'>
+                <View className='action-icon-wrap'>
+                  <Text className='action-icon'>💬</Text>
+                </View>
+                <View className='action-info'>
+                  <Text className='action-label'>微信号 {index + 1}</Text>
+                  <Text className='action-value mono'>{id}</Text>
+                </View>
               </View>
-              <View className='action-info'>
-                <Text className='action-label'>微信号</Text>
-                <Text className='action-value mono'>{WECHAT_ID}</Text>
-              </View>
+              <Text className='action-btn'>点击复制</Text>
             </View>
-            <Text className='action-btn'>点击复制</Text>
-          </View>
+          ))}
         </View>
 
         {/* 邮箱 */}
         <View className='card'>
-          <Text className='card-title'>发送邮件</Text>
+          <Text className='card-title'>商务合作</Text>
           <Text className='card-desc'>
             如有商务合作或较长的反馈内容，欢迎通过邮件联系。
           </Text>

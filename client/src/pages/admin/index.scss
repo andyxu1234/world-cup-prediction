@@ -1,0 +1,586 @@
+// ── Admin Page — Refined Dark Control Panel ──
+// Design: dark emerald hero + clean white body, clear hierarchy
+
+$dark-bg: #0f1f1a;
+$dark-surface: #162b24;
+$card-bg: #ffffff;
+$border: #e8ece9;
+$text-primary: #1a1a1a;
+$text-secondary: #6b7c76;
+$text-muted: #9ca8a3;
+$accent: #10b981;
+$radius: 16px;
+$radius-sm: 10px;
+
+.admin-page {
+  min-height: 100vh;
+  background: #f3f5f4;
+}
+
+// ── 禁止访问 ──
+
+.admin-forbidden {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 80vh;
+  gap: 16px;
+}
+.admin-forbidden-icon { font-size: 64px; }
+.admin-forbidden-text { font-size: 28px; color: $text-secondary; }
+
+// ── Hero 暗色头部 ──
+
+.admin-hero {
+  position: relative;
+  background: $dark-bg;
+  padding: 40px 28px 24px;
+  overflow: hidden;
+}
+
+.admin-hero-glow {
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba($accent, 0.15), transparent 70%);
+  pointer-events: none;
+}
+
+.admin-hero-title {
+  display: block;
+  font-size: 40px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.admin-hero-sub {
+  display: block;
+  font-size: 24px;
+  color: rgba(#fff, 0.45);
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+// ── 统计卡片横滑 ──
+
+.admin-stats-scroll {
+  margin-top: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.admin-stats-row {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.admin-stat-card {
+  flex-shrink: 0;
+  width: 108px;
+  background: $dark-surface;
+  border-radius: 8px;
+  padding: 14px 10px;
+  text-align: center;
+  border: 1px solid rgba(#fff, 0.06);
+}
+
+.admin-stat-num {
+  display: block;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-stat-label {
+  display: block;
+  font-size: 18px;
+  color: rgba(#fff, 0.4);
+  margin-top: 4px;
+  letter-spacing: 0.5px;
+}
+
+// ── 通用 Section ──
+
+.admin-section {
+  margin: 16px 24px;
+  background: $card-bg;
+  border-radius: $radius;
+  padding: 22px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.admin-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.admin-section-title {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: 16px;
+
+  .admin-section-header & {
+    margin-bottom: 0;
+  }
+}
+
+.admin-section-count {
+  font-size: 20px;
+  color: $text-muted;
+  font-weight: 500;
+}
+
+// ── 搜索框 ──
+
+.admin-search-wrap {
+  display: flex;
+  align-items: center;
+  background: #f5f7f6;
+  border-radius: $radius-sm;
+  padding: 0 16px;
+  height: 80px;
+  border: 1.5px solid transparent;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus-within {
+    border-color: $accent;
+    box-shadow: 0 0 0 3px rgba($accent, 0.1);
+    background: #fff;
+  }
+}
+
+.admin-search-icon {
+  font-size: 28px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.admin-search-input {
+  flex: 1;
+  height: 80px;
+  font-size: 26px;
+  color: $text-primary;
+  background: transparent;
+}
+
+.admin-search-clear {
+  font-size: 28px;
+  color: $text-muted;
+  padding: 8px;
+  margin-right: -8px;
+  flex-shrink: 0;
+}
+
+// ── 搜索结果下拉 ──
+
+.admin-search-dropdown {
+  margin-top: 8px;
+  background: $card-bg;
+  border-radius: $radius-sm;
+  border: 1px solid $border;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.admin-search-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  gap: 14px;
+  transition: background 0.15s;
+
+  &:active {
+    background: #f5f7f6;
+  }
+
+  & + & {
+    border-top: 1px solid $border;
+  }
+
+  &.is-vip {
+    background: rgba(#f59e0b, 0.04);
+    border-left: 3px solid #f59e0b;
+  }
+}
+
+.admin-search-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-search-vip-tag {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f59e0b;
+  background: rgba(#f59e0b, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.admin-search-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #e8ece9;
+  flex-shrink: 0;
+}
+
+.admin-search-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-search-name {
+  display: block;
+  font-size: 26px;
+  font-weight: 600;
+  color: $text-primary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-search-id {
+  display: block;
+  font-size: 20px;
+  color: $text-muted;
+  margin-top: 2px;
+}
+
+.admin-search-loading,
+.admin-search-empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 24px;
+  color: $text-muted;
+}
+
+// ── 已选用户 + 添加表单 ──
+
+.admin-add-form {
+  margin-top: 20px;
+  animation: fadeSlideIn 0.25s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.admin-selected-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  background: linear-gradient(135deg, rgba($accent, 0.06), rgba($accent, 0.02));
+  border-radius: $radius-sm;
+  border: 1px solid rgba($accent, 0.15);
+  margin-bottom: 24px;
+}
+
+.admin-selected-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #e8ece9;
+  flex-shrink: 0;
+  border: 2px solid rgba($accent, 0.3);
+}
+
+.admin-selected-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-selected-name {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: $text-primary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-selected-openid {
+  display: block;
+  font-size: 18px;
+  color: $text-muted;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── 套餐网格 ──
+
+.admin-plan-grid {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.admin-plan-card {
+  flex: 1;
+  padding: 16px 8px;
+  text-align: center;
+  border-radius: $radius-sm;
+  border: 1.5px solid $border;
+  background: #fff;
+  transition: all 0.2s;
+
+  &.active {
+    border-color: $accent;
+    background: rgba($accent, 0.04);
+    box-shadow: 0 0 0 3px rgba($accent, 0.1);
+  }
+
+  &:active:not(.active) {
+    transform: scale(0.97);
+  }
+}
+
+.admin-plan-name {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.admin-plan-price {
+  display: block;
+  font-size: 26px;
+  font-weight: 800;
+  color: $accent;
+  margin-top: 6px;
+}
+
+.admin-plan-days {
+  display: block;
+  font-size: 18px;
+  color: $text-muted;
+  margin-top: 2px;
+}
+
+// ── 支付方式 ──
+
+.admin-payment-grid {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.admin-payment-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px;
+  text-align: center;
+  border-radius: $radius-sm;
+  border: 1.5px solid $border;
+  background: #fff;
+  transition: all 0.2s;
+
+  &.active {
+    border-color: $accent;
+    background: rgba($accent, 0.04);
+    box-shadow: 0 0 0 3px rgba($accent, 0.1);
+  }
+
+  &:active:not(.active) {
+    transform: scale(0.97);
+  }
+}
+
+.admin-payment-icon {
+  font-size: 28px;
+}
+
+.admin-payment-label {
+  font-size: 24px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+// ── 表单元素 ──
+
+.admin-form-label {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: $text-secondary;
+  margin-bottom: 10px;
+}
+
+.admin-form-input {
+  width: 100%;
+  height: 80px;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  padding: 0 16px;
+  font-size: 26px;
+  color: $text-primary;
+  background: #f9fafa;
+  margin-bottom: 20px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    border-color: $accent;
+    box-shadow: 0 0 0 3px rgba($accent, 0.1);
+    background: #fff;
+  }
+}
+
+// ── 提交按钮 ──
+
+.admin-submit-btn {
+  height: 88px;
+  border-radius: $radius-sm;
+  background: linear-gradient(135deg, $accent, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  transition: opacity 0.2s, transform 0.15s;
+
+  &:active:not(.loading) {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  &.loading {
+    opacity: 0.6;
+  }
+}
+
+.admin-submit-text {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+// ── 会员列表 ──
+
+.admin-empty {
+  text-align: center;
+  padding: 48px 0;
+}
+.admin-empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
+.admin-empty-text { font-size: 24px; color: $text-muted; }
+
+.admin-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-member-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: $radius-sm;
+  background: #f9fafa;
+  border: 1px solid $border;
+  transition: box-shadow 0.2s;
+
+  &:active {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+}
+
+.admin-member-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-member-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #e8ece9;
+  flex-shrink: 0;
+  border: 2px solid #f0f2f1;
+}
+
+.admin-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-member-name {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: $text-primary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-member-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.admin-member-tag {
+  font-size: 16px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.admin-member-date {
+  font-size: 16px;
+  color: $text-muted;
+}
+
+.admin-member-remark {
+  display: block;
+  font-size: 16px;
+  color: $text-muted;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-member-del {
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: rgba(#ef4444, 0.08);
+  flex-shrink: 0;
+  transition: background 0.15s;
+
+  &:active {
+    background: rgba(#ef4444, 0.15);
+  }
+}
+
+.admin-member-del-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ef4444;
+}

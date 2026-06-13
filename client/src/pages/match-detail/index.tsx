@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { View, Text, Input, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useMatchStore, useUserStore } from '@/stores'
-import { AD_UNIT_IDS, isAdUnlocked, showRewardedVideo, setAdUnlocked, createRewardedVideoAd } from '@/utils/ad'
+import { AD_UNIT_IDS, isAdUnlocked, showRewardedVideo, setAdUnlocked, createRewardedVideoAd, shouldShowAd } from '@/utils/ad'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -218,12 +218,16 @@ export default function MatchDetail() {
     if (!pageReady || !currentMatch) return
     if (adPlayingRef.current) return
 
-    // 无需广告：已结束 / 无预测 / 已缓存解锁 / 首场免费 → 直接到预测数据页
+    // 获取 VIP 状态
+    const { isVip, vipExpireAt } = useUserStore.getState()
+
+    // 无需广告：已结束 / 无预测 / 已缓存解锁 / 首场免费 / VIP 用户 → 直接到预测数据页
     if (
       currentMatch.status === 'finished' ||
       predictions.length === 0 ||
       isAdUnlocked(matchId) ||
-      matchId === 72  // 墨西哥 VS 南非 — 首场免费，新用户体验用
+      matchId === 72 || // 墨西哥 VS 南非 — 首场免费，新用户体验用
+      !shouldShowAd(isVip, vipExpireAt) // VIP 用户跳过广告
     ) {
       setAdPhase('unlocked')
       return
@@ -332,6 +336,14 @@ export default function MatchDetail() {
         <Text className='risk-reminder-text'>AI预测仅供参考，不构成投注建议，请理性娱乐</Text>
       </View>
 
+      {/* VIP 用户专属提示 */}
+      {useUserStore.getState().isVip && adPhase === 'unlocked' && (
+        <View className='vip-hint'>
+          <Text className='vip-hint-icon'>👑</Text>
+          <Text className='vip-hint-text'>尊贵的VIP用户，已为您去除广告</Text>
+        </View>
+      )}
+
       {/* 主内容区 — 统一滚动：AI综合分析 + AI预测列表 + 投票区域 一起下滑 */}
       <ScrollView scrollY className='main-scroll' style={predListHeight ? { height: predListHeight } : undefined}>
         {/* AI 综合总结 */}
@@ -398,7 +410,7 @@ export default function MatchDetail() {
             <View className='pred-empty'>
               <Text className='pred-empty-icon'>🤖</Text>
               <Text className='pred-empty-title'>AI 预测尚未生成</Text>
-              <Text className='pred-empty-desc'>AI 分析结果将于比赛前一周生成，届时将为你呈现多模型智能预测</Text>
+              <Text className='pred-empty-desc'>AI 分析结果将于比赛前三天生成，届时将为你呈现多模型智能预测</Text>
             </View>
           )}
           {predictions.map((pred, idx) => {
@@ -510,6 +522,10 @@ export default function MatchDetail() {
               }
             }}>
               <Text className='ad-unlock-btn-text'>观看视频解锁</Text>
+            </View>
+            {/* 引流入口 */}
+            <View className='ad-skip-hint' onClick={() => Taro.navigateTo({ url: '/pages/contact/index' })}>
+              <Text className='ad-skip-text'>不想看广告？ →</Text>
             </View>
           </View>
         </View>

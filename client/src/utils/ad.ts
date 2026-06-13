@@ -101,3 +101,22 @@ export function setAdUnlocked(matchId: number): void {
     // storage write failed, ignore
   }
 }
+
+// ==================== VIP 广告跳过逻辑 ====================
+
+/**
+ * 判断是否应该显示广告
+ * @param isVip 用户是否是 VIP
+ * @param vipExpireAt VIP 过期时间
+ * @returns 是否应该显示广告
+ */
+export function shouldShowAd(isVip: boolean, vipExpireAt: string | null): boolean {
+  // 非 VIP 用户显示广告
+  if (!isVip) return true
+
+  // 永久 VIP 不显示广告
+  if (vipExpireAt === null) return false
+
+  // 检查 VIP 是否过期
+  return new Date(vipExpireAt) < new Date()
+}

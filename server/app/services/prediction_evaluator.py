@@ -11,8 +11,12 @@ from app.models.prediction import Prediction
 from app.models.user_vote import UserVote
 
 
-async def evaluate_predictions():
-    """定时任务：评估已结束但尚未评估的比赛的预测"""
+async def evaluate_predictions(force_recalculate: bool = False):
+    """定时任务：评估已结束但尚未评估的比赛的预测
+
+    Args:
+        force_recalculate: 是否强制重新计算所有已评估的预测（用于修复计算逻辑）
+    """
     try:
         async with async_session_factory() as session:
             from sqlalchemy import select
@@ -29,19 +33,34 @@ async def evaluate_predictions():
             evaluated_count = 0
             for match in matches:
                 # 评估 AI 预测
-                pred_stmt = select(Prediction).where(
-                    Prediction.match_id == match.id,
-                    Prediction.is_correct_result.is_(None),
-                )
+                if force_recalculate:
+                    # 强制重新计算：评估所有预测
+                    pred_stmt = select(Prediction).where(
+                        Prediction.match_id == match.id,
+                    )
+                else:
+                    # 正常模式：只评估未评估的预测
+                    pred_stmt = select(Prediction).where(
+                        Prediction.match_id == match.id,
+                        Prediction.is_correct_result.is_(None),
+                    )
                 pred_result = await session.execute(pred_stmt)
                 predictions = pred_result.scalars().all()
 
                 for pred in predictions:
                     pred.is_correct_result = (pred.result == match.result)
-                    pred.is_correct_score = (
+                    # 比分命中：主比分命中 OR 备选比分命中（任一命中即算命中）
+                    main_score_hit = (
                         pred.score_home == match.home_score
                         and pred.score_away == match.away_score
                     )
+                    alt_score_hit = (
+                        pred.score_alt_home is not None
+                        and pred.score_alt_away is not None
+                        and pred.score_alt_home == match.home_score
+                        and pred.score_alt_away == match.away_score
+                    )
+                    pred.is_correct_score = main_score_hit or alt_score_hit
                     pred.calculated_at = datetime.utcnow()
                     evaluated_count += 1
 

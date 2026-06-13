@@ -88,9 +88,9 @@ async def load_match(state: PredictionState) -> PredictionState:
                 raise ValueError(f"Match {state['match_id']} not found")
             matches = [match]
         else:
-            # 批量模式：未来 7 天的 upcoming 比赛
+            # 批量模式：未来 3 天的 upcoming 比赛
             now = dt.datetime.now(dt.timezone.utc)
-            deadline = now + timedelta(days=7)
+            deadline = now + timedelta(days=3)
             stmt = (
                 select(Match)
                 .where(Match.status == MatchStatus.upcoming)
