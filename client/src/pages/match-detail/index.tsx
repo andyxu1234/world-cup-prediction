@@ -299,8 +299,8 @@ export default function MatchDetail() {
     try {
       await vote(matchId, selectedResult, Number(homeScore), Number(awayScore))
       Taro.showToast({ title: myVote ? '预测已更新！' : '预测已提交！', icon: 'success' })
-    } catch {
-      Taro.showToast({ title: '提交失败', icon: 'error' })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '提交失败', icon: 'none', duration: 2000 })
     }
   }
 

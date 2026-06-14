@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -178,8 +179,16 @@ async def create_vote(
     # 验证比赛存在
     match_stmt = select(Match).where(Match.id == data.match_id)
     match_result = await db.execute(match_stmt)
-    if not match_result.scalar_one_or_none():
+    match = match_result.scalar_one_or_none()
+    if not match:
         raise HTTPException(status_code=404, detail="Match not found")
+
+    # 比赛已开始，不允许提交或修改预测
+    # match_time 以北京时间 (UTC+8) 存储，需转 UTC 后比较
+    if match.match_time:
+        match_time_utc = match.match_time.replace(tzinfo=timezone.utc) - timedelta(hours=8)
+        if match_time_utc <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="比赛已开始，无法提交或修改预测")
 
     # 检查是否已投票 → 已投票则更新，未投票则新建
     stmt = select(UserVote).where(
