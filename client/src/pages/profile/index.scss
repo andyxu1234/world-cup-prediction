@@ -352,6 +352,12 @@
   font-size: 28rpx;
   font-weight: 500;
   color: $text1;
+
+  &.disclaimer-text {
+    font-weight: 900;
+    color: #000000;
+    letter-spacing: 1rpx;
+  }
 }
 
 .prof-menu-arrow {

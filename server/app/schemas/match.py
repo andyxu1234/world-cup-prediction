@@ -80,3 +80,18 @@ class HomeStatsOut(BaseModel):
     total_predictions: int = 0
     total_users: int = 0
     total_user_predictions: int = 0
+
+
+class HomeTabItem(BaseModel):
+    """首页 Tab 项"""
+    key: str
+    label: str
+
+    model_config = {"from_attributes": True}
+
+
+class HomeTabsOut(BaseModel):
+    """首页 Tab 配置"""
+    tabs: List[HomeTabItem]
+
+    model_config = {"from_attributes": True}

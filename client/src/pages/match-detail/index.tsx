@@ -332,8 +332,9 @@ export default function MatchDetail() {
 
       {/* 风险提醒 — 顶部醒目位置 */}
       <View className='risk-reminder'>
-        <Text className='risk-reminder-icon'>⚠️</Text>
-        <Text className='risk-reminder-text'>AI预测仅供参考，不构成投注建议，请理性娱乐</Text>
+        <View className='risk-reminder-wrap'>
+          <Text className='risk-reminder-text'>⚠️ AI预测仅供参考，不构成投注建议，请理性娱乐</Text>
+        </View>
       </View>
 
       {/* VIP 用户专属提示 */}

@@ -15,7 +15,7 @@ from app.models.prediction import Prediction
 from app.models.prediction_summary import PredictionSummary
 from app.models.ai_model import AIModel
 from app.models.user_vote import UserVote
-from app.schemas.match import MatchListOut, MatchDetailOut, PredictionSummaryOut, HomeStatsOut
+from app.schemas.match import MatchListOut, MatchDetailOut, PredictionSummaryOut, HomeStatsOut, HomeTabsOut, HomeTabItem
 from app.core.cache import stats_cache, matches_cache, match_detail_cache, get_or_set
 
 router = APIRouter(prefix="/matches", tags=["matches"])
@@ -44,18 +44,34 @@ async def get_home_stats(db: AsyncSession = Depends(get_db)):
     return await get_or_set(stats_cache, "home_stats", fetch)
 
 
+@router.get("/home-tabs", response_model=HomeTabsOut)
+async def get_home_tabs():
+    """获取首页 Tab 配置（控制展示顺序）"""
+    tabs = [
+        HomeTabItem(key="group", label="小组赛"),
+        HomeTabItem(key="standings", label="积分榜"),
+        HomeTabItem(key="today", label="今日"),
+        HomeTabItem(key="tomorrow", label="明日"),
+        HomeTabItem(key="finished", label="已结束"),
+        HomeTabItem(key="knockout", label="淘汰赛"),
+    ]
+    return HomeTabsOut(tabs=tabs)
+
+
 @router.get("", response_model=List[MatchListOut])
 async def get_matches(
     round: Optional[List[str]] = Query(None, description="轮次筛选，支持多个，如 ?round=Group+Stage+-1&round=Round+of+16"),
     status: Optional[str] = Query(None, description="状态筛选"),
     status_not: Optional[str] = Query(None, description="状态排除筛选（排除指定状态）"),
     date: Optional[str] = Query(None, description="日期筛选，格式 YYYY-MM-DD"),
+    sort_order: Optional[str] = Query("asc", description="排序方式：asc（默认，时间正序）或 desc（时间倒序）"),
     db: AsyncSession = Depends(get_db),
 ):
     """获取比赛列表"""
-    cache_key = f"matches:{round}:{status}:{status_not}:{date}"
+    cache_key = f"matches:{round}:{status}:{status_not}:{date}:{sort_order}"
 
     async def fetch():
+        order_col = Match.match_time.desc() if sort_order == "desc" else Match.match_time.asc()
         stmt = (
             select(Match)
             .options(
@@ -63,7 +79,7 @@ async def get_matches(
                 selectinload(Match.away_team),
                 selectinload(Match.summary),
             )
-            .order_by(Match.match_time)
+            .order_by(order_col)
         )
         if round:
             stmt = stmt.where(Match.round.in_(round))

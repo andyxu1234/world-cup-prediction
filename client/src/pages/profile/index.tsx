@@ -359,7 +359,7 @@ export default function Profile() {
                 <View className='prof-menu-icon' style={{ background: item.color, color: item.textColor }}>
                   <Text>{item.icon}</Text>
                 </View>
-                <Text className='prof-menu-text'>{item.label}</Text>
+                <Text className={`prof-menu-text ${item.label === '免责声明' ? 'disclaimer-text' : ''}`}>{item.label}</Text>
               </View>
               <Text className='prof-menu-arrow'>›</Text>
             </Button>
@@ -373,7 +373,7 @@ export default function Profile() {
               <View className='prof-menu-icon' style={{ background: item.color, color: item.textColor }}>
                 <Text>{item.icon}</Text>
               </View>
-              <Text className='prof-menu-text'>{item.label}</Text>
+              <Text className={`prof-menu-text ${item.label === '免责声明' ? 'disclaimer-text' : ''}`}>{item.label}</Text>
             </View>
             <Text className='prof-menu-arrow'>›</Text>
           </View>

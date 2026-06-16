@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
-import type { Match, Prediction, AILeaderboardItem, HumanUserRankItem, ComparePredictionsOut, HomeStats } from '@/services/api'
+import type { Match, Prediction, AILeaderboardItem, HumanUserRankItem, ComparePredictionsOut, HomeStats, StandingsOut, HomeTabItem } from '@/services/api'
 import * as api from '@/services/api'
 
 // ==================== 比赛状态 ====================
@@ -10,11 +10,15 @@ interface MatchState {
   currentMatch: Match | null
   predictions: ComparePredictionsOut['predictions']
   homeStats: HomeStats | null
+  standings: StandingsOut | null
+  homeTabs: HomeTabItem[]
   loading: boolean
-  fetchMatches: (params?: { status?: string; round?: string[] | string; date?: string }) => Promise<void>
+  fetchMatches: (params?: { status?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) => Promise<void>
   fetchMatchDetail: (id: number) => Promise<void>
   fetchPredictions: (matchId: number) => Promise<void>
   fetchHomeStats: () => Promise<void>
+  fetchStandings: () => Promise<void>
+  fetchHomeTabs: () => Promise<void>
 }
 
 export const useMatchStore = create<MatchState>((set) => ({
@@ -22,6 +26,8 @@ export const useMatchStore = create<MatchState>((set) => ({
   currentMatch: null,
   predictions: [],
   homeStats: null,
+  standings: null,
+  homeTabs: [],
   loading: false,
 
   fetchMatches: async (params) => {
@@ -59,6 +65,24 @@ export const useMatchStore = create<MatchState>((set) => ({
       set({ homeStats })
     } catch {
       // ignore, keep default
+    }
+  },
+
+  fetchStandings: async () => {
+    try {
+      const standings = await api.getStandings()
+      set({ standings })
+    } catch {
+      // ignore, keep default
+    }
+  },
+
+  fetchHomeTabs: async () => {
+    try {
+      const data = await api.getHomeTabs()
+      set({ homeTabs: data.tabs })
+    } catch {
+      // ignore, keep default empty
     }
   },
 }))

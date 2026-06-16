@@ -5,7 +5,21 @@ import { useMatchStore, useLeaderboardStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
 
-const CHIPS = ['小组赛', '淘汰赛', '今日', '明日', '已结束']
+// 默认 Tab 配置（后端接口失败时的 fallback）
+const DEFAULT_CHIPS = ['小组赛', '积分榜', '淘汰赛', '今日', '明日', '已结束']
+
+// 每组主题色 — 体育广播风格配色
+const GROUP_COLOR_MAP: Record<string, { gradient: string; accent: string }> = {
+  'A': { gradient: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)', accent: '#14b8a6' },
+  'B': { gradient: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)', accent: '#3b82f6' },
+  'C': { gradient: 'linear-gradient(135deg, #9333ea 0%, #a855f7 100%)', accent: '#a855f7' },
+  'D': { gradient: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)', accent: '#ef4444' },
+  'E': { gradient: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)', accent: '#f97316' },
+  'F': { gradient: 'linear-gradient(135deg, #0891b2 0%, #22d3ee 100%)', accent: '#22d3ee' },
+  'G': { gradient: 'linear-gradient(135deg, #059669 0%, #34d399 100%)', accent: '#34d399' },
+  'H': { gradient: 'linear-gradient(135deg, #be185d 0%, #ec4899 100%)', accent: '#ec4899' },
+  default: { gradient: 'linear-gradient(135deg, #374151 0%, #6b7280 100%)', accent: '#6b7280' },
+}
 
 // 默认 fallback 图标（当 flag_url 为空或加载失败时使用）
 const DEFAULT_FLAG_ICON = '⚽'
@@ -63,9 +77,15 @@ export default function Index() {
   // 使用 shallow 浅比较：只有 matches 数组引用变化时才重渲染
   const matches = useMatchStore((s) => s.matches, shallow)
   const homeStats = useMatchStore((s) => s.homeStats)
+  const standings = useMatchStore((s) => s.standings)
+  const homeTabs = useMatchStore((s) => s.homeTabs)
   const fetchMatches = useMatchStore((s) => s.fetchMatches)
   const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
+  const fetchStandings = useMatchStore((s) => s.fetchStandings)
+  const fetchHomeTabs = useMatchStore((s) => s.fetchHomeTabs)
   const [activeChip, setActiveChip] = useState('小组赛')
+  // 优先使用后端返回的 Tab 列表，未加载时使用默认配置
+  const chips = homeTabs.length > 0 ? homeTabs.map(t => t.label) : DEFAULT_CHIPS
   const navigatingRef = useRef<Set<number>>(new Set())
   // 动态计算 ScrollView 高度，精确适配不同设备屏幕（解决 iPhone 7 Plus 等设备底部留白问题）
   // 根因：CSS 中 calc(100vh - 560px) 的 560px 是 CSS px，但页面元素全部用 rpx，
@@ -104,7 +124,8 @@ export default function Index() {
   }, [])
   useEffect(() => {
     fetchHomeStats()
-  }, [fetchHomeStats])
+    fetchHomeTabs()
+  }, [fetchHomeStats, fetchHomeTabs])
 
   const goToDetail = useCallback((id: number) => {
     if (navigatingRef.current.has(id)) return
@@ -130,9 +151,10 @@ export default function Index() {
 
   useEffect(() => {
     const params: any = {}
-    // 已结束：只展示所有已完成的比赛（不限轮次、不限日期）
+    // 已结束：只展示所有已完成的比赛（不限轮次、不限日期），按时间倒序
     if (activeChip === '已结束') {
       params.status = 'finished'
+      params.sort_order = 'desc'
     } else {
       // 其余标签：全部排除已结束的比赛，只显示未开始/进行中的比赛
       params.status_not = 'finished'
@@ -148,12 +170,22 @@ export default function Index() {
     fetchMatches(params)
   }, [activeChip, fetchMatches])
 
+  // 切换到积分榜 Tab 时加载数据（懒加载 + 缓存）
+  const standingsFetchedRef = useRef(false)
+  useEffect(() => {
+    if (activeChip === '积分榜' && !standings && !standingsFetchedRef.current) {
+      standingsFetchedRef.current = true
+      fetchStandings()
+    }
+  }, [activeChip, standings, fetchStandings])
+
   // Tab 切换回来时刷新数据
   useDidShow(() => {
     fetchHomeStats()
     const params: any = {}
     if (activeChip === '已结束') {
       params.status = 'finished'
+      params.sort_order = 'desc'
     } else {
       params.status_not = 'finished'
     }
@@ -167,6 +199,137 @@ export default function Index() {
     }
     fetchMatches(params)
   })
+
+  // 根据当前 Tab 渲染不同内容
+  const renderContent = () => {
+    if (activeChip === '积分榜') {
+      if (!standings) {
+        return (
+          <View className='empty'>
+            <Text className='empty-icon'>📊</Text>
+            <Text className='empty-text'>加载中...</Text>
+          </View>
+        )
+      }
+      return (
+        <View className='standings-wrap'>
+          {standings.groups.map((group, gIdx) => {
+            const groupColors = GROUP_COLOR_MAP[group.group_name] || GROUP_COLOR_MAP.default
+            return (
+              <View key={group.group_name} className={`standing-card group-${group.group_name.toLowerCase()}`} style={{ animationDelay: `${gIdx * 0.08}s` }}>
+                {/* 组名横幅 */}
+                <View className='standing-hd' style={{ background: groupColors.gradient }}>
+                  <Text className='standing-group-name'>{group.group_name} 组</Text>
+                  <Text className='standing-group-sub'>GROUP {group.group_name}</Text>
+                </View>
+                {/* 表头 */}
+                <View className='standing-row standing-head'>
+                  <Text className='st-col st-rank'></Text>
+                  <View className='st-col st-team'><Text className='st-head-label'>球队</Text></View>
+                  <Text className='st-col st-narrow'><Text className='st-head-label'>场次</Text></Text>
+                  <Text className='st-col st-wdl'><Text className='st-head-label'>胜/平/负</Text></Text>
+                  <Text className='st-col st-mid'><Text className='st-head-label'>进/失</Text></Text>
+                  <Text className='st-col st-pts'><Text className='st-head-label'>积分</Text></Text>
+                </View>
+                {/* 球队行 */}
+                {group.standings.map((team, tIdx) => (
+                  <View
+                    key={team.team_id}
+                    className={`standing-row ${team.rank <= 2 ? 'st-qualified' : ''}`}
+                    style={{ animationDelay: `${gIdx * 0.08 + tIdx * 0.05}s` }}
+                  >
+                    {/* 排名 */}
+                    <View className='st-col st-rank'>
+                      {team.rank <= 2 ? (
+                        <View className={`rank-badge rank-${team.rank}`}>
+                          <Text className='rank-badge-text'>{team.rank}</Text>
+                        </View>
+                      ) : (
+                        <Text className='rank-num'>{team.rank}</Text>
+                      )}
+                    </View>
+                    {/* 球队 */}
+                    <View className='st-col st-team'>
+                      <FlagImage src={team.flag_url || ''} className='st-flag' />
+                      <View className='st-team-info'>
+                        <Text className='st-team-name'>{team.team_cn_name || team.team_name}</Text>
+                      </View>
+                    </View>
+                    {/* 统计数据 */}
+                    <Text className='st-col st-narrow st-data'>{team.played}</Text>
+                    <Text className='st-col st-wdl st-data'>
+                      <Text className={`st-data ${team.won > 0 ? 'st-win' : ''}`}>{team.won}</Text>
+                      <Text className='st-wdl-sep'>/</Text>
+                      <Text className='st-data'>{team.draw}</Text>
+                      <Text className='st-wdl-sep'>/</Text>
+                      <Text className={`st-data ${team.lost > 0 ? 'st-loss' : ''}`}>{team.lost}</Text>
+                    </Text>
+                    <Text className='st-col st-mid st-data'>
+                      <Text className='st-goals'>{team.goals_for}</Text>
+                      <Text className='st-goal-sep'>/</Text>
+                      <Text className='st-goals st-goals-against'>{team.goals_against}</Text>
+                    </Text>
+                    {/* 积分 */}
+                    <View className='st-col st-pts'>
+                      <Text className={`st-pts-num ${team.rank <= 2 ? 'pts-top' : ''}`}>{team.points}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )
+          })}
+        </View>
+      )
+    }
+    // 比赛列表视图
+    return (
+      <View>
+        {matches.length === 0 && (
+          <View className='empty'>
+            <Text className='empty-icon'>⚽</Text>
+            <Text className='empty-text'>暂无比赛数据</Text>
+          </View>
+        )}
+        {matches.map((match, idx) => {
+          const statusInfo = getStatusLabel(match.status)
+          return (
+            <View key={match.id}>
+              <View className='m-card' onClick={() => goToDetail(match.id)}>
+                <View className='m-card-hd'>
+                  <Text className='m-round'>{getRoundLabel(match.round)}</Text>
+                  {statusInfo && (
+                    <Text className={`badge ${statusInfo.cls}`}>{statusInfo.text}</Text>
+                  )}
+                  <Text className='m-time'>{formatMatchTime(match.match_time)}</Text>
+                </View>
+                <View className='m-teams'>
+                  <View className='m-team'>
+                    <FlagImage src={match.home_team.flag_url || ''} className='flag-img' />
+                    <Text className='m-team-name'>{match.home_team.cn_name || match.home_team.name}</Text>
+                  </View>
+                  {match.status === 'finished' ? (
+                    <Text className='m-score mono'>{match.home_score}:{match.away_score}</Text>
+                  ) : (
+                    <Text className='m-vs mono'>VS</Text>
+                  )}
+                  <View className='m-team'>
+                    <FlagImage src={match.away_team.flag_url || ''} className='flag-img' />
+                    <Text className='m-team-name'>{match.away_team.cn_name || match.away_team.name}</Text>
+                  </View>
+                </View>
+                <View className='m-card-ft'>
+                  <Text className='m-consensus'>
+                    AI 共识：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
+                  </Text>
+                  <Text className='m-action'>查看预测 ›</Text>
+                </View>
+              </View>
+            </View>
+          )
+        })}
+      </View>
+    )
+  }
 
   return (
     <View className='index-page'>
@@ -219,7 +382,7 @@ export default function Index() {
       {/* 筛选条 */}
       <ScrollView scrollX className='chips-scroll'>
         <View className='chips'>
-          {CHIPS.map((chip) => (
+          {chips.map((chip) => (
             <View
               key={chip}
               className={`chip ${activeChip === chip ? 'active' : ''}`}
@@ -231,51 +394,9 @@ export default function Index() {
         </View>
       </ScrollView>
 
-      {/* 比赛列表 */}
+      {/* 内容区域 */}
       <ScrollView scrollY className='match-list' style={scrollHeight ? { height: scrollHeight } : undefined}>
-        {matches.length === 0 && (
-          <View className='empty'>
-            <Text className='empty-icon'>⚽</Text>
-            <Text className='empty-text'>暂无比赛数据</Text>
-          </View>
-        )}
-        {matches.map((match, idx) => {
-          const statusInfo = getStatusLabel(match.status)
-          return (
-            <View key={match.id}>
-              <View className='m-card' onClick={() => goToDetail(match.id)}>
-                <View className='m-card-hd'>
-                  <Text className='m-round'>{getRoundLabel(match.round)}</Text>
-                  {statusInfo && (
-                    <Text className={`badge ${statusInfo.cls}`}>{statusInfo.text}</Text>
-                  )}
-                  <Text className='m-time'>{formatMatchTime(match.match_time)}</Text>
-                </View>
-                <View className='m-teams'>
-                  <View className='m-team'>
-                    <FlagImage src={match.home_team.flag_url || ''} className='flag-img' />
-                    <Text className='m-team-name'>{match.home_team.cn_name || match.home_team.name}</Text>
-                  </View>
-                  {match.status === 'finished' ? (
-                    <Text className='m-score mono'>{match.home_score}:{match.away_score}</Text>
-                  ) : (
-                    <Text className='m-vs mono'>VS</Text>
-                  )}
-                  <View className='m-team'>
-                    <FlagImage src={match.away_team.flag_url || ''} className='flag-img' />
-                    <Text className='m-team-name'>{match.away_team.cn_name || match.away_team.name}</Text>
-                  </View>
-                </View>
-                <View className='m-card-ft'>
-                  <Text className='m-consensus'>
-                    AI 共识：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
-                  </Text>
-                  <Text className='m-action'>查看预测 ›</Text>
-                </View>
-              </View>
-            </View>
-          )
-        })}
+        {renderContent()}
       </ScrollView>
     </View>
   )

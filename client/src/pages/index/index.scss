@@ -383,3 +383,307 @@
   font-size: 24px;
   color: $text3;
 }
+
+// ===== 积分榜样式 — Sports Broadcast 风格 =====
+.standings-wrap {
+  padding: 12px 16px 40px;
+}
+
+.standing-card {
+  margin: 0 auto 24px;
+  width: 92%;
+  max-width: 680px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  animation: stSlideUp 0.5s ease both;
+
+  @keyframes stSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  // 每组卡片左侧彩色边条
+  &.group-a { border-left: 4px solid #14b8a6; }
+  &.group-b { border-left: 4px solid #3b82f6; }
+  &.group-c { border-left: 4px solid #a855f7; }
+  &.group-d { border-left: 4px solid #ef4444; }
+  &.group-e { border-left: 4px solid #f97316; }
+  &.group-f { border-left: 4px solid #22d3ee; }
+  &.group-g { border-left: 4px solid #34d399; }
+  &.group-h { border-left: 4px solid #ec4899; }
+}
+
+// 组名横幅 — 渐变背景
+.standing-hd {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 18px 24px 14px;
+}
+
+.standing-group-name {
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 2px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.standing-group-sub {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 19px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 3px;
+}
+
+// 积分榜行 — 统一行高与间距
+.standing-row {
+  display: flex;
+  align-items: center;
+  padding: 13px 18px;
+  transition: background-color 0.15s ease;
+  animation: stFadeIn 0.35s ease both;
+
+  @keyframes stFadeIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  // 晋级区 — 前两名的微妙高亮
+  &.st-qualified {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.06) 0%, transparent 60%);
+
+    // 左侧晋级指示线
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 55%;
+      border-radius: 0 2px 2px 0;
+      background: linear-gradient(180deg, #fbbf24 0%, #10b981 100%);
+    }
+  }
+
+  // 表头行
+  &.standing-head {
+    background: #f8fafc;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+    padding: 11px 18px;
+
+    .st-head-label {
+      font-size: 22px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+  }
+
+  // hover/active 反馈
+  &:active {
+    background: rgba(0, 0, 0, 0.02);
+  }
+}
+
+// 列宽分配 — 精确控制数据密度
+.st-col {
+  font-size: 23px;
+  color: $text2;
+  text-align: center;
+
+  // 排名列
+  &.st-rank {
+    width: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  // 球队列 — 固定宽度
+  &.st-team {
+    width: 180px;
+    margin-right: auto; // 推开数据列到右边缘
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-align: left;
+    min-width: 0;
+  }
+
+  // 窄数字列（场次）— 整体右移
+  &.st-narrow {
+    flex: 1;
+    max-width: 60px;
+    justify-content: center;
+  }
+
+  // 胜/平/负 合并列 — 弹性填充
+  &.st-wdl {
+    flex: 1;
+    max-width: 110px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+  }
+
+  // 进球/失球列 — 弹性
+  &.st-mid {
+    flex: 1;
+    max-width: 80px;
+    flex-shrink: 0;
+  }
+
+  // 积分列 — 视觉焦点
+  &.st-pts {
+    flex: 1;
+    max-width: 64px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// 排名徽章 — 金/银质感圆形
+.rank-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+  &.rank-1 {
+    background: linear-gradient(145deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
+
+    .rank-badge-text {
+      color: #78350f;
+      font-size: 18px;
+      font-weight: 900;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  &.rank-2 {
+    background: linear-gradient(145deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
+
+    .rank-badge-text {
+      color: #334155;
+      font-size: 18px;
+      font-weight: 900;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+  }
+}
+
+// 普通排名数字
+.rank-num {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+// 国旗
+.st-flag {
+  width: 34px;
+  height: 23px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+// 球队信息
+.st-team-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.st-team-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: $text1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+// 数据文字样式
+.st-data {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 23px;
+  font-weight: 500;
+  color: #64748b;
+
+  &.st-win { color: $green; font-weight: 700; }
+  &.st-loss { color: #ef4444; }
+}
+
+// 进球数据
+.st-goals {
+  font-size: 22px;
+  font-weight: 600;
+  color: #475569;
+
+  &.st-goals-against {
+    color: #94a3b8;
+  }
+}
+
+.st-goal-sep {
+  font-size: 19px;
+  color: #cbd5e1;
+  margin: 0 1px;
+}
+
+// 胜/平/负 分隔符
+.st-wdl-sep {
+  font-size: 18px;
+  color: #cbd5e1;
+}
+
+// 净胜球 — 正负色区分
+.st-gd {
+  &.gd-pos { color: $green; font-weight: 700; }
+  &.gd-neg { color: #ef4444; font-weight: 600; }
+}
+
+// 积分数值 — 大字号视觉焦点
+.st-pts-num {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 26px;
+  font-weight: 900;
+  color: $text1;
+
+  &.pts-top {
+    color: $green;
+    text-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+  }
+}

@@ -150,7 +150,7 @@ export interface Prediction {
   created_at: string | null
 }
 
-export function getMatches(params?: { status?: string; status_not?: string; round?: string[] | string; date?: string }) {
+export function getMatches(params?: { status?: string; status_not?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) {
   // 手动构建 query string，确保数组参数正确序列化为 ?round=xxx&round=yyy
   let qs = ''
   if (params) {
@@ -162,6 +162,7 @@ export function getMatches(params?: { status?: string; status_not?: string; roun
       rounds.forEach(r => parts.push(`round=${encodeURIComponent(r)}`))
     }
     if (params.date) parts.push(`date=${encodeURIComponent(params.date)}`)
+    if (params.sort_order) parts.push(`sort_order=${encodeURIComponent(params.sort_order)}`)
     if (parts.length > 0) qs = '?' + parts.join('&')
   }
   return request<Match[]>({ url: `/matches${qs}` })
@@ -179,6 +180,19 @@ export interface HomeStats {
 
 export function getHomeStats() {
   return request<HomeStats>({ url: '/matches/stats' })
+}
+
+export interface HomeTabItem {
+  key: string
+  label: string
+}
+
+export interface HomeTabsOut {
+  tabs: HomeTabItem[]
+}
+
+export function getHomeTabs() {
+  return request<HomeTabsOut>({ url: '/matches/home-tabs' })
 }
 
 export function getMatchDetail(id: number) {
@@ -446,6 +460,38 @@ export interface LongTermPrediction {
 
 export function getLongTermPredictions() {
   return request<LongTermPrediction[]>({ url: '/long-term-predictions' })
+}
+
+// ==================== 积分榜 ====================
+
+export interface TeamStandingOut {
+  rank: number
+  team_id: number
+  team_name: string
+  team_cn_name: string | null
+  flag_url: string | null
+  fifa_rank: number | null
+  played: number
+  won: number
+  draw: number
+  lost: number
+  goals_for: number
+  goals_against: number
+  goal_diff: number
+  points: number
+}
+
+export interface GroupStandingOut {
+  group_name: string
+  standings: TeamStandingOut[]
+}
+
+export interface StandingsOut {
+  groups: GroupStandingOut[]
+}
+
+export function getStandings() {
+  return request<StandingsOut>({ url: '/standings' })
 }
 
 // ==================== 趣闻生成 ====================
