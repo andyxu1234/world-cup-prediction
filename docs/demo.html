@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 预测世界杯 - 让 AI 大模型同台竞技</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #131832;
+            --bg-card: #1a2040;
+            --accent-gold: #ffd700;
+            --accent-orange: #ff6b35;
+            --accent-green: #00ff88;
+            --accent-blue: #00d4ff;
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --gradient-hero: linear-gradient(135deg, #0a0e27 0%, #1a1f4d 50%, #0f1535 100%);
+            --gradient-gold: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            --gradient-tech: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+            --shadow-glow: 0 0 40px rgba(255, 215, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Animated Background */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.03;
+            background-image: 
+                radial-gradient(circle at 25% 25%, var(--accent-gold) 1px, transparent 1px),
+                radial-gradient(circle at 75% 75%, var(--accent-blue) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: patternMove 20s ease-in-out infinite;
+        }
+
+        @keyframes patternMove {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-20px, -20px); }
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 1rem 2rem;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        nav.scrolled {
+            padding: 0.7rem 2rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            background: var(--gradient-gold);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-gold);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient-gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem 4rem;
+            position: relative;
+            overflow: hidden;
+            background: var(--gradient-hero);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 80%;
+            height: 150%;
+            background: radial-gradient(ellipse, rgba(255, 215, 0, 0.08) 0%, transparent 70%);
+            animation: heroGlow 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes heroGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-50px, 30px) scale(1.1); }
+        }
+
+        .hero-content {
+            max-width: 1400px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            color: var(--accent-gold);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: clamp(3.5rem, 10vw, 8rem);
+            line-height: 1;
+            margin-bottom: 1.5rem;
+            letter-spacing: 4px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .hero h1 span {
+            display: block;
+            background: var(--gradient-gold);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: var(--text-secondary);
+            max-width: 800px;
+            margin: 0 auto 3rem;
+            font-weight: 300;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 4rem;
+            flex-wrap: wrap;
+            margin-top: 4rem;
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: var(--gradient-tech);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+        }
+
+        .scroll-indicator svg {
+            width: 30px;
+            height: 30px;
+            fill: var(--accent-gold);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-15px); }
+            60% { transform: translateX(-50%) translateY(-7px); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Section Styles */
+        section {
+            padding: 6rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-tag {
+            display: inline-block;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.75rem;
+            color: var(--accent-blue);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+        }
+
+        .section-desc {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 2.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-gold);
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), var(--shadow-glow);
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 107, 53, 0.15) 100%);
+        }
+
+        .feature-card h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.6rem;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        /* Screenshots Gallery */
+        .screenshots-section {
+            background: var(--bg-secondary);
+            padding: 6rem 2rem;
+            margin: 0;
+            max-width: none;
+        }
+
+        .screenshots-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .gallery-item {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            aspect-ratio: 9/19;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.03);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 215, 0, 0.3);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+
+        .gallery-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1.5rem;
+            background: linear-gradient(to top, rgba(10, 14, 39, 0.98), transparent);
+            transform: translateY(100%);
+            transition: transform 0.4s ease;
+        }
+
+        .gallery-item:hover .gallery-label {
+            transform: translateY(0);
+        }
+
+        .gallery-label h4 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            margin-bottom: 0.3rem;
+        }
+
+        .gallery-label p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* AI Models Showcase */
+        .ai-showcase {
+            background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            padding: 6rem 2rem;
+            margin: 0;
+            max-width: none;
+        }
+
+        .ai-showcase-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .model-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(255, 215, 0, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .model-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .model-card:hover::after {
+            opacity: 1;
+        }
+
+        .model-flag {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .model-flag img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: brightness(1.1);
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .model-card:hover .model-flag img {
+            transform: scale(1.15);
+            filter: brightness(1.3) drop-shadow(0 0 12px rgba(255, 215, 0, 0.4));
+        }
+
+        .model-style {
+            font-size: 0.75rem;
+            color: var(--accent-gold);
+            margin-top: 0.5rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .model-name {
+            font-weight: 700;
+            font-size: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .model-origin {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Tech Stack */
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .tech-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+
+        .tech-card:nth-child(1) { border-left-color: var(--accent-green); }
+        .tech-card:nth-child(2) { border-left-color: var(--accent-blue); }
+        .tech-card:nth-child(3) { border-left-color: var(--accent-orange); }
+        .tech-card:nth-child(4) { border-left-color: var(--accent-gold); }
+
+        .tech-card:hover {
+            transform: translateX(10px);
+            background: rgba(26, 32, 64, 0.8);
+        }
+
+        .tech-card h4 {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            color: var(--accent-blue);
+            margin-bottom: 1rem;
+            letter-spacing: 1px;
+        }
+
+        .tech-list {
+            list-style: none;
+        }
+
+        .tech-list li {
+            padding: 0.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .tech-list li:last-child {
+            border-bottom: none;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            text-align: center;
+            padding: 8rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+            animation: ctaPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes ctaPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            letter-spacing: 3px;
+            margin-bottom: 1.5rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2.5rem;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem 2.5rem;
+            background: var(--gradient-gold);
+            color: var(--bg-primary);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1rem;
+            border-radius: 60px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem 2.5rem;
+            background: transparent;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            transform: translateY(-3px);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .footer-logo {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2rem;
+            background: var(--gradient-gold);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent-gold);
+        }
+
+        .copyright {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Screenshot Category Sections */
+        .screenshot-category {
+            margin-bottom: 4rem;
+        }
+
+        .screenshot-category:last-child {
+            margin-bottom: 0;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(255, 215, 0, 0.15);
+        }
+
+        .category-icon {
+            font-size: 2.5rem;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.12) 0%, rgba(255, 107, 53, 0.12) 100%);
+            border-radius: 14px;
+            flex-shrink: 0;
+        }
+
+        .category-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            color: var(--text-primary);
+        }
+
+        .category-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-left: auto;
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .category-desc {
+                display: block;
+            }
+        }
+
+        .category-grid {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+        }
+
+        .category-grid-compact {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero-stats {
+                gap: 2rem;
+            }
+
+            .stat-number {
+                font-size: 2.5rem;
+            }
+
+            .gallery-grid {
+                grid-template-columns: 1fr !important;
+                max-width: 400px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .models-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animation on Scroll */
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .animate-on-scroll.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Lightbox for images */
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255, 215, 0, 0.3);
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Pattern -->
+    <div class="bg-pattern"></div>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="nav-content">
+            <div class="logo">⚽ AI WORLD CUP</div>
+            <ul class="nav-links">
+                <li><a href="#features">功能亮点</a></li>
+                <li><a href="#screenshots">界面展示</a></li>
+                <li><a href="#ai-models">AI阵容</a></li>
+                <li><a href="#tech-stack">技术栈</a></li>
+                <li><a href="https://github.com/AndyXu-Citi/world-cup-prediction" target="_blank">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="badge">🏆 2026 FIFA World Cup</div>
+            <h1>
+                <span>AI 预测世界杯</span>
+            </h1>
+            <p class="hero-subtitle">
+                10 个主流 AI 大模型同台竞技，预测 2026 FIFA 世界杯比赛结果<br>
+                围观 AI 预测 · 参与投票 · 与 AI 一较高下
+            </p>
+            
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number">10</span>
+                    <span class="stat-label">AI 模型</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">104</span>
+                    <span class="stat-label">比赛场次</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">∞</span>
+                    <span class="stat-label">预测可能</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-indicator">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 10l5 5 5-5H7z"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features">
+        <div class="section-header animate-on-scroll">
+            <div class="section-tag">Core Features</div>
+            <h2 class="section-title">核心功能亮点</h2>
+            <p class="section-desc">融合人工智能与足球热情，打造前所未有的观赛体验</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon">🤖</div>
+                <h3>AI 对决</h3>
+                <p>DeepSeek V3.2、GPT-5.2、Claude Sonnet 4.6 等 10 个主流 AI 模型同台预测，看谁更准。每个模型都给出独立的分析和比分预测。</p>
+            </div>
+
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon">⚔️</div>
+                <h3>人机大战</h3>
+                <p>用户可以参与投票预测（胜负 + 精确比分），与 AI 模型一较高下，看看人类的直觉能否战胜算法。</p>
+            </div>
+
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon">🏆</div>
+                <h3>双维度排行榜</h3>
+                <p>AI 排行榜 / 人类排行榜独立统计，胜负命中率 & 比分命中率双重排名，实时更新。</p>
+            </div>
+
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon">😂</div>
+                <h3>打脸合集</h3>
+                <p>自动汇总高信心却翻车的预测案例，看看哪些 AI 在"自信满满"时翻车了，趣味十足。</p>
+            </div>
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon">📱</div>
+                <h3>社交分享</h3>
+                <p>支持分享给好友和朋友圈，精美的分享卡片让你的预测战绩一览无余，传播你的足球见解。</p>
+            </div>
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon">🧠</div>
+                <h3>AI 共识分析</h3>
+                <p>多模型预测聚合为共识结论，附带综合信心指数和深度分析报告，助你做出明智判断。</p>
+            </div>
+
+
+        </div>
+    </section>
+
+    <!-- Screenshots Gallery -->
+    <section class="screenshots-section" id="screenshots">
+        <div class="screenshots-container">
+            <div class="section-header animate-on-scroll">
+                <div class="section-tag">App Preview</div>
+                <h2 class="section-title">小程序界面展示</h2>
+                <p class="section-desc">精心设计的用户界面，带来流畅的交互体验</p>
+            </div>
+
+            <!-- Part 1: 首页 -->
+            <div class="screenshot-category animate-on-scroll">
+                <div class="category-header">
+                    <span class="category-icon">🏠</span>
+                    <h3 class="category-title">首页</h3>
+                    <span class="category-desc">比赛列表 · 积分榜 · AI 预测分析</span>
+                </div>
+                <div class="gallery-grid category-grid">
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/首页_小组赛.jpg')">
+                        <img src="screenshot/首页_小组赛.jpg" alt="首页 - 小组赛">
+                        <div class="gallery-label">
+                            <h4>小组赛</h4>
+                            <p>实时比赛列表与筛选</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/首页_积分榜.jpg')">
+                        <img src="screenshot/首页_积分榜.jpg" alt="首页 - 积分榜">
+                        <div class="gallery-label">
+                            <h4>积分榜</h4>
+                            <p>小组赛各队积分排名</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/首页_明天.jpg')">
+                        <img src="screenshot/首页_明天.jpg" alt="首页 - 明日赛事">
+                        <div class="gallery-label">
+                            <h4>明日赛事</h4>
+                            <p>即将开始的精彩对决</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/首页_已结束.jpg')">
+                        <img src="screenshot/首页_已结束.jpg" alt="首页 - 已结束">
+                        <div class="gallery-label">
+                            <h4>已结束</h4>
+                            <p>历史比赛回顾</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/首页预测详情.jpg')">
+                        <img src="screenshot/首页预测详情.jpg" alt="预测详情页">
+                        <div class="gallery-label">
+                            <h4>预测详情</h4>
+                            <p>完整的 AI 分析报告</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/AI汇总.jpg')">
+                        <img src="screenshot/AI汇总.jpg" alt="AI汇总">
+                        <div class="gallery-label">
+                            <h4>AI汇总</h4>
+                            <p>AI汇总分析</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Part 2: 排行 -->
+            <div class="screenshot-category animate-on-scroll">
+                <div class="category-header">
+                    <span class="category-icon">🏆</span>
+                    <h3 class="category-title">排行</h3>
+                    <span class="category-desc">AI 排行榜 · 人类排行榜 · 双维度对比</span>
+                </div>
+                <div class="gallery-grid category-grid-compact">
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/AI排行榜.jpg')">
+                        <img src="screenshot/AI排行榜.jpg" alt="AI 排行榜">
+                        <div class="gallery-label">
+                            <h4>AI 排行榜</h4>
+                            <p>模型准确率 PK 赛</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/AI预测详情.jpg')">
+                        <img src="screenshot/AI预测详情.jpg" alt="AI 预测详情">
+                        <div class="gallery-label">
+                            <h4>AI 预测详情</h4>
+                            <p>多模型深度分析对比</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/人类排行.jpg')">
+                        <img src="screenshot/人类排行.jpg" alt="人类排行榜">
+                        <div class="gallery-label">
+                            <h4>人类排行榜</h4>
+                            <p>用户预测高手榜单</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/别人的战绩.jpg')">
+                        <img src="screenshot/别人的战绩.jpg" alt="别人的战绩">
+                        <div class="gallery-label">
+                            <h4>别人的战绩</h4>
+                            <p>查看其他用户表现</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Part 3: 打脸 -->
+            <div class="screenshot-category animate-on-scroll">
+                <div class="category-header">
+                    <span class="category-icon">😂</span>
+                    <h3 class="category-title">打脸</h3>
+                    <span class="category-desc">高信心翻车 · 比分离谱 · 趣味合集</span>
+                </div>
+                <div class="gallery-grid category-grid-compact">
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/打脸_最新.jpg')">
+                        <img src="screenshot/打脸_最新.jpg" alt="打脸合集">
+                        <div class="gallery-label">
+                            <h4>最新打脸</h4>
+                            <p>高信心翻车现场</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/打脸_高信心翻车.jpg')">
+                        <img src="screenshot/打脸_高信心翻车.jpg" alt="打脸 - 高信心翻车">
+                        <div class="gallery-label">
+                            <h4>高信心翻车</h4>
+                            <p>自信满满的失败</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/打脸_比分离谱.jpg')">
+                        <img src="screenshot/打脸_比分离谱.jpg" alt="打脸 - 比分离谱">
+                        <div class="gallery-label">
+                            <h4>比分离谱</h4>
+                            <p>离谱的预测比分</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Part 4: 我的 -->
+            <div class="screenshot-category animate-on-scroll">
+                <div class="category-header">
+                    <span class="category-icon">👤</span>
+                    <h3 class="category-title">我的</h3>
+                    <span class="category-desc">个人中心 · 战绩查看 · 数据统计</span>
+                </div>
+                <div class="gallery-grid category-grid">
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/我的.jpg')">
+                        <img src="screenshot/我的.jpg" alt="个人中心">
+                        <div class="gallery-label">
+                            <h4>个人中心</h4>
+                            <p>我的数据与设置</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/我的战绩.jpg')">
+                        <img src="screenshot/我的战绩.jpg" alt="我的战绩">
+                        <div class="gallery-label">
+                            <h4>我的战绩</h4>
+                            <p>预测历史与命中率</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item animate-on-scroll" onclick="openLightbox('docs/screenshot/免责声明.jpg')">
+                        <img src="screenshot/免责声明.jpg" alt="免责声明">
+                        <div class="gallery-label">
+                            <h4>免责声明</h4>
+                            <p>合规与风险提示</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Models Section -->
+    <section class="ai-showcase" id="ai-models">
+        <div class="ai-showcase-container">
+            <div class="section-header animate-on-scroll">
+                <div class="section-tag">AI Lineup</div>
+                <h2 class="section-title">AI 模型豪华阵容</h2>
+                <p class="section-desc">通过 OfoxAI 统一网关 + LangGraph 编排调用全球顶级 AI</p>
+            </div>
+
+            <div class="models-grid">
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/deepseek.svg" alt="DeepSeek"></div>
+                    <div class="model-name">DeepSeek V3.2</div>
+                    <div class="model-style">性价比之王</div>
+                    <div class="model-origin">🇨🇳 中国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/qwen.svg" alt="Qwen"></div>
+                    <div class="model-name">Qwen 3.6 Plus</div>
+                    <div class="model-style">阿里旗舰</div>
+                    <div class="model-origin">🇨🇳 中国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/glm.svg" alt="GLM"></div>
+                    <div class="model-name">GLM 5.1</div>
+                    <div class="model-style">推理能力强</div>
+                    <div class="model-origin">🇨🇳 中国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/claude.svg" alt="Claude"></div>
+                    <div class="model-name">Claude Sonnet 4.6</div>
+                    <div class="model-style">Anthropic 旗舰</div>
+                    <div class="model-origin">🇺🇸 美国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/openai.svg" alt="GPT"></div>
+                    <div class="model-name">GPT 5.2</div>
+                    <div class="model-style">OpenAI 旗舰</div>
+                    <div class="model-origin">🇺🇸 美国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/gemini.svg" alt="Gemini"></div>
+                    <div class="model-name">Gemini 2.5 Pro</div>
+                    <div class="model-style">Google 旗舰</div>
+                    <div class="model-origin">🇺🇸 美国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/doubao.svg" alt="Doubao"></div>
+                    <div class="model-name">Seed 1.6</div>
+                    <div class="model-style">字节跳动出品</div>
+                    <div class="model-origin">🇨🇳 中国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/kimi.svg" alt="Kimi"></div>
+                    <div class="model-name">Kimi K2.5</div>
+                    <div class="model-style">月之暗面</div>
+                    <div class="model-origin">🇨🇳 中国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/minimax.svg" alt="MiniMax"></div>
+                    <div class="model-name">MiniMax M2.7</div>
+                    <div class="model-style">稀宇科技</div>
+                    <div class="model-origin">🇨🇳 中国</div>
+                </div>
+
+                <div class="model-card animate-on-scroll">
+                    <div class="model-flag"><img src="../client/src/assets/aimodels/grok.svg" alt="Grok"></div>
+                    <div class="model-name">Grok 4.20</div>
+                    <div class="model-style">xAI 出品</div>
+                    <div class="model-origin">🇺🇸 美国</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack Section -->
+    <section id="tech-stack">
+        <div class="section-header animate-on-scroll">
+            <div class="section-tag">Architecture</div>
+            <h2 class="section-title">技术架构</h2>
+            <p class="section-desc">现代化全栈技术栈，确保高性能与可扩展性</p>
+        </div>
+
+        <div class="tech-grid">
+            <div class="tech-card animate-on-scroll">
+                <h4>FRONTEND</h4>
+                <ul class="tech-list">
+                    <li>Taro 4.1 跨端框架</li>
+                    <li>React 18 + TypeScript</li>
+                    <li>Zustand 状态管理</li>
+                    <li>SCSS 模块化样式</li>
+                    <li>微信小程序原生 API</li>
+                </ul>
+            </div>
+
+            <div class="tech-card animate-on-scroll">
+                <h4>BACKEND</h4>
+                <ul class="tech-list">
+                    <li>FastAPI + Uvicorn</li>
+                    <li>SQLAlchemy 2.0 (Async)</li>
+                    <li>MySQL 8.0 数据库</li>
+                    <li>JWT 认证体系</li>
+                    <li>APScheduler 定时任务</li>
+                </ul>
+            </div>
+
+            <div class="tech-card animate-on-scroll">
+                <h4>AI SERVICES</h4>
+                <ul class="tech-list">
+                    <li>OfoxAI 统一网关</li>
+                    <li>LangGraph 编排引擎</li>
+                    <li>10 个主流 LLM 接入</li>
+                    <li>Prompt 模板管理</li>
+                    <li>智能输出解析器</li>
+                </ul>
+            </div>
+
+            <div class="tech-card animate-on-scroll">
+                <h4>INFRASTRUCTURE</h4>
+                <ul class="tech-list">
+                    <li>Docker Compose 编排</li>
+                    <li>Nginx 反向代理</li>
+                    <li>Highlightly 数据源</li>
+                    <li>Pillow 图片生成</li>
+                    <li>Alembic 数据库迁移</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content animate-on-scroll">
+            <div class="section-tag">Get Started</div>
+            <h2 class="cta-title">准备好挑战 AI 了吗？</h2>
+            <p style="color: var(--text-secondary); font-size: 1.1rem; max-width: 600px; margin: 0 auto;">
+                加入我们，用你的足球智慧与 10 个顶尖 AI 一较高下！<br>
+                开源项目，欢迎贡献代码。
+            </p>
+            <div class="cta-buttons">
+                <a href="https://github.com/AndyXu-Citi/world-cup-prediction" target="_blank" class="btn-primary">
+                    ⭐ Star on GitHub
+                </a>
+                <a href="https://github.com/AndyXu-Citi/world-cup-prediction/blob/master/README.md" target="_blank" class="btn-secondary">
+                    📖 查阅文档
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">⚽ AI 预测世界杯</div>
+            <div class="footer-links">
+                <a href="#features">功能亮点</a>
+                <a href="#screenshots">界面展示</a>
+                <a href="#ai-models">AI 阵容</a>
+                <a href="https://github.com/AndyXu-Citi/world-cup-prediction" target="_blank">GitHub</a>
+                <a href="https://github.com/AndyXu-Citi/world-cup-prediction/issues" target="_blank">Issue</a>
+            </div>
+            <p class="copyright">
+                © 2026 AI 预测世界杯 · MIT License · Made with ❤️ for Football Fans
+            </p>
+        </div>
+    </footer>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+        <img id="lightbox-img" src="" alt="Preview">
+    </div>
+
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry, index) {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, index * 100);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.animate-on-scroll').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Lightbox functions
+        function openLightbox(src) {
+            event.stopPropagation();
+            const lightbox = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-img');
+            img.src = src;
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close lightbox with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

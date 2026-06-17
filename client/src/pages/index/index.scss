@@ -412,16 +412,6 @@
       transform: translateY(0);
     }
   }
-
-  // 每组卡片左侧彩色边条
-  &.group-a { border-left: 4px solid #14b8a6; }
-  &.group-b { border-left: 4px solid #3b82f6; }
-  &.group-c { border-left: 4px solid #a855f7; }
-  &.group-d { border-left: 4px solid #ef4444; }
-  &.group-e { border-left: 4px solid #f97316; }
-  &.group-f { border-left: 4px solid #22d3ee; }
-  &.group-g { border-left: 4px solid #34d399; }
-  &.group-h { border-left: 4px solid #ec4899; }
 }
 
 // 组名横幅 — 渐变背景
@@ -468,21 +458,6 @@
   // 晋级区 — 前两名的微妙高亮
   &.st-qualified {
     background: linear-gradient(90deg, rgba(16, 185, 129, 0.06) 0%, transparent 60%);
-
-    // 左侧晋级指示线
-    position: relative;
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 3px;
-      height: 55%;
-      border-radius: 0 2px 2px 0;
-      background: linear-gradient(180deg, #fbbf24 0%, #10b981 100%);
-    }
   }
 
   // 表头行
