@@ -48,12 +48,12 @@ async def get_home_stats(db: AsyncSession = Depends(get_db)):
 async def get_home_tabs():
     """获取首页 Tab 配置（控制展示顺序）"""
     tabs = [
-        HomeTabItem(key="group", label="小组赛"),
+        HomeTabItem(key="knockout", label="淘汰赛"),
         HomeTabItem(key="standings", label="积分榜"),
         HomeTabItem(key="today", label="今日"),
         HomeTabItem(key="tomorrow", label="明日"),
         HomeTabItem(key="finished", label="已结束"),
-        HomeTabItem(key="knockout", label="淘汰赛"),
+        HomeTabItem(key="group", label="小组赛"),
     ]
     return HomeTabsOut(tabs=tabs)
 
