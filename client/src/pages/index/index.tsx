@@ -5,8 +5,8 @@ import { useMatchStore, useLeaderboardStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
 
-// 默认 Tab 配置（后端接口失败时的 fallback）
-const DEFAULT_CHIPS = ['小组赛', '积分榜', '淘汰赛', '今日', '明日', '已结束']
+// 默认 Tab 配置（后端接口失败时的 fallback，顺序与后端 get_home_tabs 一致）
+const DEFAULT_CHIPS = ['淘汰赛', '积分榜', '今日', '明日', '已结束', '小组赛']
 
 // 每组主题色 — 体育广播风格配色
 const GROUP_COLOR_MAP: Record<string, { gradient: string; accent: string }> = {
@@ -83,9 +83,17 @@ export default function Index() {
   const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
   const fetchStandings = useMatchStore((s) => s.fetchStandings)
   const fetchHomeTabs = useMatchStore((s) => s.fetchHomeTabs)
-  const [activeChip, setActiveChip] = useState('小组赛')
+  // 默认选中第一个 tab（淘汰赛），后端 tabs 加载后自动同步
+  const [activeChip, setActiveChip] = useState(DEFAULT_CHIPS[0])
   // 优先使用后端返回的 Tab 列表，未加载时使用默认配置
   const chips = homeTabs.length > 0 ? homeTabs.map(t => t.label) : DEFAULT_CHIPS
+
+  // 后端 tabs 加载完成后，自动选中后端指定的第一个 tab
+  useEffect(() => {
+    if (homeTabs.length > 0) {
+      setActiveChip(homeTabs[0].label)
+    }
+  }, [homeTabs])
   const navigatingRef = useRef<Set<number>>(new Set())
   // 动态计算 ScrollView 高度，精确适配不同设备屏幕（解决 iPhone 7 Plus 等设备底部留白问题）
   // 根因：CSS 中 calc(100vh - 560px) 的 560px 是 CSS px，但页面元素全部用 rpx，
