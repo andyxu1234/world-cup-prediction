@@ -600,3 +600,18 @@ export function searchUsers(keyword: string) {
 export function evaluatePredictions() {
   return request<any>({ url: '/admin/predictions/evaluate', method: 'POST' })
 }
+
+// ==================== 应用配置 ====================
+
+export interface WelcomeConfig {
+  enabled: boolean
+  max_show_count: number
+}
+
+export interface AppConfig {
+  welcome: WelcomeConfig
+}
+
+export function getAppConfig() {
+  return request<AppConfig>({ url: '/app-config' })
+}

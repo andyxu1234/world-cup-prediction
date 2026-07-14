@@ -10,6 +10,7 @@ from app.api.v1.users import router as users_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.long_term import router as long_term_router
 from app.api.v1.fun_fact import router as fun_fact_router
+from app.api.v1.app_config import router as app_config_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -21,3 +22,4 @@ api_router.include_router(users_router)
 api_router.include_router(admin_router)
 api_router.include_router(long_term_router)
 api_router.include_router(fun_fact_router)
+api_router.include_router(app_config_router)
