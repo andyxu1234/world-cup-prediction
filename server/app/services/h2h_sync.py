@@ -25,8 +25,6 @@ async def sync_all_h2h():
     client = HighlightlyClient(
         api_key=settings.HIGHLIGHTLY_API_KEY,
         base_url=settings.HIGHLIGHTLY_BASE_URL,
-        league_id=settings.HIGHLIGHTLY_LEAGUE_ID,
-        season=settings.HIGHLIGHTLY_SEASON,
     )
 
     stats = {
@@ -144,8 +142,6 @@ async def sync_h2h_for_match(match_id: int):
     client = HighlightlyClient(
         api_key=settings.HIGHLIGHTLY_API_KEY,
         base_url=settings.HIGHLIGHTLY_BASE_URL,
-        league_id=settings.HIGHLIGHTLY_LEAGUE_ID,
-        season=settings.HIGHLIGHTLY_SEASON,
     )
 
     try:

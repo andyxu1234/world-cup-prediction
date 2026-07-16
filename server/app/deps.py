@@ -20,8 +20,6 @@ def get_highlightly_client(settings: Annotated[Settings, Depends(get_settings)])
     return HighlightlyClient(
         api_key=settings.HIGHLIGHTLY_API_KEY,
         base_url=settings.HIGHLIGHTLY_BASE_URL,
-        league_id=settings.HIGHLIGHTLY_LEAGUE_ID,
-        season=settings.HIGHLIGHTLY_SEASON,
     )
 
 

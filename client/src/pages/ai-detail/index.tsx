@@ -102,6 +102,7 @@ function formatTime(iso: string | null): string {
 export default function AIDetail() {
   const router = useRouter()
   const modelId = Number(router.params.modelId || 0)
+  const leagueId = router.params.leagueId ? Number(router.params.leagueId) : undefined
 
   const [detail, setDetail] = useState<AIDetailOut | null>(null)
   const [loading, setLoading] = useState(true)
@@ -111,11 +112,11 @@ export default function AIDetail() {
   useEffect(() => {
     if (!modelId) return
     setLoading(true)
-    getAIDetail(modelId)
+    getAIDetail(modelId, leagueId)
       .then(setDetail)
       .catch(() => Taro.showToast({ title: '加载失败', icon: 'none' }))
       .finally(() => setLoading(false))
-  }, [modelId])
+  }, [modelId, leagueId])
 
   // 动态测量 Hero 高度，精确计算列表可用空间
   useEffect(() => {

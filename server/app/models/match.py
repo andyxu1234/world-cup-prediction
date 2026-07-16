@@ -39,6 +39,9 @@ class Match(Base):
     created_at: Mapped[str] = mapped_column(DateTime, server_default=func.now())
 
     # relationships
+    league_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("leagues.id"))
+    league: Mapped[Optional["League"]] = relationship("League", back_populates="matches")
+
     home_team: Mapped["Team"] = relationship(
         "Team", foreign_keys=[home_team_id], back_populates="home_matches"
     )

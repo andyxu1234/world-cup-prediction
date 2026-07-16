@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
-import { useMatchStore, useLeaderboardStore } from '@/stores'
+import { useMatchStore, useLeaderboardStore, useLeagueStore } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import './index.scss'
 
@@ -83,6 +83,45 @@ export default function Index() {
   const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
   const fetchStandings = useMatchStore((s) => s.fetchStandings)
   const fetchHomeTabs = useMatchStore((s) => s.fetchHomeTabs)
+  // 多联赛：当前选中联赛集合（可多选，混合展示）
+  const currentLeagueId = useLeagueStore((s) => s.currentLeagueId)
+  const leagues = useLeagueStore((s) => s.leagues, shallow)
+  const fetchLeagues = useLeagueStore((s) => s.fetchLeagues)
+  const selectedLeagueIds = useLeagueStore((s) => s.selectedLeagueIds, shallow)
+  const setSelectedLeagues = useLeagueStore((s) => s.setSelectedLeagues)
+  const currentLeague = leagues.find((l) => l.id === currentLeagueId) || null
+
+  // 联赛多选弹窗
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [tempSelected, setTempSelected] = useState<number[]>(selectedLeagueIds)
+  const [triggerRect, setTriggerRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
+  const openLeaguePicker = () => {
+    const query = Taro.createSelectorQuery()
+    query.select('.league-trigger').boundingClientRect()
+    query.exec((res) => {
+      const rect = res[0]
+      if (rect) {
+        setTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+      }
+      setTempSelected(selectedLeagueIds)
+      setPickerOpen(true)
+    })
+  }
+  const toggleLeagueInPicker = (id: number) => {
+    setTempSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+  const toggleSelectAllLeagues = () => {
+    setTempSelected((prev) =>
+      prev.length === leagues.length ? [] : leagues.map((l) => l.id)
+    )
+  }
+  const confirmLeaguePicker = () => {
+    // 不允许空选：至少保留一个联赛
+    if (tempSelected.length > 0) setSelectedLeagues(tempSelected)
+    setPickerOpen(false)
+  }
   // 默认选中第一个 tab（淘汰赛），后端 tabs 加载后自动同步
   const [activeChip, setActiveChip] = useState(DEFAULT_CHIPS[0])
   // 优先使用后端返回的 Tab 列表，未加载时使用默认配置
@@ -107,19 +146,22 @@ export default function Index() {
         const query = Taro.createSelectorQuery()
         query.select('.hero').boundingClientRect()
         query.select('.chips-scroll').boundingClientRect()
+        query.select('.league-picker').boundingClientRect()
         query.exec((res) => {
           const heroRect = res[0]
           const chipsRect = res[1]
+          const switcherRect = res[2]
           if (!heroRect || !chipsRect) {
             setScrollHeight('calc(100vh - 560px)')
             return
           }
           const sysInfo = Taro.getSystemInfoSync()
           const { windowHeight } = sysInfo
-          // ScrollView 高度 = 屏幕可用高度 - Hero实际高度 - Chips实际高度
+          // ScrollView 高度 = 屏幕可用高度 - Hero实际高度 - Chips实际高度 - 联赛切换器高度
           // 不再用硬编码像素值估算
+          const switcherH = switcherRect ? switcherRect.height : 0
           const available = Math.max(
-            windowHeight - heroRect.height - chipsRect.height,
+            windowHeight - heroRect.height - chipsRect.height - switcherH,
             200 // 兜底最小高度，防止极端情况
           )
           setScrollHeight(`${available}px`)
@@ -130,10 +172,15 @@ export default function Index() {
     }, 300) // 等待首帧渲染完成
     return () => clearTimeout(timer)
   }, [])
+  // 首次加载联赛列表
   useEffect(() => {
-    fetchHomeStats()
-    fetchHomeTabs()
-  }, [fetchHomeStats, fetchHomeTabs])
+    fetchLeagues()
+  }, [fetchLeagues])
+
+  useEffect(() => {
+    fetchHomeStats(selectedLeagueIds.length > 0 ? selectedLeagueIds : undefined)
+    fetchHomeTabs(selectedLeagueIds.length > 0 ? selectedLeagueIds : undefined)
+  }, [fetchHomeStats, fetchHomeTabs, selectedLeagueIds])
 
   const goToDetail = useCallback((id: number) => {
     if (navigatingRef.current.has(id)) return
@@ -159,6 +206,7 @@ export default function Index() {
 
   useEffect(() => {
     const params: any = {}
+    if (selectedLeagueIds.length > 0) params.league_ids = selectedLeagueIds
     // 已结束：只展示所有已完成的比赛（不限轮次、不限日期），按时间倒序
     if (activeChip === '已结束') {
       params.status = 'finished'
@@ -176,21 +224,28 @@ export default function Index() {
       params.date = d.toISOString().slice(0, 10)
     }
     fetchMatches(params)
-  }, [activeChip, fetchMatches])
+  }, [activeChip, fetchMatches, selectedLeagueIds])
 
-  // 切换到积分榜 Tab 时加载数据（懒加载 + 缓存）
+  // 切换联赛时重置积分榜缓存标记，并清空旧数据
   const standingsFetchedRef = useRef(false)
   useEffect(() => {
-    if (activeChip === '积分榜' && !standings && !standingsFetchedRef.current) {
+    standingsFetchedRef.current = false
+    useMatchStore.setState({ standings: null })
+  }, [currentLeagueId])
+
+  // 切换到积分榜 Tab 时加载数据（懒加载 + 缓存）
+  useEffect(() => {
+    if (activeChip === '积分榜' && !standings && !standingsFetchedRef.current && currentLeagueId != null) {
       standingsFetchedRef.current = true
-      fetchStandings()
+      fetchStandings(currentLeagueId)
     }
-  }, [activeChip, standings, fetchStandings])
+  }, [activeChip, standings, fetchStandings, currentLeagueId])
 
   // Tab 切换回来时刷新数据
   useDidShow(() => {
-    fetchHomeStats()
+    fetchHomeStats(selectedLeagueIds.length > 0 ? selectedLeagueIds : undefined)
     const params: any = {}
+    if (selectedLeagueIds.length > 0) params.league_ids = selectedLeagueIds
     if (activeChip === '已结束') {
       params.status = 'finished'
       params.sort_order = 'desc'
@@ -219,16 +274,18 @@ export default function Index() {
           </View>
         )
       }
+      // 联赛类型：'league'=单组积分榜（五大联赛），'cup'=多组积分榜（世界杯/欧冠小组赛）
+      const isLeagueType = standings.type === 'league'
       return (
         <View className='standings-wrap'>
           {standings.groups.map((group, gIdx) => {
             const groupColors = GROUP_COLOR_MAP[group.group_name] || GROUP_COLOR_MAP.default
             return (
               <View key={group.group_name} className={`standing-card group-${group.group_name.toLowerCase()}`} style={{ animationDelay: `${gIdx * 0.08}s` }}>
-                {/* 组名横幅 */}
+                {/* 组名横幅：单组联赛显示联赛名，杯赛显示 X 组 */}
                 <View className='standing-hd' style={{ background: groupColors.gradient }}>
-                  <Text className='standing-group-name'>{group.group_name} 组</Text>
-                  <Text className='standing-group-sub'>GROUP {group.group_name}</Text>
+                  <Text className='standing-group-name'>{isLeagueType ? group.group_name : `${group.group_name} 组`}</Text>
+                  <Text className='standing-group-sub'>{isLeagueType ? '积分榜' : `GROUP ${group.group_name}`}</Text>
                 </View>
                 {/* 表头 */}
                 <View className='standing-row standing-head'>
@@ -345,13 +402,17 @@ export default function Index() {
       <View className='hero'>
         <View className='hero-glow' />
         <View className='hero-title-row'>
-          <Text className='hero-title'>2026 世界杯</Text>
-          <Text className='hero-logo'>🏆</Text>
+          <Text className='hero-title'>{selectedLeagueIds.length > 1 ? `已选 ${selectedLeagueIds.length} 个联赛` : (currentLeague?.cn_name || '2026 世界杯')}</Text>
+          {currentLeague?.logo ? (
+            <Image className='hero-logo-img' src={currentLeague.logo} mode='aspectFit' />
+          ) : (
+            <Text className='hero-logo'>🏆</Text>
+          )}
         </View>
         <Text className='hero-sub'>{homeStats?.active_ai_models ?? '--'} 个 AI 模型 · 智能预测 · 人机对决</Text>
         <View className='hero-stats'>
           <View className='hero-stat'>
-            <Text className='hero-stat-num'>104</Text>
+            <Text className='hero-stat-num'>{homeStats?.total_matches ?? '--'}</Text>
             <Text className='hero-stat-label'>总场次</Text>
           </View>
           <View
@@ -387,8 +448,22 @@ export default function Index() {
         </View>
       </View>
 
-      {/* 筛选条 */}
-      <ScrollView scrollX className='chips-scroll'>
+      {/* 筛选栏：联赛下拉 + 筛选 Tab 同一行 */}
+      <View className='filter-row'>
+        {leagues.length > 1 && (
+          <View className='league-trigger' onClick={openLeaguePicker}>
+            {selectedLeagueIds.length === 1 && currentLeague?.logo ? (
+              <Image className='league-trigger-logo' src={currentLeague.logo} mode='aspectFit' />
+            ) : (
+              <View className='league-trigger-badge'>{selectedLeagueIds.length}</View>
+            )}
+            <Text className='league-trigger-name'>
+              {selectedLeagueIds.length === 1 ? currentLeague?.cn_name : `已选 ${selectedLeagueIds.length} 个联赛`}
+            </Text>
+            <Text className='league-trigger-arrow'>▾</Text>
+          </View>
+        )}
+        <ScrollView scrollX className='chips-scroll'>
         <View className='chips'>
           {chips.map((chip) => (
             <View
@@ -400,12 +475,65 @@ export default function Index() {
             </View>
           ))}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* 内容区域 */}
       <ScrollView scrollY className='match-list' style={scrollHeight ? { height: scrollHeight } : undefined}>
         {renderContent()}
       </ScrollView>
+
+      {/* 联赛多选弹窗：定位在触发器下方的紧凑下拉 */}
+      {pickerOpen && (
+        <View className='league-modal-mask' onClick={() => setPickerOpen(false)}>
+          <View
+            className='league-modal'
+            style={triggerRect ? { top: triggerRect.top + triggerRect.height + 8, left: triggerRect.left, minWidth: Math.max(triggerRect.width, 150) } : {}}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ScrollView
+              scrollY
+              className='league-modal-list'
+              style={{ height: `${Math.min(leagues.length * 50 + 10, 240)}px` }}
+            >
+              <View className='league-list'>
+                {leagues.map((lg) => {
+                  const checked = tempSelected.includes(lg.id)
+                  return (
+                    <View
+                      key={lg.id}
+                      className={`league-row ${checked ? 'checked' : ''}`}
+                      onClick={() => toggleLeagueInPicker(lg.id)}
+                    >
+                      <View className='league-row-main'>
+                        {lg.logo ? (
+                          <Image className='league-row-logo' src={lg.logo} mode='aspectFit' />
+                        ) : (
+                          <View className='league-row-logo fallback'>
+                            <Text className='league-row-logo-text'>{lg.cn_name.slice(0, 1)}</Text>
+                          </View>
+                        )}
+                        <Text className='league-row-name'>{lg.cn_name}</Text>
+                      </View>
+                      <View className='league-row-check'>
+                        <View className='league-row-check-inner' />
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+            </ScrollView>
+            <View className='league-modal-ft'>
+              <Text className='league-modal-all' onClick={toggleSelectAllLeagues}>
+                {tempSelected.length === leagues.length ? '清空' : '全选'}
+              </Text>
+              <View className='league-modal-btn confirm' onClick={confirmLeaguePicker}>
+                <Text>确定 ({tempSelected.length})</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }

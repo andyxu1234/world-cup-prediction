@@ -12,13 +12,16 @@ from typing import Optional
 
 from app.database import async_session_factory
 from app.models.team import Team
+from app.models.league import League, LeagueType
 
 
 async def sync_standings_and_stats():
-    """全量同步：小组排名 + 所有球队赛季统计 + 近期状态（admin 手动触发用）
+    """全量同步：遍历所有活跃联赛的积分榜 + 球队赛季统计 + 近期状态（admin 手动触发用）
 
-    使用 1 次 API 调用获取 standings，提取每队的 group_name 和排名信息。
-    然后对有 highlightly_team_id 的球队同步赛季统计。
+    不再写死世界杯联赛 ID：
+    - 遍历 leagues 表中 is_active=True 的联赛，逐个拉取 standings 并回填球队的
+      highlightly_team_id（以及杯赛类型的 group_name）。
+    - 球队赛季统计的 from_date 由各球队所属联赛的 season 决定（见 _sync_team_stats_batch）。
     """
     from app.core.highlightly import HighlightlyClient
     from app.config import get_settings
@@ -28,50 +31,73 @@ async def sync_standings_and_stats():
     client = HighlightlyClient(
         api_key=settings.HIGHLIGHTLY_API_KEY,
         base_url=settings.HIGHLIGHTLY_BASE_URL,
-        league_id=settings.HIGHLIGHTLY_LEAGUE_ID,
-        season=settings.HIGHLIGHTLY_SEASON,
     )
 
     try:
-        # 1. 获取积分榜 — 1 次 API 调用
-        standings_data = await client.get_standings()
-        groups = standings_data.get("groups", [])
-
+        # 0. 取所有活跃联赛
         async with async_session_factory() as session:
-            for group in groups:
-                group_name = group.get("name", "")
-                short_name = group_name.split(" - ")[0].replace("Group ", "").strip()
+            leagues = (
+                await session.execute(select(League).where(League.is_active == True))  # noqa: E712
+            ).scalars().all()
+        league_seasons = {lg.id: lg.season for lg in leagues}
 
-                for standing in group.get("standings", []):
-                    team_info = standing.get("team", {})
-                    team_name = team_info.get("name")
+        # 1. 逐个活跃联赛拉取积分榜，回填球队 highlightly_team_id / group_name
+        total_groups = 0
+        for league in leagues:
+            try:
+                standings_data = await client.get_standings(
+                    league.highlightly_league_id, league.season
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Standings sync skipped for league {league.cn_name} "
+                    f"(hl_id={league.highlightly_league_id}): {e}"
+                )
+                continue
 
-                    if team_name:
-                        stmt = select(Team).where(Team.name == team_name)
-                        result = await session.execute(stmt)
-                        team = result.scalar_one_or_none()
-                        if team:
-                            if not team.group_name:
-                                team.group_name = short_name
-                            hl_id = team_info.get("id")
-                            if hl_id and not team.highlightly_team_id:
-                                team.highlightly_team_id = hl_id
+            groups = standings_data.get("groups", [])
+            total_groups += len(groups)
 
-            await session.commit()
-            logger.info(f"Standings sync: processed {len(groups)} groups")
+            async with async_session_factory() as session:
+                for group in groups:
+                    group_name = group.get("name", "")
+                    short_name = group_name.split(" - ")[0].replace("Group ", "").strip()
 
-        # 2. 同步所有球队赛季统计
+                    for standing in group.get("standings", []):
+                        team_info = standing.get("team", {})
+                        team_name = team_info.get("name")
+
+                        if team_name:
+                            stmt = select(Team).where(Team.name == team_name)
+                            result = await session.execute(stmt)
+                            team = result.scalar_one_or_none()
+                            if team:
+                                # group_name 仅用于杯赛（世界杯小组等），联赛类型不填
+                                if league.type == LeagueType.cup and not team.group_name:
+                                    team.group_name = short_name
+                                hl_id = team_info.get("id")
+                                if hl_id and not team.highlightly_team_id:
+                                    team.highlightly_team_id = hl_id
+
+                await session.commit()
+                logger.info(
+                    f"Standings sync for {league.cn_name}: {len(groups)} groups"
+                )
+
+        # 2. 同步所有球队赛季统计（按所属联赛赛季计算 from_date）
         async with async_session_factory() as session:
             stmt = select(Team).where(Team.highlightly_team_id.isnot(None))
             result = await session.execute(stmt)
             teams = result.scalars().all()
 
-            stats_count, form_count = await _sync_team_stats_batch(client, teams, session, settings)
+            stats_count, form_count = await _sync_team_stats_batch(
+                client, teams, session, settings, league_seasons
+            )
 
             await session.commit()
             logger.info(f"Stats sync: {stats_count} teams stats, {form_count} teams form")
 
-        return {"standings_groups": len(groups), "stats": stats_count, "form": form_count}
+        return {"standings_groups": total_groups, "stats": stats_count, "form": form_count}
     except Exception as e:
         logger.error(f"Stats sync failed: {e}")
         raise
@@ -101,8 +127,6 @@ async def sync_stats_for_teams(team_ids: list[int]):
     client = HighlightlyClient(
         api_key=settings.HIGHLIGHTLY_API_KEY,
         base_url=settings.HIGHLIGHTLY_BASE_URL,
-        league_id=settings.HIGHLIGHTLY_LEAGUE_ID,
-        season=settings.HIGHLIGHTLY_SEASON,
     )
 
     try:
@@ -133,22 +157,37 @@ async def sync_stats_for_teams(team_ids: list[int]):
 # ── 内部工具 ────────────────────────────────────────────────
 
 async def _sync_team_stats_batch(
-    client, teams: list[Team], session, settings
+    client, teams: list[Team], session, settings, league_seasons: dict | None = None
 ) -> tuple[int, int]:
     """批量同步球队的 season_stats 和 recent_form
+
+    Args:
+        league_seasons: {league_id: season} 映射，用于按球队所属联赛赛季计算
+                        from_date。为 None 时回退到全局 settings.HIGHLIGHTLY_SEASON。
 
     Returns:
         (stats_count, form_count)
     """
     from app.core.highlightly import HighlightlyClient
+    from sqlalchemy import select
+
+    # 未显式传入时，从 DB 构建 {league_id: season} 映射（供 targeted 调用复用）
+    if league_seasons is None:
+        rows = (await session.execute(select(League.id, League.season))).all()
+        league_seasons = {lid: ssn for lid, ssn in rows}
 
     stats_count = 0
     form_count = 0
 
     for team in teams:
+        # 按球队所属联赛赛季计算统计窗口（多联赛改造）
+        season = settings.HIGHLIGHTLY_SEASON
+        if league_seasons and team.league_id is not None:
+            season = league_seasons.get(team.league_id, settings.HIGHLIGHTLY_SEASON)
+
         # 同步赛季统计
         try:
-            from_date = f"{settings.HIGHLIGHTLY_SEASON - 1}-01-01"
+            from_date = f"{season - 1}-01-01"
             stats = await client.get_team_statistics(
                 team.highlightly_team_id, from_date=from_date
             )

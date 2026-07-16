@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.models.prediction import Prediction
@@ -27,12 +27,15 @@ async def get_match_predictions(
 
     async def fetch():
         stmt = (
-            select(Prediction)
+            select(Prediction, Match)
+            .join(Match, Match.id == Prediction.match_id)
             .where(Prediction.match_id == match_id)
             .options(selectinload(Prediction.ai_model))
         )
         result = await db.execute(stmt)
-        predictions = result.scalars().all()
+        rows = result.all()
+        predictions = [r[0] for r in rows]
+        league_id = rows[0][1].league_id if rows else None
 
         out = []
         for pred in predictions:
@@ -42,6 +45,7 @@ async def get_match_predictions(
                 model_id=pred.model_id,
                 model_name=pred.ai_model.name,
                 model_avatar=pred.ai_model.avatar_url,
+                league_id=league_id,
                 result=pred.result,
                 score_home=pred.score_home,
                 score_away=pred.score_away,
@@ -69,12 +73,15 @@ async def compare_predictions(
 
     async def fetch():
         stmt = (
-            select(Prediction)
+            select(Prediction, Match)
+            .join(Match, Match.id == Prediction.match_id)
             .where(Prediction.match_id == match_id)
             .options(selectinload(Prediction.ai_model))
         )
         result = await db.execute(stmt)
-        predictions = result.scalars().all()
+        rows = result.all()
+        predictions = [r[0] for r in rows]
+        league_id = rows[0][1].league_id if rows else None
 
         # 统计预测分布
         result_counts = {"home_win": 0, "draw": 0, "away_win": 0}
@@ -83,6 +90,7 @@ async def compare_predictions(
 
         return {
             "match_id": match_id,
+            "league_id": league_id,
             "result_distribution": result_counts,
             "predictions": [
                 {
@@ -105,6 +113,7 @@ async def compare_predictions(
 async def get_face_slaps(
     sort: str = Query("latest", description="排序方式: latest/confidence/absurdity"),
     limit: int = Query(20, le=50),
+    league_id: Optional[int] = Query(None, description="联赛筛选"),
     db: AsyncSession = Depends(get_db),
 ):
     """获取打脸合集
@@ -112,7 +121,7 @@ async def get_face_slaps(
     - confidence: 高信心翻车（胜负+比分都错，按信心倒序）
     - absurdity: 比分离谱（比分错误，按比分离谱度倒序）
     """
-    cache_key = f"face_slaps:{sort}:{limit}"
+    cache_key = f"face_slaps:{sort}:{limit}:{league_id}"
 
     async def fetch():
         from sqlalchemy import desc as sa_desc
@@ -126,8 +135,11 @@ async def get_face_slaps(
                 selectinload(Prediction.ai_model),
                 selectinload(Prediction.match).selectinload(Match.home_team),
                 selectinload(Prediction.match).selectinload(Match.away_team),
+                selectinload(Prediction.match).selectinload(Match.league),
             )
         )
+        if league_id is not None:
+            base_stmt = base_stmt.where(Match.league_id == league_id)
 
         if sort == "confidence":
             stmt = base_stmt.where(
@@ -156,6 +168,7 @@ async def get_face_slaps(
         face_slaps = []
         for pred in predictions:
             match = pred.match
+            league = match.league
             score_diff = abs((match.home_score or 0) - (match.away_score or 0))
             face_slap_index = (pred.confidence or 5) * (score_diff + 1)
             score_absurdity = abs((pred.score_home or 0) - (match.home_score or 0)) + abs((pred.score_away or 0) - (match.away_score or 0))
@@ -165,6 +178,8 @@ async def get_face_slaps(
                 model_name=pred.ai_model.name,
                 model_avatar=pred.ai_model.avatar_url,
                 match_id=match.id,
+                league_id=match.league_id,
+                league_name=league.cn_name if league else None,
                 home_team=match.home_team.cn_name or match.home_team.name,
                 away_team=match.away_team.cn_name or match.away_team.name,
                 home_team_flag=match.home_team.flag_url,

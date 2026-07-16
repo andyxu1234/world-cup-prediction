@@ -3,48 +3,66 @@ from __future__ import annotations
 import httpx
 from loguru import logger
 from typing import Optional
+from urllib.parse import urlparse
 
 
 class HighlightlyClient:
-    """Highlightly Football API 客户端 — 获取赛程、比分、阵容、事件等数据"""
+    """Highlightly Football API 客户端 — 获取赛程、比分、阵容、事件等数据
+
+    多联赛改造后，league_id / season 不再在 __init__ 写死，
+    而是由调用方在每次请求时显式传入（与 leagues 表联动）。
+
+    通过 RapidAPI 代理访问时，必须带上 x-rapidapi-host 与 Content-Type 头，
+    且路径需带 /football 前缀（默认 base_url 已包含）。
+    """
 
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://soccer.highlightly.net",
-        league_id: int = 1635,
-        season: int = 2026,
+        base_url: str = "https://sport-highlights-api.p.rapidapi.com/football",
     ):
         self.api_key = api_key
-        self.base_url = base_url
-        self.league_id = league_id
-        self.season = season
+        self.base_url = base_url.rstrip("/")
+        # RapidAPI 代理要求 x-rapidapi-host 与请求主机一致，并携带 Content-Type
+        host = urlparse(self.base_url).netloc
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
-            headers={"x-rapidapi-key": api_key},
+            headers={
+                "x-rapidapi-key": api_key,
+                "x-rapidapi-host": host,
+                "Content-Type": "application/json",
+            },
             timeout=30.0,
         )
+
+    # ── Leagues ──────────────────────────────────────────────
+
+    async def get_leagues(self, limit: int = 100, offset: int = 0) -> dict:
+        """获取 Highlightly 支持的联赛列表"""
+        params = {"limit": limit, "offset": offset}
+        resp = await self.client.get("/leagues", params=params)
+        resp.raise_for_status()
+        return resp.json()
 
     # ── Matches ──────────────────────────────────────────────
 
     async def get_matches(
         self,
+        league_id: int,
+        season: int,
         date: Optional[str] = None,
-        league_id: Optional[int] = None,
-        season: Optional[int] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> dict:
-        """获取比赛列表，返回 {"data": [...], "pagination": {...}}"""
+        """获取指定联赛某赛季的比赛列表，返回 {"data": [...], "pagination": {...}}"""
         params: dict = {
-            "leagueId": league_id or self.league_id,
-            "season": season or self.season,
+            "leagueId": league_id,
+            "season": season,
             "limit": limit,
             "offset": offset,
         }
         if date:
             params["date"] = date
-            # date 查询时可以不带 leagueId，但保留以过滤世界杯
 
         resp = await self.client.get("/matches", params=params)
         resp.raise_for_status()
@@ -62,18 +80,13 @@ class HighlightlyClient:
             return data[0]
         return None
 
-    async def get_matches_by_date(self, date: str) -> list[dict]:
-        """获取指定日期的世界杯比赛"""
-        data = await self.get_matches(date=date)
-        return data.get("data", [])
-
-    async def get_all_world_cup_matches(self) -> list[dict]:
-        """获取世界杯所有比赛（自动翻页）"""
+    async def get_all_matches_by_league(self, league_id: int, season: int) -> list[dict]:
+        """获取指定联赛某赛季的所有比赛（自动翻页）"""
         all_matches = []
         offset = 0
         limit = 100
         while True:
-            data = await self.get_matches(limit=limit, offset=offset)
+            data = await self.get_matches(league_id=league_id, season=season, limit=limit, offset=offset)
             matches = data.get("data", [])
             all_matches.extend(matches)
             pagination = data.get("pagination", {})
@@ -87,13 +100,13 @@ class HighlightlyClient:
 
     async def get_standings(
         self,
-        league_id: Optional[int] = None,
-        season: Optional[int] = None,
+        league_id: int,
+        season: int,
     ) -> dict:
         """获取积分榜/小组排名"""
         params = {
-            "leagueId": league_id or self.league_id,
-            "season": season or self.season,
+            "leagueId": league_id,
+            "season": season,
         }
         resp = await self.client.get("/standings", params=params)
         resp.raise_for_status()
@@ -109,10 +122,10 @@ class HighlightlyClient:
         limit: int = 40,
         offset: int = 0,
     ) -> dict:
-        """获取比赛集锦"""
+        """获取比赛集锦（可按 match_id 或 league_id 过滤）"""
         params: dict = {"limit": limit, "offset": offset}
-        if league_id or self.league_id:
-            params["leagueId"] = league_id or self.league_id
+        if league_id:
+            params["leagueId"] = league_id
         if match_id:
             params["matchId"] = match_id
         if date:

@@ -80,7 +80,11 @@ async def load_match(state: PredictionState) -> PredictionState:
             stmt = (
                 select(Match)
                 .where(Match.id == state["match_id"])
-                .options(selectinload(Match.home_team), selectinload(Match.away_team))
+                .options(
+                    selectinload(Match.home_team),
+                    selectinload(Match.away_team),
+                    selectinload(Match.league),
+                )
             )
             result = await session.execute(stmt)
             match = result.scalar_one_or_none()
@@ -88,14 +92,18 @@ async def load_match(state: PredictionState) -> PredictionState:
                 raise ValueError(f"Match {state['match_id']} not found")
             matches = [match]
         else:
-            # 批量模式：未来 3 天的 upcoming 比赛
+            # 批量模式：未来 3 天的 upcoming 比赛（覆盖所有联赛）
             now = dt.datetime.now(dt.timezone.utc)
             deadline = now + timedelta(days=3)
             stmt = (
                 select(Match)
                 .where(Match.status == MatchStatus.upcoming)
                 .where(Match.match_time <= deadline)
-                .options(selectinload(Match.home_team), selectinload(Match.away_team))
+                .options(
+                    selectinload(Match.home_team),
+                    selectinload(Match.away_team),
+                    selectinload(Match.league),
+                )
             )
             result = await session.execute(stmt)
             matches = list(result.scalars().all())
@@ -135,6 +143,7 @@ async def load_match(state: PredictionState) -> PredictionState:
                 "match_time": m.match_time.isoformat() if m.match_time else None,
                 "home_team_id": m.home_team_id,
                 "away_team_id": m.away_team_id,
+                "league_name": m.league.cn_name if m.league else None,
                 "existing_model_ids": existing_model_ids_map.get(m.id, []),
             })
 
@@ -180,7 +189,11 @@ async def parallel_predict(state: PredictionState) -> PredictionState:
                 stmt = (
                     select(Match)
                     .where(Match.id == match_id)
-                    .options(selectinload(Match.home_team), selectinload(Match.away_team))
+                    .options(
+                        selectinload(Match.home_team),
+                        selectinload(Match.away_team),
+                        selectinload(Match.league),
+                    )
                 )
                 result = await session.execute(stmt)
                 match = result.scalar_one_or_none()
@@ -209,6 +222,7 @@ async def parallel_predict(state: PredictionState) -> PredictionState:
                     away_team=match.away_team,
                     match=match,
                     head_to_head=h2h_data,
+                    league_name=match.league.cn_name if match.league else None,
                 )
 
                 # 过滤需要预测的模型
@@ -393,7 +407,11 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                 stmt = (
                     select(Match)
                     .where(Match.id == match_id)
-                    .options(selectinload(Match.home_team), selectinload(Match.away_team))
+                    .options(
+                        selectinload(Match.home_team),
+                        selectinload(Match.away_team),
+                        selectinload(Match.league),
+                    )
                 )
                 result = await session.execute(stmt)
                 match = result.scalar_one_or_none()
@@ -422,6 +440,7 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                     away_team=match.away_team,
                     match=match,
                     head_to_head=h2h_data,
+                    league_name=match.league.cn_name if match.league else None,
                 )
 
                 try:
@@ -576,6 +595,7 @@ async def aggregate(state: PredictionState) -> PredictionState:
                     home_team=match_info["home_name"],
                     away_team=match_info["away_name"],
                     predictions=pred_data,
+                    league_name=match_info.get("league_name"),
                 )
 
                 # 调用汇总模型

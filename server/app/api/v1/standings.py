@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,10 +14,19 @@ router = APIRouter(prefix="/standings", tags=["standings"])
 
 
 @router.get("", response_model=StandingsOut)
-async def get_standings(db: AsyncSession = Depends(get_db)):
-    """获取世界杯小组赛积分榜
+async def get_standings(
+    league_id: int = Query(..., description="联赛 ID（必填，世界杯=1，英超=2，…）"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取指定联赛的积分榜
 
-    从已结束的小组赛比赛结果中计算各小组的积分排名。
+    - 常规联赛（type=league）：单组积分榜（如英超 20 队排名）
+    - 杯赛（type=cup）：多组积分榜（如世界杯 8 组 / 欧冠 8 组）
+
     数据缓存 5 分钟。
     """
-    return await get_or_set(standings_cache, "all_standings", lambda: calculate_standings(db))
+    cache_key = f"standings:{league_id}"
+    try:
+        return await get_or_set(standings_cache, cache_key, lambda: calculate_standings(db, league_id))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

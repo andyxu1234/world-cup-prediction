@@ -22,14 +22,37 @@ router = APIRouter(prefix="/matches", tags=["matches"])
 
 
 @router.get("/stats", response_model=HomeStatsOut)
-async def get_home_stats(db: AsyncSession = Depends(get_db)):
-    """首页 Hero 区域统计数据"""
+async def get_home_stats(
+    league_id: Optional[int] = Query(None, description="单个联赛筛选（兼容旧调用）"),
+    league_ids: Optional[List[int]] = Query(None, description="多联赛筛选，传多个联赛 ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """首页 Hero 区域统计数据（可按联赛筛选）"""
     async def fetch():
-        total_matches = (await db.execute(select(func.count(Match.id)))).scalar() or 0
+        if league_ids:
+            league_cond = Match.league_id.in_(league_ids)
+        elif league_id is not None:
+            league_cond = Match.league_id == league_id
+        else:
+            league_cond = None
+
+        total_matches_stmt = select(func.count(Match.id))
+        if league_cond is not None:
+            total_matches_stmt = total_matches_stmt.where(league_cond)
+        total_matches = (await db.execute(total_matches_stmt)).scalar() or 0
+
         active_ai = (await db.execute(
             select(func.count(AIModel.id)).where(AIModel.is_active == True)
         )).scalar() or 0
-        total_predictions = (await db.execute(select(func.count(Prediction.id)))).scalar() or 0
+
+        total_predictions_stmt = (
+            select(func.count(Prediction.id))
+            .join(Match, Match.id == Prediction.match_id)
+        )
+        if league_cond is not None:
+            total_predictions_stmt = total_predictions_stmt.where(league_cond)
+        total_predictions = (await db.execute(total_predictions_stmt)).scalar() or 0
+
         total_users = (await db.execute(
             select(func.count(func.distinct(UserVote.user_id)))
         )).scalar() or 0
@@ -41,25 +64,82 @@ async def get_home_stats(db: AsyncSession = Depends(get_db)):
             total_users=total_users,
             total_user_predictions=total_user_predictions,
         )
-    return await get_or_set(stats_cache, "home_stats", fetch)
+    cache_key = f"home_stats:{league_ids}:{league_id}"
+    return await get_or_set(stats_cache, cache_key, fetch)
 
 
 @router.get("/home-tabs", response_model=HomeTabsOut)
-async def get_home_tabs():
-    """获取首页 Tab 配置（控制展示顺序）"""
-    tabs = [
-        HomeTabItem(key="knockout", label="淘汰赛"),
-        HomeTabItem(key="standings", label="积分榜"),
-        HomeTabItem(key="today", label="今日"),
-        HomeTabItem(key="tomorrow", label="明日"),
-        HomeTabItem(key="finished", label="已结束"),
-        HomeTabItem(key="group", label="小组赛"),
-    ]
+async def get_home_tabs(
+    league_id: Optional[int] = Query(None, description="单个联赛 ID（兼容旧调用）"),
+    league_ids: Optional[List[int]] = Query(None, description="多联赛 ID 列表"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取首页 Tab 配置（控制展示顺序）
+
+    - 未选联赛：默认含小组赛 / 淘汰赛（原世界杯杯赛行为）
+    - 单联赛：按该联赛类型返回（league 无小组赛/淘汰赛，cup 含）
+    - 多联赛：跨联赛无单一积分榜，去掉「积分榜」；含杯赛则保留小组赛/淘汰赛
+    """
+    from app.models.league import League
+    from sqlalchemy import select as sa_select
+
+    if league_ids and len(league_ids) > 0:
+        target_ids = league_ids
+    elif league_id is not None:
+        target_ids = [league_id]
+    else:
+        target_ids = []
+
+    types = []
+    if target_ids:
+        stmt = sa_select(League.type).where(League.id.in_(target_ids))
+        types = (await db.execute(stmt)).scalars().all()
+    has_cup = any((getattr(t, "value", t) == "cup") for t in types)
+
+    if not target_ids:
+        tabs = [
+            HomeTabItem(key="knockout", label="淘汰赛"),
+            HomeTabItem(key="standings", label="积分榜"),
+            HomeTabItem(key="today", label="今日"),
+            HomeTabItem(key="tomorrow", label="明日"),
+            HomeTabItem(key="finished", label="已结束"),
+            HomeTabItem(key="group", label="小组赛"),
+        ]
+    elif len(target_ids) == 1:
+        if types and getattr(types[0], "value", types[0]) == "league":
+            tabs = [
+                HomeTabItem(key="standings", label="积分榜"),
+                HomeTabItem(key="today", label="今日"),
+                HomeTabItem(key="tomorrow", label="明日"),
+                HomeTabItem(key="finished", label="已结束"),
+            ]
+        else:
+            tabs = [
+                HomeTabItem(key="knockout", label="淘汰赛"),
+                HomeTabItem(key="standings", label="积分榜"),
+                HomeTabItem(key="today", label="今日"),
+                HomeTabItem(key="tomorrow", label="明日"),
+                HomeTabItem(key="finished", label="已结束"),
+                HomeTabItem(key="group", label="小组赛"),
+            ]
+    else:
+        # 多联赛：跨联赛无单一积分榜，去掉「积分榜」；含杯赛保留小组赛/淘汰赛
+        tabs = []
+        if has_cup:
+            tabs.append(HomeTabItem(key="knockout", label="淘汰赛"))
+            tabs.append(HomeTabItem(key="group", label="小组赛"))
+        tabs += [
+            HomeTabItem(key="today", label="今日"),
+            HomeTabItem(key="tomorrow", label="明日"),
+            HomeTabItem(key="finished", label="已结束"),
+        ]
     return HomeTabsOut(tabs=tabs)
 
 
 @router.get("", response_model=List[MatchListOut])
 async def get_matches(
+    league_id: Optional[int] = Query(None, description="单个联赛筛选（兼容旧调用）"),
+    league_ids: Optional[List[int]] = Query(None, description="多联赛筛选，传多个联赛 ID"),
     round: Optional[List[str]] = Query(None, description="轮次筛选，支持多个，如 ?round=Group+Stage+-1&round=Round+of+16"),
     status: Optional[str] = Query(None, description="状态筛选"),
     status_not: Optional[str] = Query(None, description="状态排除筛选（排除指定状态）"),
@@ -68,7 +148,7 @@ async def get_matches(
     db: AsyncSession = Depends(get_db),
 ):
     """获取比赛列表"""
-    cache_key = f"matches:{round}:{status}:{status_not}:{date}:{sort_order}"
+    cache_key = f"matches:{league_id}:{league_ids}:{round}:{status}:{status_not}:{date}:{sort_order}"
 
     async def fetch():
         order_col = Match.match_time.desc() if sort_order == "desc" else Match.match_time.asc()
@@ -77,10 +157,15 @@ async def get_matches(
             .options(
                 selectinload(Match.home_team),
                 selectinload(Match.away_team),
+                selectinload(Match.league),
                 selectinload(Match.summary),
             )
             .order_by(order_col)
         )
+        if league_ids:
+            stmt = stmt.where(Match.league_id.in_(league_ids))
+        elif league_id is not None:
+            stmt = stmt.where(Match.league_id == league_id)
         if round:
             stmt = stmt.where(Match.round.in_(round))
         if status:
@@ -113,6 +198,7 @@ async def get_match_detail(
             .where(Match.id == match_id)
             .options(
                 selectinload(Match.home_team), selectinload(Match.away_team),
+                selectinload(Match.league),
                 selectinload(Match.predictions).selectinload(Prediction.ai_model),
                 selectinload(Match.summary),
             )
@@ -126,6 +212,15 @@ async def get_match_detail(
         def _enumval(v):
             return v.value if hasattr(v, 'value') else v
 
+        league = match.league
+        league_out = {
+            "id": league.id,
+            "name": league.name,
+            "cn_name": league.cn_name,
+            "logo": league.logo,
+            "type": league.type.value if hasattr(league.type, "value") else league.type,
+        } if league else None
+
         match_dict = {
             "id": match.id,
             "match_day": match.match_day,
@@ -136,6 +231,8 @@ async def get_match_detail(
             "home_score": match.home_score,
             "away_score": match.away_score,
             "result": _enumval(match.result),
+            "league_id": match.league_id,
+            "league": league_out,
             "home_team": {"id": match.home_team.id, "name": match.home_team.name, "cn_name": match.home_team.cn_name, "flag_url": match.home_team.flag_url, "group_name": match.home_team.group_name, "fifa_rank": match.home_team.fifa_rank},
             "away_team": {"id": match.away_team.id, "name": match.away_team.name, "cn_name": match.away_team.cn_name, "flag_url": match.away_team.flag_url, "group_name": match.away_team.group_name, "fifa_rank": match.away_team.fifa_rank},
         }

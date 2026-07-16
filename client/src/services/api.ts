@@ -91,6 +91,41 @@ async function request<T = any>(options: RequestOptions): Promise<T> {
   throw new Error('Request failed after retries')
 }
 
+// ==================== 联赛相关 ====================
+
+/** 比赛/预测响应中内嵌的联赛简要信息 */
+export interface LeagueBrief {
+  id: number
+  name: string
+  cn_name: string
+  logo: string | null
+  type: string
+}
+
+/** 联赛完整信息 */
+export interface League {
+  id: number
+  name: string
+  cn_name: string
+  logo: string | null
+  highlightly_league_id: number
+  season: number
+  type: string          // 'cup' | 'league'
+  country: string | null
+  is_active: boolean
+  sort_order: number
+}
+
+/** 获取所有联赛列表（按 sort_order 排序，含 is_active 状态） */
+export function getLeagues() {
+  return request<League[]>({ url: '/leagues' })
+}
+
+/** 获取单个联赛详情 */
+export function getLeagueDetail(id: number) {
+  return request<League>({ url: `/leagues/${id}` })
+}
+
 // ==================== 比赛相关 ====================
 
 export interface Team {
@@ -112,6 +147,8 @@ export interface Match {
   home_score: number | null
   away_score: number | null
   result: string | null
+  league_id: number | null
+  league?: LeagueBrief | null
   home_team: Team
   away_team: Team
   predictions?: Prediction[]
@@ -150,11 +187,15 @@ export interface Prediction {
   created_at: string | null
 }
 
-export function getMatches(params?: { status?: string; status_not?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) {
+export function getMatches(params?: { league_id?: number; league_ids?: number[]; status?: string; status_not?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) {
   // 手动构建 query string，确保数组参数正确序列化为 ?round=xxx&round=yyy
   let qs = ''
   if (params) {
     const parts: string[] = []
+    if (params.league_id != null) parts.push(`league_id=${params.league_id}`)
+    if (params.league_ids && params.league_ids.length > 0) {
+      params.league_ids.forEach(id => parts.push(`league_ids=${id}`))
+    }
     if (params.status) parts.push(`status=${encodeURIComponent(params.status)}`)
     if (params.status_not) parts.push(`status_not=${encodeURIComponent(params.status_not)}`)
     if (params.round) {
@@ -178,8 +219,8 @@ export interface HomeStats {
   total_user_predictions: number
 }
 
-export function getHomeStats() {
-  return request<HomeStats>({ url: '/matches/stats' })
+export function getHomeStats(leagueIds?: number[]) {
+  return request<HomeStats>({ url: '/matches/stats', data: leagueIds && leagueIds.length > 0 ? { league_ids: leagueIds } : {} })
 }
 
 export interface HomeTabItem {
@@ -191,8 +232,8 @@ export interface HomeTabsOut {
   tabs: HomeTabItem[]
 }
 
-export function getHomeTabs() {
-  return request<HomeTabsOut>({ url: '/matches/home-tabs' })
+export function getHomeTabs(leagueIds?: number[]) {
+  return request<HomeTabsOut>({ url: '/matches/home-tabs', data: leagueIds && leagueIds.length > 0 ? { league_ids: leagueIds } : {} })
 }
 
 export function getMatchDetail(id: number) {
@@ -228,6 +269,8 @@ export interface FaceSlap {
   model_name: string
   model_avatar: string | null
   match_id: number
+  league_id: number | null
+  league_name: string | null
   home_team: string          // 主队中文名
   away_team: string          // 客队中文名
   home_team_flag: string | null   // 主队国旗
@@ -245,8 +288,10 @@ export interface FaceSlap {
 
 export type FaceSlapSort = 'latest' | 'confidence' | 'absurdity'
 
-export function getFaceSlaps(sort: FaceSlapSort = 'latest', limit = 20) {
-  return request<FaceSlap[]>({ url: '/predictions/face-slaps', data: { sort, limit } })
+export function getFaceSlaps(sort: FaceSlapSort = 'latest', limit = 20, leagueId?: number) {
+  const data: Record<string, any> = { sort, limit }
+  if (leagueId != null) data.league_id = leagueId
+  return request<FaceSlap[]>({ url: '/predictions/face-slaps', data })
 }
 
 // ==================== 排行榜 ====================
@@ -287,8 +332,11 @@ export interface HumanLeaderboardOut {
   my_rank: MyRankItem | null
 }
 
-export function getAILeaderboard(round?: string) {
-  return request<AILeaderboardItem[]>({ url: '/leaderboard/ai', data: round ? { round } : {} })
+export function getAILeaderboard(round?: string, leagueId?: number) {
+  const data: Record<string, any> = {}
+  if (round) data.round = round
+  if (leagueId != null) data.league_id = leagueId
+  return request<AILeaderboardItem[]>({ url: '/leaderboard/ai', data })
 }
 
 export interface AIDetailPrediction {
@@ -330,14 +378,15 @@ export interface AIDetailOut {
   predictions: AIDetailPrediction[]
 }
 
-export function getAIDetail(modelId: number) {
-  return request<AIDetailOut>({ url: `/leaderboard/ai/${modelId}` })
+export function getAIDetail(modelId: number, leagueId?: number) {
+  return request<AIDetailOut>({ url: `/leaderboard/ai/${modelId}`, data: leagueId != null ? { league_id: leagueId } : {} })
 }
 
-export function getHumanLeaderboard(userId?: number, round?: string) {
+export function getHumanLeaderboard(userId?: number, round?: string, leagueId?: number) {
   const data: Record<string, any> = {}
   if (userId) data.user_id = userId
   if (round) data.round = round
+  if (leagueId != null) data.league_id = leagueId
   return request<HumanLeaderboardOut>({ url: '/leaderboard/human', data })
 }
 
@@ -387,8 +436,9 @@ export function wxLogin(code: string) {
   return request<{ token: string; user: UserProfile; profile_setup: boolean; is_new_user: boolean }>({ url: '/users/login', method: 'POST', data: { code } })
 }
 
-export function getUserProfile(userId: number) {
-  return request<UserProfile>({ url: `/users/profile?user_id=${userId}` })
+export function getUserProfile(userId: number, leagueId?: number) {
+  const lq = leagueId != null ? `&league_id=${leagueId}` : ''
+  return request<UserProfile>({ url: `/users/profile?user_id=${userId}${lq}` })
 }
 
 export function updateUserProfile(userId: number, nickname: string, avatarUrl: string) {
@@ -417,6 +467,7 @@ export interface VoteOut {
 export interface VoteHistoryItem {
   id: number
   match_id: number
+  league_name: string | null
   round: string
   match_time: string | null
   home_team_name: string
@@ -435,8 +486,9 @@ export interface VoteHistoryItem {
   created_at: string | null
 }
 
-export function getUserVoteHistory(userId: number, limit = 50, offset = 0) {
-  return request<VoteHistoryItem[]>({ url: `/users/votes?user_id=${userId}&limit=${limit}&offset=${offset}` })
+export function getUserVoteHistory(userId: number, limit = 50, offset = 0, leagueId?: number) {
+  const lq = leagueId != null ? `&league_id=${leagueId}` : ''
+  return request<VoteHistoryItem[]>({ url: `/users/votes?user_id=${userId}&limit=${limit}&offset=${offset}${lq}` })
 }
 
 export function votePrediction(userId: number, matchId: number, predictedResult: string, homeScore: number, awayScore: number) {
@@ -488,10 +540,12 @@ export interface GroupStandingOut {
 
 export interface StandingsOut {
   groups: GroupStandingOut[]
+  /** 联赛类型：'cup'（多组）| 'league'（单组），前端据此切换积分榜布局 */
+  type?: string
 }
 
-export function getStandings() {
-  return request<StandingsOut>({ url: '/standings' })
+export function getStandings(leagueId: number) {
+  return request<StandingsOut>({ url: '/standings', data: { league_id: leagueId } })
 }
 
 // ==================== 趣闻生成 ====================
@@ -603,15 +657,6 @@ export function evaluatePredictions() {
 
 // ==================== 应用配置 ====================
 
-export interface WelcomeConfig {
-  enabled: boolean
-  max_show_count: number
-}
+// 已移除：世界杯落幕引导页相关接口（getAppConfig / welcome）
+// 如需动态应用配置，可在此处重新扩展。
 
-export interface AppConfig {
-  welcome: WelcomeConfig
-}
-
-export function getAppConfig() {
-  return request<AppConfig>({ url: '/app-config' })
-}

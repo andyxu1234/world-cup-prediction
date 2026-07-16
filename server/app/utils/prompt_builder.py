@@ -7,7 +7,7 @@ from app.models.match import Match
 from typing import Optional
 
 
-SYSTEM_PROMPT = """你是一位资深足球分析专家，请根据提供的数据预测以下世界杯比赛的结果。
+SYSTEM_PROMPT = """你是一位资深足球分析专家，请根据提供的数据预测以下足球比赛的结果。
 
 你需要综合考虑球队实力、近期状态、历史交锋、主客场表现等多维度数据，做出专业判断。
 
@@ -140,12 +140,14 @@ def build_user_prompt(
     away_team: Team,
     match: Match,
     head_to_head: Optional[list] = None,
+    league_name: Optional[str] = None,
 ) -> str:
     """构建单场预测的用户 Prompt — 包含丰富数据"""
     h2h_text = _format_head_to_head(head_to_head, home_team.name, away_team.name)
 
     return f"""比赛信息：
 - 比赛：{home_team.name} vs {away_team.name}
+- 联赛：{league_name or '未知联赛'}
 - 轮次：{match.round}
 - 场地：{match.venue or '待定'}
 
@@ -175,6 +177,7 @@ def build_summary_prompt(
     home_team: str,
     away_team: str,
     predictions: list[dict],
+    league_name: Optional[str] = None,
 ) -> str:
     """构建汇总预测的 Prompt：综合多个 AI 模型的预测结果，生成统一结论"""
     pred_lines = []
@@ -194,7 +197,7 @@ def build_summary_prompt(
 
     return f"""你是足球分析总编辑，请综合以下多个AI模型对同一场比赛的预测，生成统一的综合预测结论。
 
-比赛：{home_team} vs {away_team}
+比赛（{league_name or '未知联赛'}）：{home_team} vs {away_team}
 
 各AI模型预测：
 {preds_text}
@@ -210,13 +213,13 @@ def build_summary_prompt(
 }}"""
 
 
-def build_long_term_prompt(teams: list[Team]) -> str:
+def build_long_term_prompt(teams: list[Team], league_name: Optional[str] = None) -> str:
     """构建长期预测（冠亚季军）的 Prompt"""
     team_list = "\n".join(
         f"- {t.name}（{_format_team_stats(t)}）"
         for t in teams
     )
-    return f"""你是一位足球分析专家，请预测2026年世界杯的最终结果。
+    return f"""你是一位足球分析专家，请预测{league_name or '2026年世界杯'}的最终结果。
 
 参赛球队：
 {team_list}

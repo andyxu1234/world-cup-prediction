@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { useLeaderboardStore, useUserStore, useMatchStore } from '@/stores'
+import { useLeaderboardStore, useUserStore, useMatchStore, useLeagueStore } from '@/stores'
 import { resolveAvatarUrl } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
@@ -206,12 +206,19 @@ export default function Leaderboard() {
   } = useLeaderboardStore()
   const loginReady = useUserStore((s) => s.loginReady)
   const homeStats = useMatchStore((s) => s.homeStats)
+  // 多联赛：当前选中联赛（切换后重新拉取排行）
+  const currentLeagueId = useLeagueStore((s) => s.currentLeagueId)
+  const fetchLeagues = useLeagueStore((s) => s.fetchLeagues)
   // 动态计算列表高度，解决 iOS 设备底部空白问题
   const [listHeight, setListHeight] = useState<string>('')
 
   useEffect(() => {
+    fetchLeagues()
+  }, [fetchLeagues])
+
+  useEffect(() => {
     if (loginReady) fetchLeaderboard()
-  }, [loginReady])
+  }, [loginReady, currentLeagueId])
 
   // 动态测量 Tabs+Controls 高度（高度随 Tab/轮次变化）
   useEffect(() => {
@@ -413,7 +420,7 @@ export default function Leaderboard() {
             const hasResult = entry.total > 0
             const rank = idx + 1
             return (
-              <View key={idx} className={`lb-item ${rank <= 3 ? 'lb-item-top3' : ''} lb-item-clickable`} onClick={() => Taro.navigateTo({ url: `/pages/ai-detail/index?modelId=${entry.model_id}` })}>
+              <View key={idx} className={`lb-item ${rank <= 3 ? 'lb-item-top3' : ''} lb-item-clickable`} onClick={() => Taro.navigateTo({ url: `/pages/ai-detail/index?modelId=${entry.model_id}${currentLeagueId != null ? `&leagueId=${currentLeagueId}` : ''}` })}>
                 <View className='lb-rank'>
                   <Text className='lb-rank-badge'>#{rank}</Text>
                 </View>

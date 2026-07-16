@@ -18,6 +18,9 @@ class LongTermPrediction(Base):
     created_at: Mapped[str] = mapped_column(DateTime, server_default=func.now())
 
     # relationships
+    league_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("leagues.id"))
+    league: Mapped[Optional["League"]] = relationship("League", back_populates="long_term_predictions")
+
     ai_model: Mapped["AIModel"] = relationship("AIModel")
     champion_team: Mapped[Optional["Team"]] = relationship("Team", foreign_keys=[champion_team_id])
     runner_up_team: Mapped[Optional["Team"]] = relationship("Team", foreign_keys=[runner_up_team_id])

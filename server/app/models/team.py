@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Integer, DateTime, JSON, func
+from sqlalchemy import String, Integer, DateTime, JSON, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional
 from app.database import Base
@@ -23,6 +23,9 @@ class Team(Base):
     created_at: Mapped[str] = mapped_column(DateTime, server_default=func.now())
 
     # relationships
+    league_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("leagues.id"))
+    league: Mapped[Optional["League"]] = relationship("League", back_populates="teams")
+
     home_matches: Mapped[list["Match"]] = relationship(
         "Match", foreign_keys="Match.home_team_id", back_populates="home_team"
     )

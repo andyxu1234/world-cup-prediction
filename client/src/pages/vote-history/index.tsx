@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
-import { useUserStore } from '@/stores'
+import { useUserStore, useLeagueStore } from '@/stores'
 import { getUserVoteHistory, VoteHistoryItem } from '@/services/api'
 import './index.scss'
 
@@ -70,19 +70,26 @@ export default function VoteHistory() {
   const [loading, setLoading] = useState(true)
   // 动态计算列表高度，解决 iOS 设备底部空白问题
   const [scrollHeight, setScrollHeight] = useState<string>('')
+  // 多联赛：当前选中联赛（切换后重新拉取投票历史）
+  const currentLeagueId = useLeagueStore((s) => s.currentLeagueId)
+  const fetchLeagues = useLeagueStore((s) => s.fetchLeagues)
 
   // 支持从 URL 参数获取 userId，否则使用当前登录用户
   const targetUserId = router.params.userId ? Number(router.params.userId) : user?.id
   const isViewingOther = targetUserId !== user?.id
 
   useEffect(() => {
+    fetchLeagues()
+  }, [fetchLeagues])
+
+  useEffect(() => {
     if (!targetUserId) return
     setLoading(true)
-    getUserVoteHistory(targetUserId, 200)
+    getUserVoteHistory(targetUserId, 200, 0, currentLeagueId ?? undefined)
       .then(setList)
       .catch(() => Taro.showToast({ title: '加载失败', icon: 'none' }))
       .finally(() => setLoading(false))
-  }, [targetUserId])
+  }, [targetUserId, currentLeagueId])
 
   // 动态测量 Hero 高度，精确计算列表可用空间
   useEffect(() => {
@@ -150,7 +157,7 @@ export default function VoteHistory() {
             return (
               <View key={item.id} className='vh-card'>
                 <View className='vh-card-hd'>
-                  <Text className='vh-round'>{getRoundLabel(item.round)}</Text>
+                  <Text className='vh-round'>{getRoundLabel(item.round)}{item.league_name ? ` · ${item.league_name}` : ''}</Text>
                   <View className='vh-badges'>
                     <Text className={`vh-badge ${badge.className}`}>{badge.text}</Text>
                   </View>

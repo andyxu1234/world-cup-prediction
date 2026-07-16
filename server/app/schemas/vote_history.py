@@ -10,6 +10,7 @@ from pydantic import BaseModel
 class VoteHistoryItem(BaseModel):
     id: int
     match_id: int
+    league_name: Optional[str] = None
     round: str
     match_time: Optional[str] = None
     home_team_name: str

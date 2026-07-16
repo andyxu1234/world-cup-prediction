@@ -1,3 +1,4 @@
+from app.models.league import League
 from app.models.team import Team
 from app.models.match import Match
 from app.models.ai_model import AIModel
@@ -20,4 +21,5 @@ __all__ = [
     "HeadToHead",
     "PredictionSummary",
     "VipMember",
+    "League",
 ]

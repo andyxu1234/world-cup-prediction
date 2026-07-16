@@ -92,7 +92,7 @@ world-cup-prediction/
 │   │   ├── services/                # 业务逻辑 (12 个)
 │   │   │   ├── sync_pipeline.py     # 数据同步编排
 │   │   │   ├── match_sync.py        # 比赛数据同步 (Highlightly)
-│   │   │   ├── stats_sync.py        # 球队统计同步
+│   │   │   ├── stats_sync.py        # 球队统计同步 (遍历所有活跃联赛)
 │   │   │   ├── h2h_sync.py          # 历史交锋同步
 │   │   │   ├── ai_predictor.py      # AI 预测服务
 │   │   │   ├── prediction_graph.py  # LangGraph 预测编排图
@@ -245,6 +245,7 @@ docker compose logs -f api
 | GET | `/share/card/{matchId}/image` | 分享卡片图片 (PNG) |
 | GET | `/fun-fact` | 动态趣闻 (DeepSeek 生成) |
 | POST | `/admin/matches/sync` | 同步比赛数据 |
+| POST | `/admin/stats/sync` | 同步球队统计（遍历所有活跃联赛的积分榜 + 近期状态） |
 | POST | `/admin/predictions/generate` | 批量生成 AI 预测 |
 | POST | `/admin/predictions/generate/{matchId}` | 单场 AI 预测 |
 | POST | `/admin/predictions/evaluate` | 评估已结束比赛的预测准确性 |

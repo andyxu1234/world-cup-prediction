@@ -14,6 +14,7 @@ class PredictionOut(BaseModel):
     model_id: int
     model_name: Optional[str] = None
     model_avatar: Optional[str] = None
+    league_id: Optional[int] = None
     result: str
     score_home: Optional[int] = None
     score_away: Optional[int] = None
@@ -35,6 +36,8 @@ class FaceSlapOut(BaseModel):
     model_name: str
     model_avatar: Optional[str] = None
     match_id: int
+    league_id: Optional[int] = None
+    league_name: Optional[str] = None
     home_team: str          # 主队中文名
     away_team: str          # 客队中文名
     home_team_flag: Optional[str] = None   # 主队国旗

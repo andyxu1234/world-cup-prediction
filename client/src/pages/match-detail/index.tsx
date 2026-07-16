@@ -308,7 +308,17 @@ export default function MatchDetail() {
     <View className='detail-page'>
       {/* 比赛头部 */}
       <View className='match-hero'>
-        <Text className='match-hero-round'>{getRoundLabel(currentMatch.round)}</Text>
+        <View className='match-hero-top'>
+          {currentMatch.league && (
+            <View className='match-hero-league'>
+              {currentMatch.league.logo ? (
+                <Image className='match-hero-league-logo' src={currentMatch.league.logo} mode='aspectFit' />
+              ) : null}
+              <Text className='match-hero-league-name'>{currentMatch.league.cn_name}</Text>
+            </View>
+          )}
+          <Text className='match-hero-round'>{getRoundLabel(currentMatch.round)}</Text>
+        </View>
         <View className='match-hero-teams'>
           <TeamInfo team={currentMatch.home_team} />
           <Text className='match-hero-vs mono'>VS</Text>

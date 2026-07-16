@@ -229,6 +229,7 @@ async def create_vote(
 @router.get("/profile", response_model=UserProfileOut)
 async def get_profile(
     user_id: int = Query(..., description="用户ID"),
+    league_id: Optional[int] = Query(None, description="联赛筛选，只统计该联赛的投票战绩"),
     db: AsyncSession = Depends(get_db),
 ):
     """用户信息"""
@@ -242,7 +243,13 @@ async def get_profile(
             raise HTTPException(status_code=404, detail="User not found")
 
         # 投票统计
-        total_stmt = select(func.count(UserVote.id)).where(UserVote.user_id == user_id)
+        total_stmt = (
+            select(func.count(UserVote.id))
+            .join(Match, Match.id == UserVote.match_id)
+            .where(UserVote.user_id == user_id)
+        )
+        if league_id is not None:
+            total_stmt = total_stmt.where(Match.league_id == league_id)
         total_result = await db.execute(total_stmt)
         total = total_result.scalar() or 0
 
@@ -251,9 +258,12 @@ async def get_profile(
                 func.sum(case((UserVote.is_correct_result == True, 1), else_=0)).label("correct_result"),
                 func.sum(case((UserVote.is_correct_score == True, 1), else_=0)).label("correct_score"),
             )
+            .join(Match, Match.id == UserVote.match_id)
             .where(UserVote.user_id == user_id)
             .where(UserVote.is_correct_result.isnot(None))
         )
+        if league_id is not None:
+            evaluated_stmt = evaluated_stmt.where(Match.league_id == league_id)
         evaluated_result = await db.execute(evaluated_stmt)
         evaluated_row = evaluated_result.one()
         correct_result = evaluated_row.correct_result or 0
@@ -282,22 +292,30 @@ async def get_profile(
 @router.get("/votes", response_model=list[VoteHistoryItem])
 async def get_vote_history(
     user_id: int = Query(..., description="用户ID"),
+    league_id: Optional[int] = Query(None, description="联赛筛选"),
     limit: int = Query(20, description="返回数量"),
     offset: int = Query(0, description="偏移量"),
     db: AsyncSession = Depends(get_db),
 ):
     """获取用户投票历史"""
-    cache_key = f"votes:{user_id}:{limit}:{offset}"
+    cache_key = f"votes:{user_id}:{league_id}:{limit}:{offset}"
 
     async def fetch():
         HomeTeam = aliased(Team)
         AwayTeam = aliased(Team)
+        from app.models.league import League
         stmt = (
-            select(UserVote, Match, HomeTeam, AwayTeam)
+            select(UserVote, Match, HomeTeam, AwayTeam, League)
             .join(Match, UserVote.match_id == Match.id)
             .join(HomeTeam, Match.home_team_id == HomeTeam.id)
             .join(AwayTeam, Match.away_team_id == AwayTeam.id)
+            .join(League, League.id == Match.league_id, isouter=True)
             .where(UserVote.user_id == user_id)
+        )
+        if league_id is not None:
+            stmt = stmt.where(Match.league_id == league_id)
+        stmt = (
+            stmt
             .order_by(UserVote.created_at.desc())
             .limit(limit)
             .offset(offset)
@@ -307,10 +325,11 @@ async def get_vote_history(
 
         items = []
         for row in rows:
-            vote, match, home_team, away_team = row
+            vote, match, home_team, away_team, league = row
             items.append(VoteHistoryItem(
                 id=vote.id,
                 match_id=match.id,
+                league_name=league.cn_name if league else None,
                 round=match.round,
                 match_time=match.match_time.isoformat() if match.match_time else None,
                 home_team_name=home_team.cn_name or home_team.name,

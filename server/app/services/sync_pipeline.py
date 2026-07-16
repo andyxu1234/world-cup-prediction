@@ -19,22 +19,47 @@ from app.services.prediction_evaluator import evaluate_predictions
 async def sync_matches_and_respond():
     """每 30 分钟执行：同步比赛 + 事件驱动下游
 
+    多联赛改造：先遍历所有 is_active=True 的联赛，逐个调用 sync_matches(league_id)，
+    再对聚合后的新增/刚结束比赛做事件驱动下游处理。
+
     流程：
-    1. sync_matches() — 同步比赛数据，返回新增/刚结束的比赛
+    1. 遍历活跃联赛 → 逐个 sync_matches(league_id) 同步比赛
     2. 新增比赛 → 同步该场比赛的 H2H
     3. 刚结束的比赛 → 更新涉及球队的 stats/form → 评估预测
     """
     logger.info("=== Sync pipeline started ===")
 
-    # 1. 同步比赛数据
-    try:
-        result = await sync_matches()
-    except Exception as e:
-        logger.error(f"sync_matches failed, pipeline aborted: {e}")
-        return {"status": "aborted", "reason": f"sync_matches failed: {e}"}
+    from app.services.match_sync import get_active_leagues
 
-    new_matches = result.get("new_matches", [])
-    newly_finished = result.get("newly_finished", [])
+    # 1. 遍历活跃联赛，逐个同步比赛
+    try:
+        leagues = await get_active_leagues()
+    except Exception as e:
+        logger.error(f"Failed to load active leagues, pipeline aborted: {e}")
+        return {"status": "aborted", "reason": f"load active leagues failed: {e}"}
+
+    if not leagues:
+        logger.warning("No active leagues configured, pipeline skipped")
+        return {"status": "skipped", "reason": "no active leagues"}
+
+    all_new: list[int] = []
+    all_finished: list[int] = []
+    per_league: list[dict] = []
+
+    for league in leagues:
+        try:
+            result = await sync_matches(league_id=league.id)
+        except Exception as e:
+            logger.error(f"sync_matches failed for league {league.name}, skipped: {e}")
+            per_league.append({"league": league.name, "error": str(e)})
+            continue
+        all_new.extend(result.get("new_matches", []))
+        all_finished.extend(result.get("newly_finished", []))
+        per_league.append({"league": league.name, **result})
+
+    new_matches = all_new
+    newly_finished = all_finished
+    total_synced = sum(r.get("synced", 0) for r in per_league if "synced" in r)
 
     h2h_synced = 0
     stats_synced = 0
@@ -53,7 +78,7 @@ async def sync_matches_and_respond():
 
     logger.info(
         f"=== Sync pipeline completed: "
-        f"{result.get('synced', 0)} matches synced, "
+        f"{total_synced} matches synced across {len(leagues)} leagues, "
         f"{h2h_synced} H2H synced, "
         f"{stats_synced} team stats updated, "
         f"predictions_evaluated={predictions_evaluated} ==="
@@ -61,12 +86,14 @@ async def sync_matches_and_respond():
 
     return {
         "status": "ok",
-        "synced": result.get("synced", 0),
+        "leagues_count": len(leagues),
+        "synced": total_synced,
         "new_matches": len(new_matches),
         "newly_finished": len(newly_finished),
         "h2h_synced": h2h_synced,
         "stats_synced": stats_synced,
         "predictions_evaluated": predictions_evaluated,
+        "per_league": per_league,
     }
 
 

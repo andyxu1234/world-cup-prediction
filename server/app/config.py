@@ -40,9 +40,12 @@ class Settings(BaseSettings):
     DEEPSEEK_BASE_URL: str = ""
 
     # Highlightly (替换 API-Football)
-    HIGHLIGHTLY_API_KEY: str = ""
-    HIGHLIGHTLY_BASE_URL: str = "https://soccer.highlightly.net"
-    HIGHLIGHTLY_LEAGUE_ID: int = 1635   # World Cup
+    HIGHLIGHTLY_API_KEY: str = "33c6aa730bmsh28673a1cdfb33f5p1ff595jsnbade2506933c"
+    # RapidAPI 代理主机；路径需带 /football 前缀
+    HIGHLIGHTLY_BASE_URL: str = "https://sport-highlights-api.p.rapidapi.com/football"
+    # Highlightly 默认联赛 / 赛季
+    # 多联赛模式下改由 leagues 表驱动；这两个值仅作为未指定联赛时的回退默认值，不再强制使用
+    HIGHLIGHTLY_LEAGUE_ID: int = 1635   # World Cup (default/fallback)
     HIGHLIGHTLY_SEASON: int = 2026
 
     # 微信小程序

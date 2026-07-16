@@ -1,7 +1,77 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
-import type { Match, Prediction, AILeaderboardItem, HumanUserRankItem, ComparePredictionsOut, HomeStats, StandingsOut, HomeTabItem } from '@/services/api'
+import type { Match, Prediction, AILeaderboardItem, HumanUserRankItem, ComparePredictionsOut, HomeStats, StandingsOut, HomeTabItem, League } from '@/services/api'
 import * as api from '@/services/api'
+
+// ==================== 联赛状态 ====================
+
+const CURRENT_LEAGUE_KEY = 'current_league_id'
+
+interface LeagueState {
+  leagues: League[]
+  currentLeagueId: number | null
+  // 首页数据筛选依据：可同时选中多个联赛（混合展示）
+  selectedLeagueIds: number[]
+  loading: boolean
+  fetchLeagues: () => Promise<void>
+  setCurrentLeague: (id: number) => void
+  setSelectedLeagues: (ids: number[]) => void
+  getCurrentLeague: () => League | null
+}
+
+export const useLeagueStore = create<LeagueState>((set, get) => ({
+  leagues: [],
+  // 启动时读取本地缓存的联赛选择
+  currentLeagueId: (() => {
+    const cached = Taro.getStorageSync(CURRENT_LEAGUE_KEY)
+    return typeof cached === 'number' ? cached : (cached ? Number(cached) : null)
+  })(),
+  // 默认空，fetchLeagues 完成后自动填充为 [首个联赛]
+  selectedLeagueIds: [],
+  loading: false,
+
+  fetchLeagues: async () => {
+    set({ loading: true })
+    try {
+      const leagues = await api.getLeagues()
+      // 只保留启用的联赛用于切换
+      const active = leagues.filter(l => l.is_active)
+      const list = active.length > 0 ? active : leagues
+      set({ leagues: list, loading: false })
+      // 若当前未选中或选中的联赛已不在列表中，默认选第一个
+      const { currentLeagueId, selectedLeagueIds } = get()
+      const exists = list.some(l => l.id === currentLeagueId)
+      if (!exists && list.length > 0) {
+        get().setCurrentLeague(list[0].id)
+      }
+      // 多选集合未初始化时，默认选中第一个联赛
+      if (selectedLeagueIds.length === 0 && list.length > 0) {
+        set({ selectedLeagueIds: [list[0].id] })
+      }
+    } catch {
+      set({ loading: false })
+    }
+  },
+
+  setCurrentLeague: (id) => {
+    set({ currentLeagueId: id })
+    Taro.setStorageSync(CURRENT_LEAGUE_KEY, id)
+  },
+
+  // 多选：设置选中的联赛集合，并把首要联赛同步为第一个（供 hero/积分榜/排行榜使用）
+  setSelectedLeagues: (ids) => {
+    const next = ids.length > 0 ? ids : []
+    set({ selectedLeagueIds: next })
+    if (next.length > 0) {
+      get().setCurrentLeague(next[0])
+    }
+  },
+
+  getCurrentLeague: () => {
+    const { leagues, currentLeagueId } = get()
+    return leagues.find(l => l.id === currentLeagueId) || null
+  },
+}))
 
 // ==================== 比赛状态 ====================
 
@@ -13,12 +83,12 @@ interface MatchState {
   standings: StandingsOut | null
   homeTabs: HomeTabItem[]
   loading: boolean
-  fetchMatches: (params?: { status?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) => Promise<void>
+  fetchMatches: (params?: { league_id?: number; league_ids?: number[]; status?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) => Promise<void>
   fetchMatchDetail: (id: number) => Promise<void>
   fetchPredictions: (matchId: number) => Promise<void>
-  fetchHomeStats: () => Promise<void>
-  fetchStandings: () => Promise<void>
-  fetchHomeTabs: () => Promise<void>
+  fetchHomeStats: (leagueIds?: number[]) => Promise<void>
+  fetchStandings: (leagueId: number) => Promise<void>
+  fetchHomeTabs: (leagueIds?: number[]) => Promise<void>
 }
 
 export const useMatchStore = create<MatchState>((set) => ({
@@ -59,27 +129,27 @@ export const useMatchStore = create<MatchState>((set) => ({
     }
   },
 
-  fetchHomeStats: async () => {
+  fetchHomeStats: async (leagueIds) => {
     try {
-      const homeStats = await api.getHomeStats()
+      const homeStats = await api.getHomeStats(leagueIds)
       set({ homeStats })
     } catch {
       // ignore, keep default
     }
   },
 
-  fetchStandings: async () => {
+  fetchStandings: async (leagueId) => {
     try {
-      const standings = await api.getStandings()
+      const standings = await api.getStandings(leagueId)
       set({ standings })
     } catch {
       // ignore, keep default
     }
   },
 
-  fetchHomeTabs: async () => {
+  fetchHomeTabs: async (leagueIds) => {
     try {
-      const data = await api.getHomeTabs()
+      const data = await api.getHomeTabs(leagueIds)
       set({ homeTabs: data.tabs })
     } catch {
       // ignore, keep default empty
@@ -227,10 +297,12 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
   fetchLeaderboard: async () => {
     const { activeTab, activeRound, sortBy, sortOrder } = get()
     const resolvedRound = resolveLeaderboardRound(activeRound)
+    // 按当前选中联赛筛选（未选中则返回全局排行）
+    const leagueId = useLeagueStore.getState().currentLeagueId ?? undefined
     set({ loading: true })
     try {
       if (activeTab === 'ai') {
-        const rawEntries = await api.getAILeaderboard(resolvedRound)
+        const rawEntries = await api.getAILeaderboard(resolvedRound, leagueId)
         set({
           entries: applySort(rawEntries as AILeaderboardItem[], sortBy, sortOrder),
           topUsers: [],
@@ -238,7 +310,7 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
         })
       } else {
         const userId = useUserStore.getState().user?.id
-        const humanData = await api.getHumanLeaderboard(userId, resolvedRound)
+        const humanData = await api.getHumanLeaderboard(userId, resolvedRound, leagueId)
         set({
           entries: [],
           topUsers: humanData.top_users as HumanUserRankItem[],

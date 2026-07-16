@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import Optional, List, Union
 from pydantic import BaseModel, field_validator
 
+from app.schemas.league import LeagueBrief
+
 
 # --- Team ---
 class TeamOut(BaseModel):
@@ -32,6 +34,8 @@ class MatchListOut(BaseModel):
     result: Optional[str] = None
     home_team: TeamOut
     away_team: TeamOut
+    league_id: Optional[int] = None
+    league: Optional[LeagueBrief] = None
     summary: Optional["PredictionSummaryOut"] = None
 
     model_config = {"from_attributes": True}

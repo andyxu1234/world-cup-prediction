@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Optional
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,12 +33,13 @@ def _clean_avatar_url(url: str | None) -> str | None:
     return url
 
 
-@cached(leaderboard_cache, key_fn=lambda db, round_filter="全部", sort_by="score_accuracy", sort_order="desc": f"ai_leaderboard:{round_filter}:{sort_by}:{sort_order}")
+@cached(leaderboard_cache, key_fn=lambda db, round_filter="全部", sort_by="score_accuracy", sort_order="desc", league_id=None: f"ai_leaderboard:{round_filter}:{sort_by}:{sort_order}:{league_id}")
 async def get_ai_leaderboard(
     db: AsyncSession,
     round_filter: str = "全部",
     sort_by: str = "score_accuracy",
     sort_order: str = "desc",
+    league_id: Optional[int] = None,
 ) -> list[dict]:
     """AI 模型排行榜
 
@@ -46,6 +48,7 @@ async def get_ai_leaderboard(
         round_filter: 轮次筛选（全部/小组赛/淘汰赛）
         sort_by: 排序字段（result_accuracy / score_accuracy）
         sort_order: 排序方向（asc / desc）
+        league_id: 联赛筛选（None=全局）
     """
     from app.models.match import Match
 
@@ -73,6 +76,8 @@ async def get_ai_leaderboard(
         .join(Match, Match.id == Prediction.match_id)
     )
 
+    if league_id is not None:
+        query = query.where(Match.league_id == league_id)
     if round_filter and round_filter != "全部":
         rounds = [r.strip() for r in round_filter.split(",") if r.strip()]
         if len(rounds) == 1:
@@ -129,8 +134,8 @@ async def get_ai_leaderboard(
     return leaderboard
 
 
-@cached(leaderboard_cache, key_fn=lambda db, current_user_id=None, round_filter="全部": f"human_leaderboard:{current_user_id or 'none'}:{round_filter}")
-async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = None, round_filter: str = "全部") -> dict:
+@cached(leaderboard_cache, key_fn=lambda db, current_user_id=None, round_filter="全部", league_id=None: f"human_leaderboard:{current_user_id or 'none'}:{round_filter}:{league_id}")
+async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = None, round_filter: str = "全部", league_id: Optional[int] = None) -> dict:
     """人类排行榜：只从 user_votes 表查询，返回所有用户数据"""
     from app.models.user import User
     from app.models.match import Match
@@ -149,6 +154,8 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
         .join(UserVote, UserVote.user_id == User.id)
         .join(Match, Match.id == UserVote.match_id)
     )
+    if league_id is not None:
+        user_query = user_query.where(Match.league_id == league_id)
     if round_filter and round_filter != "全部":
         rounds = [r.strip() for r in round_filter.split(",") if r.strip()]
         if len(rounds) == 1:
@@ -218,6 +225,8 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
                 my_query = my_query.where(Match.round == rounds[0])
             elif len(rounds) > 1:
                 my_query = my_query.where(Match.round.in_(rounds))
+        if league_id is not None:
+            my_query = my_query.where(Match.league_id == league_id)
         my_query = my_query.group_by(User.id)
         my_result = await db.execute(my_query)
         my_row = my_result.one_or_none()
@@ -239,6 +248,8 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
                 .join(Match, Match.id == UserVote.match_id)
                 .group_by(User.id)
             )
+            if league_id is not None:
+                rank_sub = rank_sub.where(Match.league_id == league_id)
             rank_result = await db.execute(rank_sub)
             all_users = rank_result.all()
             my_ra = ucr / usettled if usettled > 0 else 0
@@ -277,9 +288,14 @@ async def get_human_leaderboard(db: AsyncSession, current_user_id: int | None = 
     }
 
 
-@cached(leaderboard_cache, key_fn=lambda db, model_id=0: f"ai_model_detail:{model_id}")
-async def get_ai_model_detail(db: AsyncSession, model_id: int) -> dict:
-    """AI 模型预测详情：模型统计 + 所有预测记录"""
+@cached(leaderboard_cache, key_fn=lambda db, model_id=0, league_id=None: f"ai_model_detail:{model_id}:{league_id}")
+async def get_ai_model_detail(db: AsyncSession, model_id: int, league_id: Optional[int] = None) -> dict:
+    """AI 模型预测详情：模型统计 + 所有预测记录
+
+    Args:
+        model_id: AI 模型 ID
+        league_id: 联赛筛选（None=全部联赛）
+    """
     from app.models.user import User
     from app.models.match import Match
 
@@ -299,8 +315,11 @@ async def get_ai_model_detail(db: AsyncSession, model_id: int) -> dict:
             func.sum(case((Prediction.is_correct_result == True, 1), else_=0)).label("correct_result"),
             func.sum(case((Prediction.is_correct_score == True, 1), else_=0)).label("correct_score"),
         )
+        .join(Match, Match.id == Prediction.match_id)
         .where(Prediction.model_id == model_id)
     )
+    if league_id is not None:
+        pred_stats = pred_stats.where(Match.league_id == league_id)
     stats_row = (await db.execute(pred_stats)).one()
     total = stats_row.total or 0
     settled = stats_row.settled or 0
@@ -318,6 +337,8 @@ async def get_ai_model_detail(db: AsyncSession, model_id: int) -> dict:
         .where(Prediction.model_id == model_id)
         .order_by(Match.match_time.desc())
     )
+    if league_id is not None:
+        pred_list_stmt = pred_list_stmt.where(Match.league_id == league_id)
     pred_rows = (await db.execute(pred_list_stmt)).all()
 
     predictions = []

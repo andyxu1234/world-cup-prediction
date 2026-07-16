@@ -37,5 +37,7 @@ class GroupStandingOut(BaseModel):
 class StandingsOut(BaseModel):
     """完整积分榜响应"""
     groups: List[GroupStandingOut]
+    # 联赛类型：'cup'（多组）| 'league'（单组），前端据此切换积分榜布局
+    type: str = "cup"
 
     model_config = {"from_attributes": True}

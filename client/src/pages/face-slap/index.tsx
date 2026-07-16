@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { getFaceSlaps, FaceSlap, FaceSlapSort } from '@/services/api'
+import { useLeagueStore } from '@/stores'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -71,11 +72,14 @@ export default function FaceSlapPage() {
   // 分批渲染：控制当前渲染的卡片数量
   const [visibleCount, setVisibleCount] = useState(8)
   const visibleSlaps = faceSlaps.slice(0, visibleCount)
+  // 多联赛：当前选中联赛
+  const currentLeagueId = useLeagueStore((s) => s.currentLeagueId)
+  const fetchLeagues = useLeagueStore((s) => s.fetchLeagues)
 
   const fetchData = async (sort: FaceSlapSort) => {
     setLoading(true)
     try {
-      const data = await getFaceSlaps(sort)
+      const data = await getFaceSlaps(sort, 20, currentLeagueId ?? undefined)
       setFaceSlaps(data)
     } catch {
       setFaceSlaps([])
@@ -85,8 +89,14 @@ export default function FaceSlapPage() {
   }
 
   useEffect(() => {
+    fetchLeagues()
+  }, [fetchLeagues])
+
+  useEffect(() => {
+    setVisibleCount(8)
     fetchData(activeSort)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLeagueId])
 
   // 动态测量 Header+Chips 高度，精确计算列表可用空间
   useEffect(() => {

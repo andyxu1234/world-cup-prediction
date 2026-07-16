@@ -15,21 +15,42 @@ from app.models.team import Team
 from app.schemas.standings import TeamStandingOut, GroupStandingOut, StandingsOut
 
 
-async def calculate_standings(db: AsyncSession) -> StandingsOut:
-    """计算所有小组的积分榜
+async def calculate_standings(db: AsyncSession, league_id: int) -> StandingsOut:
+    """计算指定联赛的积分榜
 
     逻辑：
-    1. 查询所有已结束的小组赛（round 包含 'Group Stage'）
-    2. 遍历比赛，累计每支球队的胜/平/负/进球/失球
-    3. 按小组分组，计算积分并排序
+    - 杯赛（type=cup）：查询已结束的小组赛（round 包含 'Group Stage'），按 group_name 分组
+    - 常规联赛（type=league）：查询该联赛所有已结束比赛，单组积分榜（以联赛中文名为组名）
+
+    Args:
+        db: 数据库会话
+        league_id: 联赛主键 ID
+
+    Raises:
+        ValueError: 联赛不存在
     """
-    # 查询已结束的小组赛，并加载关联的球队数据
+    from app.models.league import League
+
+    # 查询联赛信息，决定积分榜结构
+    league_stmt = select(League).where(League.id == league_id)
+    league = (await db.execute(league_stmt)).scalar_one_or_none()
+    if league is None:
+        raise ValueError(f"League {league_id} not found")
+
+    is_cup = (league.type.value == "cup") if hasattr(league.type, "value") else (league.type == "cup")
+
+    # 查询已结束比赛，并加载关联的球队数据
+    conditions = [
+        Match.status == MatchStatus.finished,
+        Match.league_id == league_id,
+    ]
+    if is_cup:
+        # 杯赛只统计小组赛阶段
+        conditions.append(Match.round.contains("Group Stage"))
+
     stmt = (
         select(Match)
-        .where(
-            Match.status == MatchStatus.finished,
-            Match.round.contains("Group Stage"),
-        )
+        .where(*conditions)
         .options(
             selectinload(Match.home_team),
             selectinload(Match.away_team),
@@ -42,9 +63,15 @@ async def calculate_standings(db: AsyncSession) -> StandingsOut:
     # key: (group_name, team_id) -> stats dict
     team_stats: dict[tuple[str, int], dict] = {}
 
+    def group_key(team: Team) -> str:
+        """单组联赛用联赛中文名作为组名；杯赛用球队的 group_name"""
+        if is_cup:
+            return team.group_name or "未知组"
+        return league.cn_name
+
     def get_or_init(team: Team) -> dict:
         """获取或初始化球队统计数据"""
-        key = (team.group_name, team.id)
+        key = (group_key(team), team.id)
         if key not in team_stats:
             team_stats[key] = {
                 "team_id": team.id,
@@ -52,7 +79,7 @@ async def calculate_standings(db: AsyncSession) -> StandingsOut:
                 "team_cn_name": team.cn_name,
                 "flag_url": team.flag_url,
                 "fifa_rank": team.fifa_rank,
-                "group_name": team.group_name,
+                "group_name": group_key(team),
                 "played": 0,
                 "won": 0,
                 "draw": 0,
@@ -135,4 +162,4 @@ async def calculate_standings(db: AsyncSession) -> StandingsOut:
             standings=standings,
         ))
 
-    return StandingsOut(groups=result_groups)
+    return StandingsOut(groups=result_groups, type="cup" if is_cup else "league")

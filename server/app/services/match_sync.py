@@ -1,6 +1,9 @@
 """比赛数据同步服务 — 调 Highlightly API 获取赛程并更新数据库
 
 返回值包含变更信息，供下游编排逻辑按需触发 H2H 同步、stats 更新、预测评估等。
+
+多联赛改造后，sync_matches(league_id, season) 支持指定联赛；
+league_id / season 为 None 时回退到 settings 默认值（世界杯）。
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ from loguru import logger
 from typing import Optional
 
 from app.database import async_session_factory
+from app.models.league import League
 from app.models.team import Team
 from app.models.match import Match, MatchStatus
 
@@ -71,16 +75,102 @@ def _calc_match_day(match_time_str: str) -> int:
         return 1
 
 
+# ── 联赛查询辅助 ────────────────────────────────────────────
+
+async def get_active_leagues() -> list[League]:
+    """返回所有 is_active=True 的联赛（按 sort_order 排序）"""
+    from sqlalchemy import select
+
+    async with async_session_factory() as session:
+        stmt = (
+            select(League)
+            .where(League.is_active == True)  # noqa: E712
+            .order_by(League.sort_order)
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+
+async def get_league(league_id: int) -> Optional[League]:
+    """按本地联赛 ID 查询单个联赛"""
+    from sqlalchemy import select
+
+    async with async_session_factory() as session:
+        stmt = select(League).where(League.id == league_id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+
 # ── 同步任务 ────────────────────────────────────────────────
 
-async def sync_matches():
-    """同步世界杯比赛数据，返回变更信息供下游使用
+async def _sync_one_league(client, league: League) -> dict:
+    """同步单个联赛（传入 League ORM 行），返回变更信息供下游使用
+
+    Args:
+        client: HighlightlyClient 实例（由调用方负责生命周期）
+        league: League ORM 行，使用 league.highlightly_league_id / league.season 调 API，
+                写入数据库时使用 league.id（本地联赛主键）作为 matches/teams 的 league_id
+    """
+    hl_league_id = league.highlightly_league_id
+    season = league.season
+    local_league_id = league.id
+
+    matches = await client.get_all_matches_by_league(hl_league_id, season)
+    logger.info(
+        f"Highlightly: fetched {len(matches)} matches for "
+        f"league {league.name} (hl_id={hl_league_id}, season={season})"
+    )
+
+    if not matches:
+        logger.warning(f"No matches returned for league {league.name}")
+        return {
+            "league_id": local_league_id,
+            "league_name": league.name,
+            "synced": 0,
+            "new_matches": [],
+            "newly_finished": [],
+        }
+
+    new_matches: list[int] = []
+    newly_finished: list[int] = []
+
+    async with async_session_factory() as session:
+        for match_data in matches:
+            change = await _upsert_match(session, match_data, local_league_id)
+            if change == "new":
+                new_matches.append(match_data["id"])
+            elif change == "finished":
+                newly_finished.append(match_data["id"])
+        await session.commit()
+
+    logger.info(
+        f"Match sync for {league.name} completed: {len(matches)} synced, "
+        f"{len(new_matches)} new, {len(newly_finished)} newly finished"
+    )
+    return {
+        "league_id": local_league_id,
+        "league_name": league.name,
+        "synced": len(matches),
+        "new_matches": new_matches,
+        "newly_finished": newly_finished,
+    }
+
+
+async def sync_matches(league_id: Optional[int] = None, season: Optional[int] = None):
+    """同步比赛数据，返回变更信息供下游使用
+
+    多联赛改造：
+    - league_id=None：遍历所有 is_active=True 的联赛逐个同步
+    - league_id=具体值：只同步指定联赛
+    - season 仅在指定 league_id 时可覆盖（用于回测/补数据）
 
     Returns:
         dict: {
+            "league_id": Optional[int], # 实际同步的联赛（None=全部）
             "synced": int,              # 总处理比赛数
             "new_matches": list[int],   # 本轮新增的比赛 ID
             "newly_finished": list[int],# 本轮状态变为 finished 的比赛 ID
+            "leagues": list[dict],      # 各联赛明细
         }
     """
     from app.core.highlightly import HighlightlyClient
@@ -90,38 +180,49 @@ async def sync_matches():
     client = HighlightlyClient(
         api_key=settings.HIGHLIGHTLY_API_KEY,
         base_url=settings.HIGHLIGHTLY_BASE_URL,
-        league_id=settings.HIGHLIGHTLY_LEAGUE_ID,
-        season=settings.HIGHLIGHTLY_SEASON,
     )
 
-    new_matches: list[int] = []
-    newly_finished: list[int] = []
+    empty = {"league_id": league_id, "synced": 0, "new_matches": [], "newly_finished": [], "leagues": []}
 
     try:
-        matches = await client.get_all_world_cup_matches()
-        logger.info(f"Highlightly: fetched {len(matches)} World Cup matches")
+        if league_id is not None:
+            league = await get_league(league_id)
+            if league is None:
+                logger.error(f"League {league_id} not found")
+                return empty
+            if season is not None:
+                # 允许覆盖赛季（用于补历史数据）
+                league.season = season
+            results = [await _sync_one_league(client, league)]
+        else:
+            leagues = await get_active_leagues()
+            if not leagues:
+                logger.warning("No active leagues found, nothing to sync")
+                return empty
+            results = []
+            for league in leagues:
+                try:
+                    results.append(await _sync_one_league(client, league))
+                except Exception as e:
+                    logger.error(f"Failed to sync league {league.name}: {e}")
+                    results.append({
+                        "league_id": league.id,
+                        "league_name": league.name,
+                        "synced": 0,
+                        "new_matches": [],
+                        "newly_finished": [],
+                        "error": str(e),
+                    })
 
-        if not matches:
-            logger.warning("No matches returned from Highlightly")
-            return {"synced": 0, "new_matches": [], "newly_finished": []}
-
-        async with async_session_factory() as session:
-            for match_data in matches:
-                change = await _upsert_match(session, match_data)
-                if change == "new":
-                    new_matches.append(match_data["id"])
-                elif change == "finished":
-                    newly_finished.append(match_data["id"])
-            await session.commit()
-
-        logger.info(
-            f"Match sync completed: {len(matches)} synced, "
-            f"{len(new_matches)} new, {len(newly_finished)} newly finished"
-        )
+        synced = sum(r.get("synced", 0) for r in results)
+        new_matches = [mid for r in results for mid in r.get("new_matches", [])]
+        newly_finished = [mid for r in results for mid in r.get("newly_finished", [])]
         return {
-            "synced": len(matches),
+            "league_id": league_id,
+            "synced": synced,
             "new_matches": new_matches,
             "newly_finished": newly_finished,
+            "leagues": results,
         }
     except Exception as e:
         logger.error(f"Match sync failed: {e}")
@@ -132,7 +233,7 @@ async def sync_matches():
 
 # ── Upsert 逻辑 ─────────────────────────────────────────────
 
-async def _upsert_match(session, match_data: dict) -> Optional[str]:
+async def _upsert_match(session, match_data: dict, league_id: Optional[int] = None) -> Optional[str]:
     """单场比赛 upsert
 
     Returns:
@@ -159,8 +260,8 @@ async def _upsert_match(session, match_data: dict) -> Optional[str]:
     home_score, away_score = _parse_score(state.get("score", {}).get("current"))
 
     # Upsert teams
-    home_team = await _upsert_team(session, match_data["homeTeam"])
-    away_team = await _upsert_team(session, match_data["awayTeam"])
+    home_team = await _upsert_team(session, match_data["homeTeam"], league_id)
+    away_team = await _upsert_team(session, match_data["awayTeam"], league_id)
 
     # Check if match exists
     stmt = select(Match).where(Match.highlightly_id == highlightly_id)
@@ -181,6 +282,7 @@ async def _upsert_match(session, match_data: dict) -> Optional[str]:
     else:
         match = Match(
             highlightly_id=highlightly_id,
+            league_id=league_id,
             match_day=_calc_match_day(match_time),
             round=round_name,
             home_team_id=home_team.id,
@@ -196,7 +298,7 @@ async def _upsert_match(session, match_data: dict) -> Optional[str]:
         return "new"
 
 
-async def _upsert_team(session, team_data: dict) -> Team:
+async def _upsert_team(session, team_data: dict, league_id: Optional[int] = None) -> Team:
     """Upsert 球队 — 通过 name 匹配已有 Team，同步 logo 到 flag_url"""
     from sqlalchemy import select
 
@@ -240,12 +342,16 @@ async def _upsert_team(session, team_data: dict) -> Team:
         # 补充 cn_name（如果之前没有）
         if not team.cn_name and name in _CN_NAMES:
             team.cn_name = _CN_NAMES[name]
+        # 补充 league_id（如果之前没有）
+        if league_id is not None and team.league_id != league_id:
+            team.league_id = league_id
     else:
         team = Team(
             name=name,
             cn_name=_CN_NAMES.get(name),
             flag_url=logo,
             highlightly_team_id=highlightly_team_id,
+            league_id=league_id,
         )
         session.add(team)
         await session.flush()

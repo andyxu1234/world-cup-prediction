@@ -28,12 +28,41 @@
   text-align: center;
 }
 
+.match-hero-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.match-hero-league {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.match-hero-league-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.match-hero-league-name {
+  font-size: 22px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .match-hero-round {
   font-size: 22px;
   color: rgba(255, 255, 255, 0.8);
   font-weight: 600;
   display: block;
-  margin-bottom: 24px;
 }
 
 .match-hero-teams {
