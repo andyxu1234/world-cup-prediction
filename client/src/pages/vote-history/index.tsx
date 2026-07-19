@@ -1,25 +1,9 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
-import { useUserStore, useLeagueStore } from '@/stores'
+import { useUserStore, useLeagueStore, useRoundStore, getRoundLabel } from '@/stores'
 import { getUserVoteHistory, VoteHistoryItem } from '@/services/api'
 import './index.scss'
-
-const ROUND_CN_MAP: Record<string, string> = {
-  'Group Stage - 1': '小组赛第1轮',
-  'Group Stage - 2': '小组赛第2轮',
-  'Group Stage - 3': '小组赛第3轮',
-  'Round of 32': '三十二强赛',
-  'Round of 16': '十六强赛',
-  'Quarter-finals': '四分之一决赛',
-  'Semi-finals': '半决赛',
-  '3rd Place Final': '季军赛',
-  'Final': '决赛',
-}
-
-function getRoundLabel(round: string): string {
-  return ROUND_CN_MAP[round] || round
-}
 
 function getResultLabel(result: string): string {
   const key = result.replace('PredictionResult.', '')
@@ -66,12 +50,11 @@ function formatTime(iso: string | null): string {
 export default function VoteHistory() {
   const router = useRouter()
   const { user } = useUserStore()
+  useRoundStore((s) => s.ready)
   const [list, setList] = useState<VoteHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
-  // 动态计算列表高度，解决 iOS 设备底部空白问题
-  const [scrollHeight, setScrollHeight] = useState<string>('')
-  // 多联赛：当前选中联赛（切换后重新拉取投票历史）
-  const currentLeagueId = useLeagueStore((s) => s.currentLeagueId)
+  // 多赛事：当前选中的所有赛事（切换后重新拉取投票历史）
+  const selectedLeagueIds = useLeagueStore((s) => s.selectedLeagueIds)
   const fetchLeagues = useLeagueStore((s) => s.fetchLeagues)
 
   // 支持从 URL 参数获取 userId，否则使用当前登录用户
@@ -85,28 +68,11 @@ export default function VoteHistory() {
   useEffect(() => {
     if (!targetUserId) return
     setLoading(true)
-    getUserVoteHistory(targetUserId, 200, 0, currentLeagueId ?? undefined)
+    getUserVoteHistory(targetUserId, 200, 0, selectedLeagueIds)
       .then(setList)
       .catch(() => Taro.showToast({ title: '加载失败', icon: 'none' }))
       .finally(() => setLoading(false))
-  }, [targetUserId, currentLeagueId])
-
-  // 动态测量 Hero 高度，精确计算列表可用空间
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        const query = Taro.createSelectorQuery()
-        query.select('.vh-hero').boundingClientRect()
-        query.exec((res) => {
-          const heroRect = res[0]
-          if (!heroRect) { setScrollHeight('calc(100vh - 340px)'); return }
-          const { windowHeight } = Taro.getSystemInfoSync()
-          setScrollHeight(`${Math.max(windowHeight - heroRect.height - 30, 200)}px`)
-        })
-      } catch { setScrollHeight('calc(100vh - 340px)') }
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [])
+  }, [targetUserId, selectedLeagueIds])
 
   // 仅已结束的比赛参与命中率计算
   const finishedList = list.filter((i) => i.match_status === 'finished')
@@ -143,7 +109,7 @@ export default function VoteHistory() {
       </View>
 
       {/* 列表 */}
-      <ScrollView scrollY className='vh-list' enableBackToTop style={scrollHeight ? { height: scrollHeight } : undefined}>
+      <ScrollView scrollY className='vh-list' enableBackToTop>
         {loading ? (
           <View className='vh-loading'>加载中...</View>
         ) : list.length === 0 ? (
@@ -157,7 +123,10 @@ export default function VoteHistory() {
             return (
               <View key={item.id} className='vh-card'>
                 <View className='vh-card-hd'>
-                  <Text className='vh-round'>{getRoundLabel(item.round)}{item.league_name ? ` · ${item.league_name}` : ''}</Text>
+                  <Text className='vh-round'>
+                    {item.league_name ? `${item.league_name} · ` : ''}
+                    {getRoundLabel(item.round)}
+                  </Text>
                   <View className='vh-badges'>
                     <Text className={`vh-badge ${badge.className}`}>{badge.text}</Text>
                   </View>

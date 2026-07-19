@@ -3,6 +3,7 @@ import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { getAIDetail, AIDetailPrediction, AIDetailOut } from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
+import { useRoundStore, getRoundLabel } from '@/stores'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -43,22 +44,6 @@ function ModelAvatar({ name, size = '' }: { name: string; size?: string }) {
   }
   const fb = MODEL_FALLBACKS[name] || { gradient: 'linear-gradient(135deg, #666, #999)', letter: '?' }
   return <View className={`model-av ${size}`} style={{ background: fb.gradient }}>{fb.letter}</View>
-}
-
-const ROUND_CN_MAP: Record<string, string> = {
-  'Group Stage - 1': '小组赛第1轮',
-  'Group Stage - 2': '小组赛第2轮',
-  'Group Stage - 3': '小组赛第3轮',
-  'Round of 32': '三十二强赛',
-  'Round of 16': '十六强赛',
-  'Quarter-finals': '四分之一决赛',
-  'Semi-finals': '半决赛',
-  '3rd Place Final': '季军赛',
-  'Final': '决赛',
-}
-
-function getRoundLabel(round: string): string {
-  return ROUND_CN_MAP[round] || round
 }
 
 function getResultLabel(result: string): string {
@@ -102,7 +87,12 @@ function formatTime(iso: string | null): string {
 export default function AIDetail() {
   const router = useRouter()
   const modelId = Number(router.params.modelId || 0)
-  const leagueId = router.params.leagueId ? Number(router.params.leagueId) : undefined
+  useRoundStore((s) => s.ready)
+  // 支持多个联赛筛选（league_ids 以逗号分隔），不传则返回全部联赛
+  const leagueIds = (router.params.league_ids || '')
+    .split(',')
+    .map((s) => Number(s))
+    .filter((n) => !isNaN(n) && n > 0)
 
   const [detail, setDetail] = useState<AIDetailOut | null>(null)
   const [loading, setLoading] = useState(true)
@@ -112,11 +102,11 @@ export default function AIDetail() {
   useEffect(() => {
     if (!modelId) return
     setLoading(true)
-    getAIDetail(modelId, leagueId)
+    getAIDetail(modelId, leagueIds.length > 0 ? leagueIds : undefined)
       .then(setDetail)
       .catch(() => Taro.showToast({ title: '加载失败', icon: 'none' }))
       .finally(() => setLoading(false))
-  }, [modelId, leagueId])
+  }, [modelId, leagueIds.join(',')])
 
   // 动态测量 Hero 高度，精确计算列表可用空间
   useEffect(() => {

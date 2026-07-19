@@ -9,7 +9,7 @@
 - **AI 对决**：10 个主流 AI 模型同台预测，看谁更准
 - **人机大战**：用户投票预测（胜负 + 精确比分），与 AI 模型一较高下
 - **排行榜**：AI 排行榜 / 人类排行榜双维度，胜负命中率 & 比分命中率独立统计
-- **打脸合集**：自动汇总高信心却翻车的预测，趣味十足
+- **数据中心**：积分榜 + 球队数据榜 + 球员榜（射手/助攻/牌），按联赛切换视角
 - **分享传播**：支持分享给好友和分享到朋友圈
 - **AI 综合分析**：多模型预测聚合为共识结论 + 信心指数
 - **趣闻生成**：基于用户战绩动态调用 DeepSeek 生成足球小知识
@@ -61,7 +61,7 @@ world-cup-prediction/
 │   │   │   ├── index/               # 首页 - 比赛列表 + Tab 筛选
 │   │   │   ├── match-detail/        # 比赛详情 - AI 预测 + 用户投票
 │   │   │   ├── leaderboard/         # 排行榜 - AI / 人类双 Tab
-│   │   │   ├── face-slap/           # 打脸合集
+│   │   │   ├── data/                # 数据中心 - 积分榜 / 球队榜 / 球员榜
 │   │   │   ├── profile/             # 个人中心 - 统计 & 趣闻
 │   │   │   ├── profile-setup/       # 首次设置 - 昵称 & 头像
 │   │   │   ├── share-card/          # 分享卡片展示
@@ -78,9 +78,9 @@ world-cup-prediction/
 │   │   ├── main.py                  # 入口 + 生命周期
 │   │   ├── config.py                # Pydantic Settings 配置
 │   │   ├── database.py              # SQLAlchemy 异步引擎
-│   │   ├── models/                  # ORM 模型 (10 张表)
-│   │   ├── schemas/                 # Pydantic 模型 (7 个)
-│   │   ├── api/v1/                  # 路由模块 (8 个文件)
+│   │   ├── models/                  # ORM 模型 (11 张表)
+│   │   ├── schemas/                 # Pydantic 模型 (8 个)
+│   │   ├── api/v1/                  # 路由模块 (9 个文件)
 │   │   │   ├── matches.py           # 比赛接口
 │   │   │   ├── predictions.py       # AI 预测接口
 │   │   │   ├── leaderboard.py       # 排行榜接口
@@ -88,11 +88,13 @@ world-cup-prediction/
 │   │   │   ├── share.py             # 分享卡片接口
 │   │   │   ├── admin.py             # 管理员接口
 │   │   │   ├── long_term.py         # 冠亚季军预测接口
-│   │   │   └── fun_fact.py          # 趣闻生成接口
-│   │   ├── services/                # 业务逻辑 (12 个)
+│   │   │   ├── fun_fact.py          # 趣闻生成接口
+│   │   │   └── data.py              # 数据中心接口 (积分榜/球队榜/球员榜)
+│   │   ├── services/                # 业务逻辑 (13 个)
 │   │   │   ├── sync_pipeline.py     # 数据同步编排
 │   │   │   ├── match_sync.py        # 比赛数据同步 (Highlightly)
 │   │   │   ├── stats_sync.py        # 球队统计同步 (遍历所有活跃联赛)
+│   │   │   ├── player_stats_sync.py # 球员盒子分同步 (按场聚合球员榜)
 │   │   │   ├── h2h_sync.py          # 历史交锋同步
 │   │   │   ├── ai_predictor.py      # AI 预测服务
 │   │   │   ├── prediction_graph.py  # LangGraph 预测编排图
@@ -109,7 +111,7 @@ world-cup-prediction/
 │   │   │   ├── cache.py             # 缓存封装
 │   │   │   └── auth.py              # JWT 认证
 │   │   └── utils/prompt_builder.py  # LLM Prompt 模板
-│   ├── alembic/                     # 数据库迁移 (6 版本)
+│   ├── alembic/                     # 数据库迁移 (7 版本)
 │   ├── start.sh / stop.sh / restart.sh  # 服务管理脚本
 │   ├── docker-compose.yml           # Docker 编排
 │   ├── Dockerfile
@@ -239,13 +241,15 @@ docker compose logs -f api
 | GET | `/users/avatar/upload` | 上传头像 |
 | GET | `/leaderboard/ai` | AI 模型排行榜 |
 | GET | `/leaderboard/human` | 人类排行榜 |
-| GET | `/predictions/face-slaps` | 打脸合集 |
+| GET | `/standings` | 积分榜 (按联赛/杯赛分组) |
+| GET | `/data/player-rankings` | 球员榜 (射手/助攻/黄牌/红牌，按联赛聚合) |
 | GET | `/long-term-predictions` | 冠亚季军长期预测 |
 | GET | `/share/card/{matchId}` | 分享卡片数据 (JSON) |
 | GET | `/share/card/{matchId}/image` | 分享卡片图片 (PNG) |
 | GET | `/fun-fact` | 动态趣闻 (DeepSeek 生成) |
 | POST | `/admin/matches/sync` | 同步比赛数据 |
 | POST | `/admin/stats/sync` | 同步球队统计（遍历所有活跃联赛的积分榜 + 近期状态） |
+| POST | `/admin/player-stats/sync` | 全量回填球员盒子分（重建所有活跃联赛的球员榜） |
 | POST | `/admin/predictions/generate` | 批量生成 AI 预测 |
 | POST | `/admin/predictions/generate/{matchId}` | 单场 AI 预测 |
 | POST | `/admin/predictions/evaluate` | 评估已结束比赛的预测准确性 |
@@ -279,7 +283,7 @@ docker compose logs -f api
 |-----|------|------|
 | 首页 | `pages/index/index` | 比赛列表，按小组赛/淘汰赛/今日/明日/已结束筛选，点击卡片进入详情 |
 | 排行 | `pages/leaderboard/index` | AI 排行 & 人类排行切换，支持轮次筛选 & 排序 |
-| 打脸 | `pages/face-slap/index` | 高信心翻车的趣味对比 |
+| 数据 | `pages/data/index` | 数据中心：积分榜 / 球队榜 / 球员榜（射手/助攻/牌），支持联赛切换 |
 | 我的 | `pages/profile/index` | 个人中心，统计数据，趣闻，分享入口 |
 
 ### 子页面
@@ -307,6 +311,7 @@ docker compose logs -f api
 | `user_votes` | 用户投票记录 (胜负+精确比分) |
 | `head_to_heads` | 历史交锋数据 |
 | `team_stats` | 球队近期统计数据 |
+| `match_player_stats` | 球员逐场盒子分（进球/助攻/牌/射门，球员榜数据源） |
 
 ## 文档
 

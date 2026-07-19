@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { shallow } from 'zustand/shallow'
 import { useLeaderboardStore, useUserStore, useMatchStore, useLeagueStore } from '@/stores'
+import LeaguePicker from '@/components/LeaguePicker'
 import { resolveAvatarUrl } from '@/services/api'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
@@ -46,8 +48,6 @@ const TABS = [
   { key: 'ai' as const, label: 'AI 排行' },
   { key: 'human' as const, label: '人类排行' },
 ]
-
-const ROUNDS = ['全部', '小组赛', '淘汰赛']
 
 /** 排序按钮配置 */
 type SortByType = 'default' | 'result_accuracy' | 'score_accuracy'
@@ -103,111 +103,17 @@ function renderStyleTags(tags: Record<string, any> | null | undefined) {
   })
 }
 
-/** 计算距离世界杯开幕的倒计时（2026-06-11 开幕） */
-function getCountdown(): { days: number; hours: number; mins: number; secs: number } {
-  // 使用 Date 构造函数避免时区解析差异（月份从0开始）
-  const target = new Date(Date.UTC(2026, 5, 11, 21, 0, 0))
-  const now = new Date()
-  const diff = Math.max(0, target.getTime() - now.getTime())
-  return {
-    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-    mins: Math.floor((diff / (1000 * 60)) % 60),
-    secs: Math.floor((diff / 1000) % 60),
-  }
-}
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
-
-/** 单个翻页数字 — CSS 3D 翻转动画 */
-function FlipDigit({ value, prevValue }: { value: string; prevValue: string }) {
-  const isFlipping = value !== prevValue
-  return (
-    <View className='flip-digit'>
-      {/* 静态当前数字 */}
-      <Text className={`flip-digit-num ${isFlipping ? 'flip-out' : ''}`}>{prevValue}</Text>
-      {isFlipping && (
-        <>
-          {/* 上半部分翻下 */}
-          <View className='flip-digit-top'>
-            <Text className='flip-digit-text'>{prevValue}</Text>
-          </View>
-          {/* 下半部分 */}
-          <View className='flip-digit-bottom'>
-            <Text className='flip-digit-text'>{value}</Text>
-          </View>
-        </>
-      )}
-      <Text className={`flip-digit-new ${isFlipping ? 'flip-in' : ''}`}>{value}</Text>
-    </View>
-  )
-}
-
-/** 时间单元：两位数字 + 标签 */
-function FlipUnit({ value, label }: { value: string; label: string }) {
-  const [prevVal, setPrevVal] = useState(value)
-  // 数字变化时触发翻转
-  useEffect(() => { if (value !== prevVal) setPrevVal(value) }, [value])
-  return (
-    <View className='flip-unit'>
-      <View className='flip-unit-digits'>
-        <FlipDigit value={value[0]} prevValue={prevVal[0]} />
-        <FlipDigit value={value[1]} prevValue={prevVal[1]} />
-      </View>
-      <Text className='flip-unit-label'>{label}</Text>
-    </View>
-  )
-}
-
-/** 世界杯倒计时横幅 */
-function WorldCupCountdown() {
-  const cd = getCountdown()
-  const d = pad2(cd.days)
-  const h = pad2(cd.hours)
-  const m = pad2(cd.mins)
-  const s = pad2(cd.secs)
-  // 用 ref 追踪上一秒值来触发翻转
-  const prevRef = useRef({ d, h, m, s })
-  const [, force] = useState(0)
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      prevRef.current = { d, h, m, s }
-      force(n => n + 1)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const prev = prevRef.current
-  return (
-    <View className='countdown-banner'>
-      <View className='countdown-banner-bg' />
-      <View className='countdown-header'>
-        <Text className='countdown-title-icon'>🏆</Text>
-        <Text className='countdown-title'>2026 世界杯开幕倒计时</Text>
-      </View>
-      <View className='countdown-flips'>
-        <FlipUnit value={d} label='天' />
-        <View className='flip-sep'><Text className='flip-dot'></Text></View>
-        <FlipUnit value={h} label='时' />
-        <View className='flip-sep'><Text className='flip-dot'></Text></View>
-        <FlipUnit value={m} label='分' />
-        <View className='flip-sep'><Text className='flip-dot'></Text></View>
-        <FlipUnit value={s} label='秒' />
-      </View>
-    </View>
-  )
-}
 
 export default function Leaderboard() {
   const {
-    activeTab, activeRound, sortMode, sortBy, sortOrder, entries, topUsers,
-    setActiveTab, setActiveRound, setSortMode, setSort, fetchLeaderboard,
+    activeTab, sortMode, sortBy, sortOrder, entries, topUsers,
+    setActiveTab, setSortMode, setSort, fetchLeaderboard,
   } = useLeaderboardStore()
   const loginReady = useUserStore((s) => s.loginReady)
   const homeStats = useMatchStore((s) => s.homeStats)
-  // 多联赛：当前选中联赛（切换后重新拉取排行）
-  const currentLeagueId = useLeagueStore((s) => s.currentLeagueId)
+  // 多联赛：当前选中的多个联赛（切换后重新拉取排行）
+  const selectedLeagueIds = useLeagueStore((s) => s.selectedLeagueIds, shallow)
   const fetchLeagues = useLeagueStore((s) => s.fetchLeagues)
   // 动态计算列表高度，解决 iOS 设备底部空白问题
   const [listHeight, setListHeight] = useState<string>('')
@@ -218,9 +124,9 @@ export default function Leaderboard() {
 
   useEffect(() => {
     if (loginReady) fetchLeaderboard()
-  }, [loginReady, currentLeagueId])
+  }, [loginReady, selectedLeagueIds])
 
-  // 动态测量 Tabs+Controls 高度（高度随 Tab/轮次变化）
+  // 动态测量 Tabs+Controls 高度（高度随 Tab 变化）
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -237,7 +143,7 @@ export default function Leaderboard() {
       } catch { setListHeight('calc(100vh - 290px)') }
     }, 300)
     return () => clearTimeout(timer)
-  }, [activeTab, activeRound])
+  }, [activeTab])
 
   // 分享给好友
   useShareAppMessage(() => ({
@@ -277,19 +183,11 @@ export default function Leaderboard() {
         ))}
       </View>
 
-      {/* 轮次筛选 + 排序控件 */}
+      {/* 联赛筛选 + 排序控件 */}
       <View className='lb-controls'>
-        <View className='lb-rounds'>
-          {ROUNDS.map((round) => (
-            <View
-              key={round}
-              className={`lb-round ${activeRound === round ? 'active' : ''}`}
-              onClick={() => setActiveRound(round)}
-            >
-              <Text>{round}</Text>
-            </View>
-          ))}
-        </View>
+        {selectedLeagueIds.length > 0 && (
+          <LeaguePicker />
+        )}
 
         {(activeTab === 'ai' || activeTab === 'human') && (
           <View className='lb-sort-bar'>
@@ -315,10 +213,7 @@ export default function Leaderboard() {
         )}
       </View>
 
-      {/* 世界杯倒计时翻页：仅在没有预测数据时显示 */}
-      {entries.length === 0 && topUsers.length === 0 && (
-        <WorldCupCountdown />
-      )}
+
 
       {/* 人类排行 */}
       {activeTab === 'human' && (
@@ -420,7 +315,7 @@ export default function Leaderboard() {
             const hasResult = entry.total > 0
             const rank = idx + 1
             return (
-              <View key={idx} className={`lb-item ${rank <= 3 ? 'lb-item-top3' : ''} lb-item-clickable`} onClick={() => Taro.navigateTo({ url: `/pages/ai-detail/index?modelId=${entry.model_id}${currentLeagueId != null ? `&leagueId=${currentLeagueId}` : ''}` })}>
+              <View key={idx} className={`lb-item ${rank <= 3 ? 'lb-item-top3' : ''} lb-item-clickable`} onClick={() => Taro.navigateTo({ url: `/pages/ai-detail/index?modelId=${entry.model_id}${selectedLeagueIds.length > 0 ? `&league_ids=${selectedLeagueIds.join(',')}` : ''}` })}>
                 <View className='lb-rank'>
                   <Text className='lb-rank-badge'>#{rank}</Text>
                 </View>

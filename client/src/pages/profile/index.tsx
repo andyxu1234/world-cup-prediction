@@ -17,21 +17,6 @@ const MENU_ITEMS = [
   { icon: '⚙️', label: '后台管理', color: 'rgba(239,68,68,0.1)', textColor: '#ef4444', adminOnly: true },
 ]
 
-const DEFAULT_AI_RANKING = [
-  { name: 'DeepSeek', result_accuracy: 82.3 },
-  { name: 'GPT-4o', result_accuracy: 78.1 },
-  { name: 'Claude', result_accuracy: 75.6 },
-]
-
-/** 调用 DeepSeek 动态生成趣闻（全局共享，不区分用户） */
-async function fetchFunFactFromAPI(): Promise<api.FunFact> {
-  try {
-    return await api.getFunFact()
-  } catch {
-    return { icon: '⚽', title: '足球小知识', text: '精彩内容正在生成中，稍后再来试试吧~' }
-  }
-}
-
 /** 格式化 VIP 到期时间 */
 function formatVipExpire(expireAt: string | null): string {
   if (!expireAt) return '永久'
@@ -49,7 +34,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pickingAvatar, setPickingAvatar] = useState(false)
-  const [funFact, setFunFact] = useState<api.FunFact>({ icon: '🎵', title: '你知道吗？', text: '' })
+
 
   // 判断是否曾经是 VIP（包括过期的）
   const wasVip = vipPlanType !== null
@@ -95,11 +80,6 @@ export default function Profile() {
   })
 
   // 不强制进入编辑模式，用户可通过点击头像手动编辑
-
-  // 动态趣闻：全局共享，进入页面时获取一次
-  useEffect(() => {
-    fetchFunFactFromAPI().then(f => setFunFact(f))
-  }, [])
 
   const handleReLogin = () => {
     Taro.login({
@@ -380,14 +360,6 @@ export default function Profile() {
           )
         ))}
       </View>
-
-      <View className='fun-fact'>
-        <View className='fun-fact-header'>
-          <Text className='fun-fact-title'>{funFact.icon} {funFact.title}</Text>
-        </View>
-        <Text className='fun-fact-text'>{funFact.text}</Text>
-      </View>
-
 
       {pickingAvatar && (
         <View

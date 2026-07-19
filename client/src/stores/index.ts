@@ -1,33 +1,33 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
-import type { Match, Prediction, AILeaderboardItem, HumanUserRankItem, ComparePredictionsOut, HomeStats, StandingsOut, HomeTabItem, League } from '@/services/api'
+import type { Match, Prediction, AILeaderboardItem, HumanUserRankItem, ComparePredictionsOut, HomeStats, StandingsOut, HomeTabItem, League, CnMapping } from '@/services/api'
 import * as api from '@/services/api'
 
 // ==================== 联赛状态 ====================
 
-const CURRENT_LEAGUE_KEY = 'current_league_id'
+const SELECTED_LEAGUE_IDS_KEY = 'selected_league_ids'
+
+function readSelectedLeagueIdsFromCache(): number[] {
+  try {
+    const cached = Taro.getStorageSync(SELECTED_LEAGUE_IDS_KEY)
+    if (Array.isArray(cached)) return cached as number[]
+  } catch {}
+  return []
+}
 
 interface LeagueState {
   leagues: League[]
-  currentLeagueId: number | null
   // 首页数据筛选依据：可同时选中多个联赛（混合展示）
   selectedLeagueIds: number[]
   loading: boolean
   fetchLeagues: () => Promise<void>
-  setCurrentLeague: (id: number) => void
   setSelectedLeagues: (ids: number[]) => void
-  getCurrentLeague: () => League | null
 }
 
 export const useLeagueStore = create<LeagueState>((set, get) => ({
   leagues: [],
-  // 启动时读取本地缓存的联赛选择
-  currentLeagueId: (() => {
-    const cached = Taro.getStorageSync(CURRENT_LEAGUE_KEY)
-    return typeof cached === 'number' ? cached : (cached ? Number(cached) : null)
-  })(),
-  // 默认空，fetchLeagues 完成后自动填充为 [首个联赛]
-  selectedLeagueIds: [],
+  // 启动时读取本地缓存的多选联赛集合
+  selectedLeagueIds: readSelectedLeagueIdsFromCache(),
   loading: false,
 
   fetchLeagues: async () => {
@@ -38,40 +38,33 @@ export const useLeagueStore = create<LeagueState>((set, get) => ({
       const active = leagues.filter(l => l.is_active)
       const list = active.length > 0 ? active : leagues
       set({ leagues: list, loading: false })
-      // 若当前未选中或选中的联赛已不在列表中，默认选第一个
-      const { currentLeagueId, selectedLeagueIds } = get()
-      const exists = list.some(l => l.id === currentLeagueId)
-      if (!exists && list.length > 0) {
-        get().setCurrentLeague(list[0].id)
-      }
-      // 多选集合未初始化时，默认选中第一个联赛
-      if (selectedLeagueIds.length === 0 && list.length > 0) {
-        set({ selectedLeagueIds: [list[0].id] })
+      // 用本地缓存/当前选中的联赛 ID 与后端列表做校验，失效则回退到第一个
+      const { selectedLeagueIds } = get()
+      const cachedIds = selectedLeagueIds.length > 0 ? selectedLeagueIds : readSelectedLeagueIdsFromCache()
+      const validIds = cachedIds.filter(id => list.some(l => l.id === id))
+      if (validIds.length > 0) {
+        set({ selectedLeagueIds: validIds })
+      } else if (list.length > 0) {
+        // 首次进入（无缓存）默认全选所有联赛
+        set({ selectedLeagueIds: list.map(l => l.id) })
       }
     } catch {
       set({ loading: false })
     }
   },
 
-  setCurrentLeague: (id) => {
-    set({ currentLeagueId: id })
-    Taro.setStorageSync(CURRENT_LEAGUE_KEY, id)
-  },
-
-  // 多选：设置选中的联赛集合，并把首要联赛同步为第一个（供 hero/积分榜/排行榜使用）
+  // 多选：设置选中的联赛集合
   setSelectedLeagues: (ids) => {
     const next = ids.length > 0 ? ids : []
     set({ selectedLeagueIds: next })
-    if (next.length > 0) {
-      get().setCurrentLeague(next[0])
-    }
-  },
-
-  getCurrentLeague: () => {
-    const { leagues, currentLeagueId } = get()
-    return leagues.find(l => l.id === currentLeagueId) || null
+    try { Taro.setStorageSync(SELECTED_LEAGUE_IDS_KEY, next) } catch {}
   },
 }))
+
+/** 当前主联赛 id = selectedLeagueIds 第一个，供单联赛视角的页面使用 */
+export function usePrimaryLeagueId(): number | null {
+  return useLeagueStore((s) => (s.selectedLeagueIds.length > 0 ? s.selectedLeagueIds[0] : null))
+}
 
 // ==================== 比赛状态 ====================
 
@@ -83,7 +76,7 @@ interface MatchState {
   standings: StandingsOut | null
   homeTabs: HomeTabItem[]
   loading: boolean
-  fetchMatches: (params?: { league_id?: number; league_ids?: number[]; status?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) => Promise<void>
+  fetchMatches: (params?: { league_id?: number; league_ids?: number[]; status?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc'; limit?: number }) => Promise<void>
   fetchMatchDetail: (id: number) => Promise<void>
   fetchPredictions: (matchId: number) => Promise<void>
   fetchHomeStats: (leagueIds?: number[]) => Promise<void>
@@ -159,20 +152,8 @@ export const useMatchStore = create<MatchState>((set) => ({
 
 // ==================== 排行榜状态 ====================
 
-/** 中文轮次标签 → 数据库实际 round 英文值 */
-const LEADERBOARD_ROUND_MAP: Record<string, string> = {
-  '小组赛': 'Group Stage - 1,Group Stage - 2,Group Stage - 3',
-  '淘汰赛': 'Round of 32,Round of 16,Quarter-finals,Semi-finals,3rd Place Final,Final',
-}
-
-/** 解析排行榜 activeRound 为 API 需要的英文 round 字符串 */
-function resolveLeaderboardRound(activeRound: string): string {
-  return LEADERBOARD_ROUND_MAP[activeRound] || ''
-}
-
 interface LeaderboardState {
   activeTab: 'ai' | 'human'
-  activeRound: string
   sortMode: 'composite' | 'field'
   sortBy: 'composite' | 'result_accuracy' | 'score_accuracy'
   sortOrder: 'asc' | 'desc'
@@ -180,7 +161,6 @@ interface LeaderboardState {
   topUsers: HumanUserRankItem[]
   loading: boolean
   setActiveTab: (tab: 'ai' | 'human') => void
-  setActiveRound: (round: string) => void
   setSortMode: (mode: 'composite' | 'field') => void
   setSort: (sortBy: 'result_accuracy' | 'score_accuracy', sortOrder: 'asc' | 'desc') => void
   fetchLeaderboard: () => Promise<void>
@@ -224,7 +204,6 @@ function applyUserSort(entries: HumanUserRankItem[], sortBy: 'result_accuracy' |
 
 export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
   activeTab: 'ai',
-  activeRound: '全部',
   sortMode: 'composite',   // 默认综合排序
   sortBy: 'composite',  // 默认综合排序：票数 → 比分命中率 → 胜负正确率
   sortOrder: 'desc',
@@ -237,10 +216,6 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
     get().fetchLeaderboard()
   },
 
-  setActiveRound: (round) => {
-    set({ activeRound: round })
-    get().fetchLeaderboard()
-  },
 
   setSortMode: (mode) => {
     if (mode === 'composite') {
@@ -295,14 +270,13 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
   },
 
   fetchLeaderboard: async () => {
-    const { activeTab, activeRound, sortBy, sortOrder } = get()
-    const resolvedRound = resolveLeaderboardRound(activeRound)
-    // 按当前选中联赛筛选（未选中则返回全局排行）
-    const leagueId = useLeagueStore.getState().currentLeagueId ?? undefined
+    const { activeTab, sortBy, sortOrder } = get()
+    // 按当前选中的多个联赛筛选（空数组=全部联赛）
+    const leagueIds = useLeagueStore.getState().selectedLeagueIds
     set({ loading: true })
     try {
       if (activeTab === 'ai') {
-        const rawEntries = await api.getAILeaderboard(resolvedRound, leagueId)
+        const rawEntries = await api.getAILeaderboard(leagueIds)
         set({
           entries: applySort(rawEntries as AILeaderboardItem[], sortBy, sortOrder),
           topUsers: [],
@@ -310,7 +284,7 @@ export const useLeaderboardStore = create<LeaderboardState>((set, get) => ({
         })
       } else {
         const userId = useUserStore.getState().user?.id
-        const humanData = await api.getHumanLeaderboard(userId, resolvedRound, leagueId)
+        const humanData = await api.getHumanLeaderboard(userId, leagueIds)
         set({
           entries: [],
           topUsers: humanData.top_users as HumanUserRankItem[],
@@ -438,4 +412,58 @@ export const useUserStore = create<UserState>((set, get) => ({
     Taro.removeStorageSync('token')
     Taro.removeStorageSync('profile_setup')
   }
+}))
+
+// ==================== 通用中英文映射 ====================
+
+interface RoundState {
+  translations: CnMapping[]
+  ready: boolean
+  fetchRoundTranslations: () => Promise<void>
+}
+
+/** 模块级缓存：round key -> 映射条目，避免每次渲染重复构建 */
+let _roundMap: Record<string, CnMapping> = {}
+
+/** 根据映射条目与原始 round 渲染中文标签 */
+function renderRound(t: CnMapping, raw: string, suffix?: string): string {
+  if (t.is_series) {
+    const n = suffix ?? (raw.includes(' - ') ? raw.split(' - ').pop()! : '')
+    return t.cn_value.replace('{n}', n)
+  }
+  return t.cn_value
+}
+
+/** 全局统一的 round 中文翻译函数（替代各页面硬编码的 ROUND_CN_MAP） */
+export function getRoundLabel(round: string): string {
+  if (!round) return round
+  // 1. 精确匹配（如 Final / Semi-finals）
+  if (_roundMap[round]) return renderRound(_roundMap[round], round)
+  // 2. 带数字后缀的系列轮次：Group Stage - 3 → 取 base key
+  const idx = round.lastIndexOf(' - ')
+  if (idx > 0) {
+    const baseKey = round.slice(0, idx)
+    const suffix = round.slice(idx + 3)
+    if (_roundMap[baseKey]) return renderRound(_roundMap[baseKey], round, suffix)
+  }
+  // 未命中映射：返回原始英文（数据加载完成前也用此兜底）
+  return round
+}
+
+export const useRoundStore = create<RoundState>((set) => ({
+  translations: [],
+  ready: false,
+
+  fetchRoundTranslations: async () => {
+    try {
+      // 只拉取 round 类别，供全站 round 标签翻译
+      const data = await api.getCnMappings('round')
+      _roundMap = {}
+      data.forEach(t => { _roundMap[t.key] = t })
+      set({ translations: data, ready: true })
+    } catch {
+      // 拉取失败也不阻塞页面，保留英文兜底
+      set({ ready: true })
+    }
+  },
 }))

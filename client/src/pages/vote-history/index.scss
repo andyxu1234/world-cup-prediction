@@ -1,9 +1,11 @@
 // Variables injected globally via sass.data
 
 .vote-history-page {
+  height: 100vh;
   min-height: 100vh;
   background: $bg-primary;
   padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
 }
@@ -88,8 +90,9 @@
 
 // 列表区域
 .vh-list {
+  flex: 1;
+  overflow: hidden;
   padding: 0 0 30px;
-  height: calc(100vh - 340px);
 }
 
 // 比赛卡片 — 白底干净卡片

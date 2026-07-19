@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
-import { View, Text, Input, ScrollView, Image, Button } from '@tarojs/components'
+import { View, Text, Input, ScrollView, Image } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { useMatchStore, useUserStore } from '@/stores'
+import { useMatchStore, useUserStore, useRoundStore, getRoundLabel } from '@/stores'
 import { AD_UNIT_IDS, isAdUnlocked, showRewardedVideo, setAdUnlocked, createRewardedVideoAd, shouldShowAd } from '@/utils/ad'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
@@ -15,7 +15,6 @@ import minimaxImg from '@/assets/aimodels/minimax.svg'
 import grokImg from '@/assets/aimodels/grok.svg'
 import hunyuanImg from '@/assets/aimodels/hunyuan.svg'
 import xiaomimimoImg from '@/assets/aimodels/xiaomimimo.svg'
-import shareIcon from '@/assets/share.svg'
 import './index.scss'
 
 const MODEL_AVATARS: Record<string, string> = {
@@ -43,21 +42,7 @@ function getResultLabel(result: string) {
   return { text: '客胜', cls: 'pred-away' }
 }
 
-const ROUND_CN_MAP: Record<string, string> = {
-  'Group Stage - 1': '小组赛第1轮',
-  'Group Stage - 2': '小组赛第2轮',
-  'Group Stage - 3': '小组赛第3轮',
-  'Round of 32': '三十二强赛',
-  'Round of 16': '十六强赛',
-  'Quarter-finals': '四分之一决赛',
-  'Semi-finals': '半决赛',
-  '3rd Place Final': '季军赛',
-  'Final': '决赛',
-}
 
-function getRoundLabel(round: string): string {
-  return ROUND_CN_MAP[round] || round
-}
 
 function FlagImage({ src, className }: { src: string; className: string }) {
   const [failed, setFailed] = useState(false)
@@ -84,6 +69,7 @@ function TeamInfo({ team }: { team: { name: string; cn_name: string | null; flag
 export default function MatchDetail() {
   const router = useRouter()
   const matchId = Number(router.params.id)
+  useRoundStore((s) => s.ready)
   const { currentMatch, predictions, fetchMatchDetail, fetchPredictions } = useMatchStore()
   const { user, myVote, fetchVote, vote } = useUserStore()
   const [selectedResult, setSelectedResult] = useState<string>('')
@@ -311,13 +297,10 @@ export default function MatchDetail() {
         <View className='match-hero-top'>
           {currentMatch.league && (
             <View className='match-hero-league'>
-              {currentMatch.league.logo ? (
-                <Image className='match-hero-league-logo' src={currentMatch.league.logo} mode='aspectFit' />
-              ) : null}
               <Text className='match-hero-league-name'>{currentMatch.league.cn_name}</Text>
+              <Text className='match-hero-round'>{getRoundLabel(currentMatch.round)}</Text>
             </View>
           )}
-          <Text className='match-hero-round'>{getRoundLabel(currentMatch.round)}</Text>
         </View>
         <View className='match-hero-teams'>
           <TeamInfo team={currentMatch.home_team} />
@@ -598,21 +581,7 @@ export default function MatchDetail() {
 
       {/* 主内容区滚动结束 */}
       </ScrollView>
-
-      {/* 分享按钮（固定右下角，直接转发小程序） */}
-      <View className='share-fab-wrap'>
-        <View className='share-fab-glow' />
-        <Button
-          className='share-fab'
-          openType='share'
-          onShareAppMessageSuccess={() => Taro.showToast({ title: '已分享', icon: 'success' })}
-        >
-          <View className='share-fab-inner'>
-            <Image className='share-fab-img' src={shareIcon} mode='aspectFit' />
-            <Text className='share-fab-text'>分享</Text>
-          </View>
-        </Button>
-      </View>
     </View>
   )
 }
+

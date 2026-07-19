@@ -109,7 +109,7 @@
 
 .hero-stats {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -120,7 +120,8 @@
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
   border-radius: 14px;
-  padding: 10px 6px 8px;
+  padding: 10px 4px 8px;
+
 
   &.hero-stat-clickable {
     position: relative;
@@ -496,8 +497,13 @@
 
 .m-round {
   font-size: 19px;
-  color: $text3;
-  font-weight: 500;
+  color: $text1;
+  font-weight: 700;
+}
+
+.m-league {
+  color: $green;
+  font-weight: 800;
 }
 
 .m-time {
@@ -526,8 +532,6 @@
   width: 80px;
   height: 54px;
   border-radius: 8px;
-  background: #f1f5f9;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 // 无国旗时的 fallback

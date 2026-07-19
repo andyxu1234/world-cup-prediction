@@ -40,30 +40,19 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 16px;
-  border-radius: 40px;
-  background: rgba(255, 255, 255, 0.2);
 }
 
-.match-hero-league-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.match-hero-league-name {
+.match-hero-league-name,
+.match-hero-round {
   font-size: 22px;
   color: #ffffff;
   font-weight: 600;
 }
 
 .match-hero-round {
-  font-size: 22px;
   color: rgba(255, 255, 255, 0.8);
-  font-weight: 600;
-  display: block;
 }
+
 
 .match-hero-teams {
   display: flex;
@@ -110,19 +99,16 @@
   font-weight: 800;
 }
 
-// 国旗（长方形）— 白底
+// 国旗（长方形）— 透明底
 .flag {
   width: 100px;
   height: 68px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .flag-lg {
   width: 120px;
   height: 82px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .flag-fallback {
@@ -145,7 +131,6 @@
   border-radius: $radius;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
 }
 
 .pred-hd {
@@ -845,59 +830,6 @@
   font-size: 28px;
   font-weight: 700;
   color: #ffffff;
-}
-
-// ==================== 悬浮分享按钮 — 简洁胶囊 ====================
-.share-fab-wrap {
-  position: fixed;
-  right: 24px;
-  bottom: 180px;
-  z-index: 500;
-}
-
-.share-fab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 72rpx;
-  padding: 0 26rpx;
-  border-radius: 36rpx;
-  background: transparent;
-  border: 1.5px solid rgba(18, 150, 219, 0.5);
-  box-shadow: 0 4px 16px rgba(18, 150, 219, 0.2);
-  z-index: 1;
-
-  &:active {
-    transform: scale(0.94);
-    opacity: 0.9;
-  }
-
-  &::after { display: none !important; }
-}
-
-.share-fab-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-}
-
-.share-fab-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.share-fab-img {
-  width: 30rpx;
-  height: 30rpx;
-}
-
-.share-fab-text {
-  font-size: 24rpx;
-  color: #1296db;
-  font-weight: 600;
-  line-height: 1;
 }
 
 // ==================== 分享底部弹出面板 ====================

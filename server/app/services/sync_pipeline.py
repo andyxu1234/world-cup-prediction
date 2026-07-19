@@ -171,10 +171,28 @@ async def _respond_to_finished_matches(highightly_ids: list[int]) -> int:
         except Exception as e:
             logger.error(f"Stats update failed for finished matches: {e}")
 
+    # 同步刚结束比赛的 box-score（球员榜数据）
+    try:
+        from app.services.player_stats_sync import sync_box_score_for_match
+        for m in matches:
+            try:
+                await sync_box_score_for_match(m)
+            except Exception as e:
+                logger.warning(f"Box-score sync failed for match {m.id}: {e}")
+    except Exception as e:
+        logger.error(f"Box-score sync failed: {e}")
+
     # 评估预测
     try:
         await evaluate_predictions()
     except Exception as e:
         logger.error(f"Prediction evaluation failed: {e}")
+
+    # 同步官方积分榜落地 league_standings 表（供积分榜/球队榜读取）
+    try:
+        from app.services.standings_sync import sync_league_standings
+        await sync_league_standings()
+    except Exception as e:
+        logger.error(f"League standings sync failed in pipeline: {e}")
 
     return stats_result.get("stats", 0)

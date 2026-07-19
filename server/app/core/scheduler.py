@@ -18,6 +18,7 @@ def start_scheduler():
     """启动定时任务"""
     from app.services.sync_pipeline import sync_matches_and_respond
     from app.services.ai_predictor import generate_predictions
+    from app.services.stats_sync import sync_standings_and_stats
     from app.core.cache_warmer import refresh_all_caches
 
     # 每 30 分钟：同步比赛 + 事件响应（新增比赛→H2H，比赛结束→stats+评估）
@@ -39,6 +40,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # 每日 02:00：全量同步积分榜 + 球队统计 + 近期战绩
+    scheduler.add_job(
+        sync_standings_and_stats,
+        "cron",
+        hour=2,
+        minute=0,
+        id="sync_standings_and_stats",
+        replace_existing=True,
+    )
+
     # 每 5 分钟：刷新缓存（预热只读数据，减少 DB 查询）
     scheduler.add_job(
         refresh_all_caches,
@@ -53,6 +64,7 @@ def start_scheduler():
         "Scheduler started: "
         "sync_matches_and_respond(*/30min), "
         "generate_predictions(01:00), "
+        "sync_standings_and_stats(02:00), "
         "refresh_all_caches(*/5min)"
     )
 

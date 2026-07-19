@@ -41,3 +41,20 @@ class StandingsOut(BaseModel):
     type: str = "cup"
 
     model_config = {"from_attributes": True}
+
+
+class LeagueStandingsOut(BaseModel):
+    """单个联赛的积分榜（含联赛元信息）"""
+    league_id: int
+    league_name: str
+    type: str = "cup"
+    groups: List[GroupStandingOut]
+
+    model_config = {"from_attributes": True}
+
+
+class AllStandingsOut(BaseModel):
+    """全部（活跃）联赛的积分榜"""
+    leagues: List[LeagueStandingsOut]
+
+    model_config = {"from_attributes": True}

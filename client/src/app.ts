@@ -1,6 +1,6 @@
 import { PropsWithChildren } from 'react'
 import Taro, { useLaunch } from '@tarojs/taro'
-import { useUserStore } from '@/stores'
+import { useUserStore, useRoundStore } from '@/stores'
 import './styles/global.scss'
 
 function App({ children }: PropsWithChildren) {
@@ -8,6 +8,9 @@ function App({ children }: PropsWithChildren) {
 
   useLaunch(() => {
     console.log('App launched.')
+
+    // 启动即预拉取轮次中英文映射，供全站 round 标签翻译使用
+    useRoundStore.getState().fetchRoundTranslations()
 
     // 从本地存储加载 token 和 profileSetup（避免模块初始化时 Taro API 未就绪）
     try {

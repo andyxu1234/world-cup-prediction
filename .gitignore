@@ -50,3 +50,24 @@ pip-delete-this-directory.txt
 # Docker
 server/mysql_data/
 *.pid
+
+# --- 临时/调试/运行态产物（非业务代码，勿入库）---
+# sofifa 抓取运行态与凭证
+.sofifa_*
+server/.sofifa_profile/
+# 抓取与映射产物（可重新生成）
+sofifa_players.csv
+player_sofifa_map.csv
+player_sofifa_review.csv
+update_players_logo.sql
+db_id_name_all.csv
+# 代理/抓取缓存
+server/static/proxy_cache/
+# 临时调试脚本
+client/_check*.js
+server/_check*.js
+server/_sample_map.py
+server/scripts/_verify_round.py
+server/diag_*.py
+# 反引号碎片文件
+server/`tsofifa

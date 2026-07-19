@@ -15,7 +15,9 @@ from app.models.prediction import Prediction
 from app.models.prediction_summary import PredictionSummary
 from app.models.ai_model import AIModel
 from app.models.user_vote import UserVote
+from app.models.league import League
 from app.schemas.match import MatchListOut, MatchDetailOut, PredictionSummaryOut, HomeStatsOut, HomeTabsOut, HomeTabItem
+
 from app.core.cache import stats_cache, matches_cache, match_detail_cache, get_or_set
 
 router = APIRouter(prefix="/matches", tags=["matches"])
@@ -57,82 +59,35 @@ async def get_home_stats(
             select(func.count(func.distinct(UserVote.user_id)))
         )).scalar() or 0
         total_user_predictions = (await db.execute(select(func.count(UserVote.id)))).scalar() or 0
+        total_leagues = (await db.execute(
+            select(func.count(League.id)).where(League.is_active == True)
+        )).scalar() or 0
         return HomeStatsOut(
             total_matches=total_matches,
             active_ai_models=active_ai,
             total_predictions=total_predictions,
             total_users=total_users,
             total_user_predictions=total_user_predictions,
+            total_leagues=total_leagues,
         )
-    cache_key = f"home_stats:{league_ids}:{league_id}"
+
+    cache_key = f"home_stats:v2:{league_ids}:{league_id}"
     return await get_or_set(stats_cache, cache_key, fetch)
+
 
 
 @router.get("/home-tabs", response_model=HomeTabsOut)
 async def get_home_tabs(
     league_id: Optional[int] = Query(None, description="单个联赛 ID（兼容旧调用）"),
     league_ids: Optional[List[int]] = Query(None, description="多联赛 ID 列表"),
-    db: AsyncSession = Depends(get_db),
 ):
-    """获取首页 Tab 配置（控制展示顺序）
-
-    - 未选联赛：默认含小组赛 / 淘汰赛（原世界杯杯赛行为）
-    - 单联赛：按该联赛类型返回（league 无小组赛/淘汰赛，cup 含）
-    - 多联赛：跨联赛无单一积分榜，去掉「积分榜」；含杯赛则保留小组赛/淘汰赛
-    """
-    from app.models.league import League
-    from sqlalchemy import select as sa_select
-
-    if league_ids and len(league_ids) > 0:
-        target_ids = league_ids
-    elif league_id is not None:
-        target_ids = [league_id]
-    else:
-        target_ids = []
-
-    types = []
-    if target_ids:
-        stmt = sa_select(League.type).where(League.id.in_(target_ids))
-        types = (await db.execute(stmt)).scalars().all()
-    has_cup = any((getattr(t, "value", t) == "cup") for t in types)
-
-    if not target_ids:
-        tabs = [
-            HomeTabItem(key="knockout", label="淘汰赛"),
-            HomeTabItem(key="standings", label="积分榜"),
-            HomeTabItem(key="today", label="今日"),
-            HomeTabItem(key="tomorrow", label="明日"),
-            HomeTabItem(key="finished", label="已结束"),
-            HomeTabItem(key="group", label="小组赛"),
-        ]
-    elif len(target_ids) == 1:
-        if types and getattr(types[0], "value", types[0]) == "league":
-            tabs = [
-                HomeTabItem(key="standings", label="积分榜"),
-                HomeTabItem(key="today", label="今日"),
-                HomeTabItem(key="tomorrow", label="明日"),
-                HomeTabItem(key="finished", label="已结束"),
-            ]
-        else:
-            tabs = [
-                HomeTabItem(key="knockout", label="淘汰赛"),
-                HomeTabItem(key="standings", label="积分榜"),
-                HomeTabItem(key="today", label="今日"),
-                HomeTabItem(key="tomorrow", label="明日"),
-                HomeTabItem(key="finished", label="已结束"),
-                HomeTabItem(key="group", label="小组赛"),
-            ]
-    else:
-        # 多联赛：跨联赛无单一积分榜，去掉「积分榜」；含杯赛保留小组赛/淘汰赛
-        tabs = []
-        if has_cup:
-            tabs.append(HomeTabItem(key="knockout", label="淘汰赛"))
-            tabs.append(HomeTabItem(key="group", label="小组赛"))
-        tabs += [
-            HomeTabItem(key="today", label="今日"),
-            HomeTabItem(key="tomorrow", label="明日"),
-            HomeTabItem(key="finished", label="已结束"),
-        ]
+    """获取首页 Tab 配置（控制展示顺序）"""
+    tabs = [
+        HomeTabItem(key="recent", label="近期赛事"),
+        HomeTabItem(key="today", label="今日"),
+        HomeTabItem(key="tomorrow", label="明日"),
+        HomeTabItem(key="finished", label="已结束"),
+    ]
     return HomeTabsOut(tabs=tabs)
 
 
@@ -145,10 +100,11 @@ async def get_matches(
     status_not: Optional[str] = Query(None, description="状态排除筛选（排除指定状态）"),
     date: Optional[str] = Query(None, description="日期筛选，格式 YYYY-MM-DD"),
     sort_order: Optional[str] = Query("asc", description="排序方式：asc（默认，时间正序）或 desc（时间倒序）"),
+    limit: Optional[int] = Query(None, ge=1, le=200, description="最多返回条数，默认不限（首页建议传 50 防止一次性加载过多）"),
     db: AsyncSession = Depends(get_db),
 ):
     """获取比赛列表"""
-    cache_key = f"matches:{league_id}:{league_ids}:{round}:{status}:{status_not}:{date}:{sort_order}"
+    cache_key = f"matches:{league_id}:{league_ids}:{round}:{status}:{status_not}:{date}:{sort_order}:{limit}"
 
     async def fetch():
         order_col = Match.match_time.desc() if sort_order == "desc" else Match.match_time.asc()
@@ -177,6 +133,8 @@ async def get_matches(
             from sqlalchemy import func as sa_func, cast
             from sqlalchemy.types import Date as SqlDate
             stmt = stmt.where(cast(Match.match_time, SqlDate) == sa_func.date(date))
+        if limit is not None:
+            stmt = stmt.limit(limit)
 
         result = await db.execute(stmt)
         return result.scalars().all()

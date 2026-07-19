@@ -10,7 +10,7 @@ from app.database import Base
 from app.config import get_settings
 
 # 导入所有模型，确保 Base.metadata 包含所有表
-from app.models import Team, Match, AIModel, Prediction, LongTermPrediction, User, UserVote, League  # noqa
+from app.models import Team, Match, AIModel, Prediction, LongTermPrediction, User, UserVote, League, CnMapping  # noqa
 
 config = context.config
 

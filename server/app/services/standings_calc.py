@@ -163,3 +163,40 @@ async def calculate_standings(db: AsyncSession, league_id: int) -> StandingsOut:
         ))
 
     return StandingsOut(groups=result_groups, type="cup" if is_cup else "league")
+
+
+async def calculate_all_standings(db: AsyncSession) -> "AllStandingsOut":
+    """计算所有活跃联赛的积分榜（数据 Tab 使用，不按用户选择过滤）
+
+    仅返回有已结束比赛（即 groups 非空）的联赛，按联赛 id 升序。
+    """
+    from app.models.league import League
+    from app.schemas.standings import (
+        AllStandingsOut,
+        LeagueStandingsOut,
+    )
+
+    league_stmt = (
+        select(League)
+        .where(League.is_active == True)  # noqa: E712
+        .order_by(League.sort_order, League.id)
+    )
+    leagues = (await db.execute(league_stmt)).scalars().all()
+
+    out: list[LeagueStandingsOut] = []
+    for lg in leagues:
+        try:
+            st = await calculate_standings(db, lg.id)
+        except ValueError:
+            continue
+        if not st.groups or all(len(g.standings) == 0 for g in st.groups):
+            continue
+        out.append(
+            LeagueStandingsOut(
+                league_id=lg.id,
+                league_name=lg.cn_name or lg.name,
+                type=st.type,
+                groups=st.groups,
+            )
+        )
+    return AllStandingsOut(leagues=out)

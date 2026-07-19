@@ -28,28 +28,3 @@ class PredictionOut(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True, "protected_namespaces": ()}
-
-
-class FaceSlapOut(BaseModel):
-    """打脸条目"""
-    prediction_id: int
-    model_name: str
-    model_avatar: Optional[str] = None
-    match_id: int
-    league_id: Optional[int] = None
-    league_name: Optional[str] = None
-    home_team: str          # 主队中文名
-    away_team: str          # 客队中文名
-    home_team_flag: Optional[str] = None   # 主队国旗
-    away_team_flag: Optional[str] = None   # 客队国旗
-    predicted_result: str
-    predicted_score: str
-    actual_result: str
-    actual_score: str
-    confidence: Optional[int] = None
-    analysis: Optional[str] = None
-    face_slap_index: float = 0
-    score_absurdity: int = 0  # 比分离谱度：|预测主-实际主| + |预测客-实际客|
-    match_time: Optional[str] = None  # 比赛时间
-
-    model_config = {"from_attributes": True, "protected_namespaces": ()}

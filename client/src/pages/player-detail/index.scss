@@ -1,0 +1,160 @@
+.detail-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.detail-loading,
+.detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: #94a3b8;
+  font-size: 28px;
+}
+
+.detail-scroll {
+  height: 100vh;
+}
+
+/* 头部 */
+.detail-header {
+  display: flex;
+  align-items: center;
+  padding: 40px 32px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.detail-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: 3px solid rgba(255, 255, 255, 0.6);
+}
+
+.detail-title {
+  margin-left: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-name {
+  color: #fff;
+  font-size: 40px;
+  font-weight: 700;
+}
+
+.detail-sub {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 26px;
+  margin-top: 8px;
+}
+
+/* 区块 */
+.detail-section {
+  margin: 24px 24px 0;
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px 24px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+.detail-section-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.detail-hint {
+  color: #94a3b8;
+  font-size: 26px;
+}
+
+/* 基础信息 */
+.info-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.info-cell {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+}
+
+.info-label {
+  font-size: 24px;
+  color: #94a3b8;
+}
+
+.info-value {
+  font-size: 28px;
+  color: #1e293b;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* 联赛切换 */
+.league-switch {
+  white-space: nowrap;
+  width: 100%;
+}
+
+.league-chip {
+  display: inline-block;
+  padding: 12px 28px;
+  margin-right: 16px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 26px;
+}
+
+.league-chip.active {
+  background: #10b981;
+  color: #fff;
+}
+
+/* 赛季数据网格 */
+.stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.stat-box {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0;
+}
+
+.stat-num {
+  font-size: 36px;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.stat-label {
+  font-size: 22px;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+/* SafeImage 兜底 */
+.safe-img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.detail-avatar.safe-img-fallback {
+  font-size: 44px;
+}

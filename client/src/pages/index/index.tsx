@@ -1,28 +1,19 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
-import { useMatchStore, useLeaderboardStore, useLeagueStore } from '@/stores'
+import { useMatchStore, useLeaderboardStore, useLeagueStore, useRoundStore, getRoundLabel } from '@/stores'
 import { shallow } from 'zustand/shallow'
+import LeaguePicker from '@/components/LeaguePicker'
 import './index.scss'
 
 // 默认 Tab 配置（后端接口失败时的 fallback，顺序与后端 get_home_tabs 一致）
-const DEFAULT_CHIPS = ['淘汰赛', '积分榜', '今日', '明日', '已结束', '小组赛']
-
-// 每组主题色 — 体育广播风格配色
-const GROUP_COLOR_MAP: Record<string, { gradient: string; accent: string }> = {
-  'A': { gradient: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)', accent: '#14b8a6' },
-  'B': { gradient: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)', accent: '#3b82f6' },
-  'C': { gradient: 'linear-gradient(135deg, #9333ea 0%, #a855f7 100%)', accent: '#a855f7' },
-  'D': { gradient: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)', accent: '#ef4444' },
-  'E': { gradient: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)', accent: '#f97316' },
-  'F': { gradient: 'linear-gradient(135deg, #0891b2 0%, #22d3ee 100%)', accent: '#22d3ee' },
-  'G': { gradient: 'linear-gradient(135deg, #059669 0%, #34d399 100%)', accent: '#34d399' },
-  'H': { gradient: 'linear-gradient(135deg, #be185d 0%, #ec4899 100%)', accent: '#ec4899' },
-  default: { gradient: 'linear-gradient(135deg, #374151 0%, #6b7280 100%)', accent: '#6b7280' },
-}
+const DEFAULT_CHIPS = ['近期赛事', '今日', '明日', '已结束']
 
 // 默认 fallback 图标（当 flag_url 为空或加载失败时使用）
 const DEFAULT_FLAG_ICON = '⚽'
+
+// 首页比赛列表单次最多拉取条数，防止多联赛下一次性加载过多导致小程序卡顿
+const MATCH_LIST_LIMIT = 50
 
 /** 国旗图片组件：直接用外部 URL，加载失败回退 */
 function FlagImage({ src, className }: { src: string; className: string }) {
@@ -31,21 +22,7 @@ function FlagImage({ src, className }: { src: string; className: string }) {
   return <Image className={className} src={src} mode='aspectFit' onError={() => setFailed(true)} />
 }
 
-const ROUND_CN_MAP: Record<string, string> = {
-  'Group Stage - 1': '小组赛第1轮',
-  'Group Stage - 2': '小组赛第2轮',
-  'Group Stage - 3': '小组赛第3轮',
-  'Round of 32': '三十二强赛',
-  'Round of 16': '十六强赛',
-  'Quarter-finals': '四分之一决赛',
-  'Semi-finals': '半决赛',
-  '3rd Place Final': '季军赛',
-  'Final': '决赛',
-}
 
-function getRoundLabel(round: string): string {
-  return ROUND_CN_MAP[round] || round
-}
 
 function formatMatchTime(timeStr: string | null): string {
   if (!timeStr) return '待定'
@@ -74,55 +51,19 @@ function getStatusLabel(status: string) {
 
 
 export default function Index() {
+  // 订阅轮次映射加载状态：数据到达后自动重渲染（映射函数本身用纯函数 getRoundLabel）
+  useRoundStore((s) => s.ready)
   // 使用 shallow 浅比较：只有 matches 数组引用变化时才重渲染
   const matches = useMatchStore((s) => s.matches, shallow)
   const homeStats = useMatchStore((s) => s.homeStats)
-  const standings = useMatchStore((s) => s.standings)
   const homeTabs = useMatchStore((s) => s.homeTabs)
   const fetchMatches = useMatchStore((s) => s.fetchMatches)
   const fetchHomeStats = useMatchStore((s) => s.fetchHomeStats)
-  const fetchStandings = useMatchStore((s) => s.fetchStandings)
   const fetchHomeTabs = useMatchStore((s) => s.fetchHomeTabs)
   // 多联赛：当前选中联赛集合（可多选，混合展示）
-  const currentLeagueId = useLeagueStore((s) => s.currentLeagueId)
-  const leagues = useLeagueStore((s) => s.leagues, shallow)
   const fetchLeagues = useLeagueStore((s) => s.fetchLeagues)
   const selectedLeagueIds = useLeagueStore((s) => s.selectedLeagueIds, shallow)
-  const setSelectedLeagues = useLeagueStore((s) => s.setSelectedLeagues)
-  const currentLeague = leagues.find((l) => l.id === currentLeagueId) || null
-
-  // 联赛多选弹窗
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const [tempSelected, setTempSelected] = useState<number[]>(selectedLeagueIds)
-  const [triggerRect, setTriggerRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
-  const openLeaguePicker = () => {
-    const query = Taro.createSelectorQuery()
-    query.select('.league-trigger').boundingClientRect()
-    query.exec((res) => {
-      const rect = res[0]
-      if (rect) {
-        setTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
-      }
-      setTempSelected(selectedLeagueIds)
-      setPickerOpen(true)
-    })
-  }
-  const toggleLeagueInPicker = (id: number) => {
-    setTempSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
-  }
-  const toggleSelectAllLeagues = () => {
-    setTempSelected((prev) =>
-      prev.length === leagues.length ? [] : leagues.map((l) => l.id)
-    )
-  }
-  const confirmLeaguePicker = () => {
-    // 不允许空选：至少保留一个联赛
-    if (tempSelected.length > 0) setSelectedLeagues(tempSelected)
-    setPickerOpen(false)
-  }
-  // 默认选中第一个 tab（淘汰赛），后端 tabs 加载后自动同步
+  // 默认选中第一个 tab（近期赛事），后端 tabs 加载后自动同步
   const [activeChip, setActiveChip] = useState(DEFAULT_CHIPS[0])
   // 优先使用后端返回的 Tab 列表，未加载时使用默认配置
   const chips = homeTabs.length > 0 ? homeTabs.map(t => t.label) : DEFAULT_CHIPS
@@ -178,9 +119,10 @@ export default function Index() {
   }, [fetchLeagues])
 
   useEffect(() => {
-    fetchHomeStats(selectedLeagueIds.length > 0 ? selectedLeagueIds : undefined)
+    fetchHomeStats()
     fetchHomeTabs(selectedLeagueIds.length > 0 ? selectedLeagueIds : undefined)
   }, [fetchHomeStats, fetchHomeTabs, selectedLeagueIds])
+
 
   const goToDetail = useCallback((id: number) => {
     if (navigatingRef.current.has(id)) return
@@ -194,13 +136,13 @@ export default function Index() {
 
   // 分享给好友
   useShareAppMessage(() => ({
-    title: 'AI 预测世界杯 · 和 AI 一起预测比赛结果',
+    title: 'AI 足球预测 · 和 AI 一起预测比赛结果',
     path: '/pages/index/index',
   }))
 
   // 分享到朋友圈
   useShareTimeline(() => ({
-    title: 'AI 预测世界杯 · 和 AI 一起预测比赛结果',
+    title: 'AI 足球预测 · 和 AI 一起预测比赛结果',
     query: '',
   }))
 
@@ -212,142 +154,46 @@ export default function Index() {
       params.status = 'finished'
       params.sort_order = 'desc'
     } else {
-      // 其余标签：全部排除已结束的比赛，只显示未开始/进行中的比赛
+      // 其余标签（近期赛事/今日/明日）：全部排除已结束的比赛，只显示未开始/进行中的比赛
       params.status_not = 'finished'
     }
-    if (activeChip === '小组赛') params.round = ['Group Stage - 1', 'Group Stage - 2', 'Group Stage - 3']
-    if (activeChip === '淘汰赛') params.round = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', '3rd Place Final', 'Final']
     if (activeChip === '今日') params.date = new Date().toISOString().slice(0, 10)
     if (activeChip === '明日') {
       const d = new Date()
       d.setDate(d.getDate() + 1)
       params.date = d.toISOString().slice(0, 10)
     }
+    params.limit = MATCH_LIST_LIMIT
     fetchMatches(params)
   }, [activeChip, fetchMatches, selectedLeagueIds])
 
-  // 切换联赛时重置积分榜缓存标记，并清空旧数据
-  const standingsFetchedRef = useRef(false)
-  useEffect(() => {
-    standingsFetchedRef.current = false
-    useMatchStore.setState({ standings: null })
-  }, [currentLeagueId])
-
-  // 切换到积分榜 Tab 时加载数据（懒加载 + 缓存）
-  useEffect(() => {
-    if (activeChip === '积分榜' && !standings && !standingsFetchedRef.current && currentLeagueId != null) {
-      standingsFetchedRef.current = true
-      fetchStandings(currentLeagueId)
-    }
-  }, [activeChip, standings, fetchStandings, currentLeagueId])
-
   // Tab 切换回来时刷新数据
   useDidShow(() => {
-    fetchHomeStats(selectedLeagueIds.length > 0 ? selectedLeagueIds : undefined)
+    fetchHomeStats()
     const params: any = {}
+
     if (selectedLeagueIds.length > 0) params.league_ids = selectedLeagueIds
     if (activeChip === '已结束') {
       params.status = 'finished'
       params.sort_order = 'desc'
     } else {
+      // 近期赛事/今日/明日：只显示未结束的比赛
       params.status_not = 'finished'
     }
-    if (activeChip === '小组赛') params.round = ['Group Stage - 1', 'Group Stage - 2', 'Group Stage - 3']
-    if (activeChip === '淘汰赛') params.round = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', '3rd Place Final', 'Final']
     if (activeChip === '今日') params.date = new Date().toISOString().slice(0, 10)
     if (activeChip === '明日') {
       const d = new Date()
       d.setDate(d.getDate() + 1)
       params.date = d.toISOString().slice(0, 10)
     }
+    params.limit = MATCH_LIST_LIMIT
     fetchMatches(params)
   })
 
-  // 根据当前 Tab 渲染不同内容
+  // 渲染比赛列表
   const renderContent = () => {
-    if (activeChip === '积分榜') {
-      if (!standings) {
-        return (
-          <View className='empty'>
-            <Text className='empty-icon'>📊</Text>
-            <Text className='empty-text'>加载中...</Text>
-          </View>
-        )
-      }
-      // 联赛类型：'league'=单组积分榜（五大联赛），'cup'=多组积分榜（世界杯/欧冠小组赛）
-      const isLeagueType = standings.type === 'league'
-      return (
-        <View className='standings-wrap'>
-          {standings.groups.map((group, gIdx) => {
-            const groupColors = GROUP_COLOR_MAP[group.group_name] || GROUP_COLOR_MAP.default
-            return (
-              <View key={group.group_name} className={`standing-card group-${group.group_name.toLowerCase()}`} style={{ animationDelay: `${gIdx * 0.08}s` }}>
-                {/* 组名横幅：单组联赛显示联赛名，杯赛显示 X 组 */}
-                <View className='standing-hd' style={{ background: groupColors.gradient }}>
-                  <Text className='standing-group-name'>{isLeagueType ? group.group_name : `${group.group_name} 组`}</Text>
-                  <Text className='standing-group-sub'>{isLeagueType ? '积分榜' : `GROUP ${group.group_name}`}</Text>
-                </View>
-                {/* 表头 */}
-                <View className='standing-row standing-head'>
-                  <Text className='st-col st-rank'></Text>
-                  <View className='st-col st-team'><Text className='st-head-label'>球队</Text></View>
-                  <Text className='st-col st-narrow'><Text className='st-head-label'>场次</Text></Text>
-                  <Text className='st-col st-wdl'><Text className='st-head-label'>胜/平/负</Text></Text>
-                  <Text className='st-col st-mid'><Text className='st-head-label'>进/失</Text></Text>
-                  <Text className='st-col st-pts'><Text className='st-head-label'>积分</Text></Text>
-                </View>
-                {/* 球队行 */}
-                {group.standings.map((team, tIdx) => (
-                  <View
-                    key={team.team_id}
-                    className={`standing-row ${team.rank <= 2 ? 'st-qualified' : ''}`}
-                    style={{ animationDelay: `${gIdx * 0.08 + tIdx * 0.05}s` }}
-                  >
-                    {/* 排名 */}
-                    <View className='st-col st-rank'>
-                      {team.rank <= 2 ? (
-                        <View className={`rank-badge rank-${team.rank}`}>
-                          <Text className='rank-badge-text'>{team.rank}</Text>
-                        </View>
-                      ) : (
-                        <Text className='rank-num'>{team.rank}</Text>
-                      )}
-                    </View>
-                    {/* 球队 */}
-                    <View className='st-col st-team'>
-                      <FlagImage src={team.flag_url || ''} className='st-flag' />
-                      <View className='st-team-info'>
-                        <Text className='st-team-name'>{team.team_cn_name || team.team_name}</Text>
-                      </View>
-                    </View>
-                    {/* 统计数据 */}
-                    <Text className='st-col st-narrow st-data'>{team.played}</Text>
-                    <Text className='st-col st-wdl st-data'>
-                      <Text className={`st-data ${team.won > 0 ? 'st-win' : ''}`}>{team.won}</Text>
-                      <Text className='st-wdl-sep'>/</Text>
-                      <Text className='st-data'>{team.draw}</Text>
-                      <Text className='st-wdl-sep'>/</Text>
-                      <Text className={`st-data ${team.lost > 0 ? 'st-loss' : ''}`}>{team.lost}</Text>
-                    </Text>
-                    <Text className='st-col st-mid st-data'>
-                      <Text className='st-goals'>{team.goals_for}</Text>
-                      <Text className='st-goal-sep'>/</Text>
-                      <Text className='st-goals st-goals-against'>{team.goals_against}</Text>
-                    </Text>
-                    {/* 积分 */}
-                    <View className='st-col st-pts'>
-                      <Text className={`st-pts-num ${team.rank <= 2 ? 'pts-top' : ''}`}>{team.points}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )
-          })}
-        </View>
-      )
-    }
-    // 比赛列表视图
     return (
+
       <View>
         {matches.length === 0 && (
           <View className='empty'>
@@ -361,7 +207,12 @@ export default function Index() {
             <View key={match.id}>
               <View className='m-card' onClick={() => goToDetail(match.id)}>
                 <View className='m-card-hd'>
-                  <Text className='m-round'>{getRoundLabel(match.round)}</Text>
+                  <Text className='m-round'>
+                    {match.league?.cn_name || match.league?.name ? (
+                      <Text className='m-league'>{match.league?.cn_name || match.league?.name} </Text>
+                    ) : null}
+                    {getRoundLabel(match.round)}
+                  </Text>
                   {statusInfo && (
                     <Text className={`badge ${statusInfo.cls}`}>{statusInfo.text}</Text>
                   )}
@@ -402,18 +253,21 @@ export default function Index() {
       <View className='hero'>
         <View className='hero-glow' />
         <View className='hero-title-row'>
-          <Text className='hero-title'>{selectedLeagueIds.length > 1 ? `已选 ${selectedLeagueIds.length} 个联赛` : (currentLeague?.cn_name || '2026 世界杯')}</Text>
-          {currentLeague?.logo ? (
-            <Image className='hero-logo-img' src={currentLeague.logo} mode='aspectFit' />
-          ) : (
-            <Text className='hero-logo'>🏆</Text>
-          )}
+          <Text className='hero-title'>AI足球预测</Text>
         </View>
-        <Text className='hero-sub'>{homeStats?.active_ai_models ?? '--'} 个 AI 模型 · 智能预测 · 人机对决</Text>
+        <Text className='hero-sub'>{homeStats?.total_leagues ?? '--'}大赛事 · {homeStats?.active_ai_models ?? '--'} 个 AI 模型 · 智能预测 · 人机对决</Text>
+
         <View className='hero-stats'>
           <View className='hero-stat'>
             <Text className='hero-stat-num'>{homeStats?.total_matches ?? '--'}</Text>
             <Text className='hero-stat-label'>总场次</Text>
+          </View>
+          <View
+            className='hero-stat hero-stat-clickable'
+            onClick={() => Taro.switchTab({ url: '/pages/data/index' })}
+          >
+            <Text className='hero-stat-num'>{homeStats?.total_leagues ?? '--'}</Text>
+            <Text className='hero-stat-label'>赛事</Text>
           </View>
           <View
             className='hero-stat hero-stat-clickable'
@@ -425,6 +279,7 @@ export default function Index() {
             <Text className='hero-stat-num'>{homeStats?.active_ai_models ?? '--'}</Text>
             <Text className='hero-stat-label'>AI 模型</Text>
           </View>
+
           <View
             className='hero-stat hero-stat-clickable'
             onClick={() => {
@@ -450,18 +305,8 @@ export default function Index() {
 
       {/* 筛选栏：联赛下拉 + 筛选 Tab 同一行 */}
       <View className='filter-row'>
-        {leagues.length > 1 && (
-          <View className='league-trigger' onClick={openLeaguePicker}>
-            {selectedLeagueIds.length === 1 && currentLeague?.logo ? (
-              <Image className='league-trigger-logo' src={currentLeague.logo} mode='aspectFit' />
-            ) : (
-              <View className='league-trigger-badge'>{selectedLeagueIds.length}</View>
-            )}
-            <Text className='league-trigger-name'>
-              {selectedLeagueIds.length === 1 ? currentLeague?.cn_name : `已选 ${selectedLeagueIds.length} 个联赛`}
-            </Text>
-            <Text className='league-trigger-arrow'>▾</Text>
-          </View>
+        {selectedLeagueIds.length > 0 && (
+          <LeaguePicker />
         )}
         <ScrollView scrollX className='chips-scroll'>
         <View className='chips'>
@@ -482,58 +327,6 @@ export default function Index() {
       <ScrollView scrollY className='match-list' style={scrollHeight ? { height: scrollHeight } : undefined}>
         {renderContent()}
       </ScrollView>
-
-      {/* 联赛多选弹窗：定位在触发器下方的紧凑下拉 */}
-      {pickerOpen && (
-        <View className='league-modal-mask' onClick={() => setPickerOpen(false)}>
-          <View
-            className='league-modal'
-            style={triggerRect ? { top: triggerRect.top + triggerRect.height + 8, left: triggerRect.left, minWidth: Math.max(triggerRect.width, 150) } : {}}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ScrollView
-              scrollY
-              className='league-modal-list'
-              style={{ height: `${Math.min(leagues.length * 50 + 10, 240)}px` }}
-            >
-              <View className='league-list'>
-                {leagues.map((lg) => {
-                  const checked = tempSelected.includes(lg.id)
-                  return (
-                    <View
-                      key={lg.id}
-                      className={`league-row ${checked ? 'checked' : ''}`}
-                      onClick={() => toggleLeagueInPicker(lg.id)}
-                    >
-                      <View className='league-row-main'>
-                        {lg.logo ? (
-                          <Image className='league-row-logo' src={lg.logo} mode='aspectFit' />
-                        ) : (
-                          <View className='league-row-logo fallback'>
-                            <Text className='league-row-logo-text'>{lg.cn_name.slice(0, 1)}</Text>
-                          </View>
-                        )}
-                        <Text className='league-row-name'>{lg.cn_name}</Text>
-                      </View>
-                      <View className='league-row-check'>
-                        <View className='league-row-check-inner' />
-                      </View>
-                    </View>
-                  )
-                })}
-              </View>
-            </ScrollView>
-            <View className='league-modal-ft'>
-              <Text className='league-modal-all' onClick={toggleSelectAllLeagues}>
-                {tempSelected.length === leagues.length ? '清空' : '全选'}
-              </Text>
-              <View className='league-modal-btn confirm' onClick={confirmLeaguePicker}>
-                <Text>确定 ({tempSelected.length})</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   )
 }

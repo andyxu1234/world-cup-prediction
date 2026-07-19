@@ -34,6 +34,18 @@ export function resolveAvatarUrl(url: string | null | undefined): string {
   return `${API_BASE_URL}${url}`
 }
 
+/**
+ * sofifa 头像直连会被 Cloudflare 防盗链 403（小程序 <image> 不带浏览器 UA/Referer）。
+ * 改为走后端代理（已带正确 UA/Referer），其它域名原样返回。
+ */
+export function proxiedSofifa(url?: string | null): string {
+  if (!url) return ''
+  if (url.includes('cdn.sofifa.net')) {
+    return `${API_BASE_URL}/api/v1/proxy/avatar?u=${encodeURIComponent(url)}`
+  }
+  return url
+}
+
 async function request<T = any>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, header = {}, timeout = REQUEST_TIMEOUT, retry = MAX_RETRY } = options
   const fullUrl = `${BASE_URL}${url}`
@@ -121,6 +133,16 @@ export function getLeagues() {
   return request<League[]>({ url: '/leagues' })
 }
 
+/** 按赛季获取联赛列表 */
+export function getLeaguesBySeason(season: number) {
+  return request<League[]>({ url: `/leagues?season=${season}` })
+}
+
+/** 获取数据库中已有的所有赛季（降序） */
+export function getLeagueSeasons() {
+  return request<number[]>({ url: '/leagues/seasons/available' })
+}
+
 /** 获取单个联赛详情 */
 export function getLeagueDetail(id: number) {
   return request<League>({ url: `/leagues/${id}` })
@@ -187,7 +209,7 @@ export interface Prediction {
   created_at: string | null
 }
 
-export function getMatches(params?: { league_id?: number; league_ids?: number[]; status?: string; status_not?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc' }) {
+export function getMatches(params?: { league_id?: number; league_ids?: number[]; status?: string; status_not?: string; round?: string[] | string; date?: string; sort_order?: 'asc' | 'desc'; limit?: number }) {
   // 手动构建 query string，确保数组参数正确序列化为 ?round=xxx&round=yyy
   let qs = ''
   if (params) {
@@ -204,6 +226,7 @@ export function getMatches(params?: { league_id?: number; league_ids?: number[];
     }
     if (params.date) parts.push(`date=${encodeURIComponent(params.date)}`)
     if (params.sort_order) parts.push(`sort_order=${encodeURIComponent(params.sort_order)}`)
+    if (params.limit != null) parts.push(`limit=${params.limit}`)
     if (parts.length > 0) qs = '?' + parts.join('&')
   }
   return request<Match[]>({ url: `/matches${qs}` })
@@ -217,10 +240,18 @@ export interface HomeStats {
   total_predictions: number
   total_users: number
   total_user_predictions: number
+  total_leagues: number
 }
 
+
 export function getHomeStats(leagueIds?: number[]) {
-  return request<HomeStats>({ url: '/matches/stats', data: leagueIds && leagueIds.length > 0 ? { league_ids: leagueIds } : {} })
+  // 手动构建 query string，确保数组参数序列化为 ?league_ids=1&league_ids=2 形式
+  // （直接传 data 给 GET 请求会被 Taro 序列化成 league_ids=[1,2] 导致后端 422）
+  let qs = ''
+  if (leagueIds && leagueIds.length > 0) {
+    qs = '?' + leagueIds.map(id => `league_ids=${id}`).join('&')
+  }
+  return request<HomeStats>({ url: `/matches/stats${qs}` })
 }
 
 export interface HomeTabItem {
@@ -233,11 +264,33 @@ export interface HomeTabsOut {
 }
 
 export function getHomeTabs(leagueIds?: number[]) {
-  return request<HomeTabsOut>({ url: '/matches/home-tabs', data: leagueIds && leagueIds.length > 0 ? { league_ids: leagueIds } : {} })
+  // 手动构建 query string，确保数组参数序列化为 ?league_ids=1&league_ids=2 形式
+  // （直接传 data 给 GET 请求会被 Taro 序列化成 league_ids=[1,2] 导致后端 422）
+  let qs = ''
+  if (leagueIds && leagueIds.length > 0) {
+    qs = '?' + leagueIds.map(id => `league_ids=${id}`).join('&')
+  }
+  return request<HomeTabsOut>({ url: `/matches/home-tabs${qs}` })
 }
 
 export function getMatchDetail(id: number) {
   return request<Match>({ url: `/matches/${id}` })
+}
+
+// ==================== 通用中英文映射 ====================
+
+export interface CnMapping {
+  id: number
+  category: string
+  key: string
+  cn_value: string
+  is_series: boolean
+}
+
+/** 获取通用中英文映射（可按 category 过滤，如 round / position） */
+export function getCnMappings(category?: string) {
+  const url = category ? `/cn-mappings?category=${encodeURIComponent(category)}` : '/cn-mappings'
+  return request<CnMapping[]>({ url })
 }
 
 export function getMatchPredictions(matchId: number) {
@@ -262,36 +315,40 @@ export function comparePredictions(matchId: number) {
   return request<ComparePredictionsOut>({ url: `/predictions/compare/${matchId}` })
 }
 
-// ==================== 打脸合集 ====================
+// ==================== 数据 Tab — 球员榜 ====================
 
-export interface FaceSlap {
-  prediction_id: number
-  model_name: string
-  model_avatar: string | null
-  match_id: number
-  league_id: number | null
-  league_name: string | null
-  home_team: string          // 主队中文名
-  away_team: string          // 客队中文名
-  home_team_flag: string | null   // 主队国旗
-  away_team_flag: string | null   // 客队国旗
-  predicted_result: string
-  predicted_score: string
-  actual_result: string
-  actual_score: string
-  confidence: number | null
-  analysis: string | null
-  face_slap_index: number
-  score_absurdity: number
-  match_time: string | null
+export type PlayerRankingType = 'goals' | 'assists' | 'yellow_cards' | 'red_cards'
+
+export interface PlayerRankingItem {
+  rank: number
+  player_id: number
+  player_name: string
+  player_cn_name: string | null
+  player_logo: string | null
+  team_id: number | null
+  team_name: string | null
+  team_cn_name: string | null
+  team_logo: string | null
+  games_played: number
+  minutes_played: number
+  goals: number
+  assists: number
+  yellow_cards: number
+  red_cards: number
+  shots_total: number
+  shots_on_target: number
 }
 
-export type FaceSlapSort = 'latest' | 'confidence' | 'absurdity'
+export interface PlayerRankingsOut {
+  league_id: number
+  type: PlayerRankingType
+  items: PlayerRankingItem[]
+}
 
-export function getFaceSlaps(sort: FaceSlapSort = 'latest', limit = 20, leagueId?: number) {
-  const data: Record<string, any> = { sort, limit }
+export function getPlayerRankings(leagueId?: number | null, type: PlayerRankingType = 'goals', limit = 50) {
+  const data: Record<string, any> = { type, limit }
   if (leagueId != null) data.league_id = leagueId
-  return request<FaceSlap[]>({ url: '/predictions/face-slaps', data })
+  return request<PlayerRankingsOut>({ url: '/data/player-rankings', data })
 }
 
 // ==================== 排行榜 ====================
@@ -332,11 +389,14 @@ export interface HumanLeaderboardOut {
   my_rank: MyRankItem | null
 }
 
-export function getAILeaderboard(round?: string, leagueId?: number) {
-  const data: Record<string, any> = {}
-  if (round) data.round = round
-  if (leagueId != null) data.league_id = leagueId
-  return request<AILeaderboardItem[]>({ url: '/leaderboard/ai', data })
+export function getAILeaderboard(leagueIds?: number[]) {
+  // 手动构建 query string，确保数组参数正确序列化为 ?league_ids=1&league_ids=2
+  // （直接传 data 给 GET 请求会被 Taro 序列化成 league_ids=[1,2] 导致后端 422）
+  let qs = ''
+  if (leagueIds && leagueIds.length > 0) {
+    qs = '?' + leagueIds.map(id => `league_ids=${id}`).join('&')
+  }
+  return request<AILeaderboardItem[]>({ url: `/leaderboard/ai${qs}` })
 }
 
 export interface AIDetailPrediction {
@@ -378,16 +438,21 @@ export interface AIDetailOut {
   predictions: AIDetailPrediction[]
 }
 
-export function getAIDetail(modelId: number, leagueId?: number) {
-  return request<AIDetailOut>({ url: `/leaderboard/ai/${modelId}`, data: leagueId != null ? { league_id: leagueId } : {} })
+export function getAIDetail(modelId: number, leagueIds?: number[]) {
+  // 手动构建 query string，支持多个联赛 ID
+  let qs = ''
+  if (leagueIds && leagueIds.length > 0) {
+    qs = '?' + leagueIds.map(id => `league_ids=${id}`).join('&')
+  }
+  return request<AIDetailOut>({ url: `/leaderboard/ai/${modelId}${qs}` })
 }
 
-export function getHumanLeaderboard(userId?: number, round?: string, leagueId?: number) {
-  const data: Record<string, any> = {}
-  if (userId) data.user_id = userId
-  if (round) data.round = round
-  if (leagueId != null) data.league_id = leagueId
-  return request<HumanLeaderboardOut>({ url: '/leaderboard/human', data })
+export function getHumanLeaderboard(userId?: number, leagueIds?: number[]) {
+  const parts: string[] = []
+  if (userId != null) parts.push(`user_id=${userId}`)
+  if (leagueIds && leagueIds.length > 0) leagueIds.forEach(id => parts.push(`league_ids=${id}`))
+  const qs = parts.length > 0 ? '?' + parts.join('&') : ''
+  return request<HumanLeaderboardOut>({ url: `/leaderboard/human${qs}` })
 }
 
 /** 上传头像文件，返回永久 URL */
@@ -486,10 +551,13 @@ export interface VoteHistoryItem {
   created_at: string | null
 }
 
-export function getUserVoteHistory(userId: number, limit = 50, offset = 0, leagueId?: number) {
-  const lq = leagueId != null ? `&league_id=${leagueId}` : ''
+export function getUserVoteHistory(userId: number, limit = 50, offset = 0, leagueIds?: number[]) {
+  const lq = leagueIds && leagueIds.length > 0
+    ? leagueIds.map(id => `&league_ids=${id}`).join('')
+    : ''
   return request<VoteHistoryItem[]>({ url: `/users/votes?user_id=${userId}&limit=${limit}&offset=${offset}${lq}` })
 }
+
 
 export function votePrediction(userId: number, matchId: number, predictedResult: string, homeScore: number, awayScore: number) {
   return request<any>({
@@ -544,23 +612,92 @@ export interface StandingsOut {
   type?: string
 }
 
+/** 单个联赛的积分榜（含联赛元信息），用于「全部联赛」聚合视图 */
+export interface LeagueStandingsOut {
+  league_id: number
+  league_name: string
+  type: string
+  groups: GroupStandingOut[]
+}
+
+/** 全部（活跃）联赛的积分榜 */
+export interface AllStandingsOut {
+  leagues: LeagueStandingsOut[]
+}
+
 export function getStandings(leagueId: number) {
   return request<StandingsOut>({ url: '/standings', data: { league_id: leagueId } })
 }
 
-// ==================== 趣闻生成 ====================
-
-export interface FunFact {
-  icon: string
-  title: string
-  text: string
+/** 数据 Tab：获取所有活跃联赛的积分榜（不按用户选择过滤） */
+export function getStandingsAll() {
+  return request<AllStandingsOut>({ url: '/standings/all' })
 }
 
-export function getFunFact() {
-  return request<FunFact>({
-    url: '/fun-fact',
-  })
+// ==================== 球队 / 球员详情 ====================
+
+export interface TeamDetailOut {
+  id: number
+  name: string
+  cn_name: string | null
+  flag_url: string | null
+  group_name: string | null
+  fifa_rank: number | null
+  season_stats: any | null
+  recent_form: any | null
 }
+
+/** 获取球队详情（基础信息 + 赛季统计 + 近期状态） */
+export function getTeamDetail(id: number) {
+  return request<TeamDetailOut>({ url: `/teams/${id}` })
+}
+
+export interface PlayerSeasonStatOut {
+  league_id: number
+  league_name: string | null
+  season: number | null
+  team_name: string | null
+  team_cn_name: string | null
+  team_logo: string | null
+  position: string | null
+  position_cn: string | null
+  games_played: number
+  minutes_played: number
+  goals: number
+  assists: number
+  yellow_cards: number
+  red_cards: number
+  second_yellow: number
+  shots_total: number
+  shots_on_target: number
+}
+
+export interface PlayerDetailOut {
+  id: number
+  name: string
+  cn_name: string | null
+  full_name: string | null
+  logo: string | null
+  position_main: string | null
+  position_main_cn: string | null
+  position_secondary: string | null
+  position_secondary_cn: string | null
+  height: string | null
+  citizenship: string | null
+  birth_date: string | null
+  club: string | null
+  club_cn_name: string | null
+  stats: PlayerSeasonStatOut[]
+}
+
+
+/** 获取球员详情（基础主数据 + 各联赛统计；leagueId 限定联赛） */
+export function getPlayerDetail(id: number, leagueId?: number | null) {
+  const qs = leagueId != null ? `?league_id=${leagueId}` : ''
+  return request<PlayerDetailOut>({ url: `/players/${id}${qs}` })
+}
+
+
 
 // ==================== 管理 ====================
 

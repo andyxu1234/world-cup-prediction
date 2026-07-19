@@ -147,7 +147,7 @@ def build_user_prompt(
 
     return f"""比赛信息：
 - 比赛：{home_team.name} vs {away_team.name}
-- 联赛：{league_name or '未知联赛'}
+- 赛事：{league_name or '未知赛事'}
 - 轮次：{match.round}
 - 场地：{match.venue or '待定'}
 
@@ -197,7 +197,7 @@ def build_summary_prompt(
 
     return f"""你是足球分析总编辑，请综合以下多个AI模型对同一场比赛的预测，生成统一的综合预测结论。
 
-比赛（{league_name or '未知联赛'}）：{home_team} vs {away_team}
+比赛（{league_name or '未知赛事'}）：{home_team} vs {away_team}
 
 各AI模型预测：
 {preds_text}

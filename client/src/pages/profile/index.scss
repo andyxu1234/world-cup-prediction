@@ -366,36 +366,6 @@
   flex-shrink: 0;
 }
 
-// ==================== 底部趣闻 ====================
-
-.fun-fact {
-  margin: 32rpx 28rpx;
-  padding: 28rpx;
-  border-radius: 20rpx;
-  background: linear-gradient(135deg, rgba(16,185,129,0.05), rgba(59,130,246,0.05));
-  border: 1px solid rgba(0,0,0,0.04);
-  transition: opacity .25s;
-
-  &:active {
-    opacity: 0.75;
-  }
-}
-
-.fun-fact-header {
-  margin-bottom: 10rpx;
-}
-
-.fun-fact-title {
-  font-size: 26rpx;
-  font-weight: 700;
-  color: $text1;
-}
-
-.fun-fact-text {
-  font-size: 24rpx;
-  color: $text2;
-  line-height: 1.65;
-}
 
 // ==================== 头像选择遮罩 ====================
 

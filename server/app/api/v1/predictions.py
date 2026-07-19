@@ -11,8 +11,8 @@ from typing import List, Optional
 from app.database import get_db
 from app.models.prediction import Prediction
 from app.models.match import Match
-from app.schemas.prediction import PredictionOut, FaceSlapOut
-from app.core.cache import prediction_cache, compare_cache, face_slap_cache, get_or_set
+from app.schemas.prediction import PredictionOut
+from app.core.cache import prediction_cache, compare_cache, get_or_set
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
@@ -107,94 +107,3 @@ async def compare_predictions(
         }
 
     return await get_or_set(compare_cache, cache_key, fetch)
-
-
-@router.get("/face-slaps", response_model=List[FaceSlapOut])
-async def get_face_slaps(
-    sort: str = Query("latest", description="排序方式: latest/confidence/absurdity"),
-    limit: int = Query(20, le=50),
-    league_id: Optional[int] = Query(None, description="联赛筛选"),
-    db: AsyncSession = Depends(get_db),
-):
-    """获取打脸合集
-    - latest: 最新翻车（胜负+比分都错，按比赛时间倒序）
-    - confidence: 高信心翻车（胜负+比分都错，按信心倒序）
-    - absurdity: 比分离谱（比分错误，按比分离谱度倒序）
-    """
-    cache_key = f"face_slaps:{sort}:{limit}:{league_id}"
-
-    async def fetch():
-        from sqlalchemy import desc as sa_desc
-
-        base_stmt = (
-            select(Prediction)
-            .join(Prediction.match)
-            .where(Prediction.is_correct_result.isnot(None))
-            .where(Prediction.confidence.isnot(None))
-            .options(
-                selectinload(Prediction.ai_model),
-                selectinload(Prediction.match).selectinload(Match.home_team),
-                selectinload(Prediction.match).selectinload(Match.away_team),
-                selectinload(Prediction.match).selectinload(Match.league),
-            )
-        )
-        if league_id is not None:
-            base_stmt = base_stmt.where(Match.league_id == league_id)
-
-        if sort == "confidence":
-            stmt = base_stmt.where(
-                Prediction.is_correct_result == False,
-                Prediction.is_correct_score == False,
-            ).order_by(sa_desc(Prediction.confidence)).limit(limit)
-        elif sort == "absurdity":
-            score_absurdity_expr = (
-                func.abs(Prediction.score_home - Match.home_score) +
-                func.abs(Prediction.score_away - Match.away_score)
-            )
-            stmt = (
-                base_stmt.where(Prediction.is_correct_score == False)
-                .order_by(sa_desc(score_absurdity_expr))
-                .limit(limit)
-            )
-        else:
-            stmt = base_stmt.where(
-                Prediction.is_correct_result == False,
-                Prediction.is_correct_score == False,
-            ).order_by(sa_desc(Match.match_time)).limit(limit)
-
-        result = await db.execute(stmt)
-        predictions = result.scalars().all()
-
-        face_slaps = []
-        for pred in predictions:
-            match = pred.match
-            league = match.league
-            score_diff = abs((match.home_score or 0) - (match.away_score or 0))
-            face_slap_index = (pred.confidence or 5) * (score_diff + 1)
-            score_absurdity = abs((pred.score_home or 0) - (match.home_score or 0)) + abs((pred.score_away or 0) - (match.away_score or 0))
-
-            face_slaps.append(FaceSlapOut(
-                prediction_id=pred.id,
-                model_name=pred.ai_model.name,
-                model_avatar=pred.ai_model.avatar_url,
-                match_id=match.id,
-                league_id=match.league_id,
-                league_name=league.cn_name if league else None,
-                home_team=match.home_team.cn_name or match.home_team.name,
-                away_team=match.away_team.cn_name or match.away_team.name,
-                home_team_flag=match.home_team.flag_url,
-                away_team_flag=match.away_team.flag_url,
-                predicted_result=pred.result,
-                predicted_score=f"{pred.score_home}:{pred.score_away}",
-                actual_result=match.result or "",
-                actual_score=f"{match.home_score}:{match.away_score}",
-                confidence=pred.confidence,
-                analysis=pred.analysis,
-                face_slap_index=face_slap_index,
-                score_absurdity=score_absurdity,
-                match_time=match.match_time.isoformat() if match.match_time else None,
-            ))
-
-        return face_slaps
-
-    return await get_or_set(face_slap_cache, cache_key, fetch)

@@ -4,7 +4,9 @@ export default defineAppConfig({
     'pages/index/index',
     'pages/match-detail/index',
     'pages/leaderboard/index',
-    'pages/face-slap/index',
+    'pages/data/index',
+    'pages/team-detail/index',
+    'pages/player-detail/index',
     'pages/profile/index',
     'pages/profile-setup/index',
     'pages/vote-history/index',
@@ -41,10 +43,10 @@ export default defineAppConfig({
         selectedIconPath: 'assets/tab-rank-active.png'
       },
       {
-        pagePath: 'pages/face-slap/index',
-        text: '打脸',
-        iconPath: 'assets/tab-face.png',
-        selectedIconPath: 'assets/tab-face-active.png'
+        pagePath: 'pages/data/index',
+        text: '数据',
+        iconPath: 'assets/tab-data.png',
+        selectedIconPath: 'assets/tab-data-active.png'
       },
       {
         pagePath: 'pages/profile/index',

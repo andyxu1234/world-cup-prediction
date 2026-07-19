@@ -6,7 +6,7 @@ import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
@@ -293,12 +293,14 @@ async def get_profile(
 async def get_vote_history(
     user_id: int = Query(..., description="用户ID"),
     league_id: Optional[int] = Query(None, description="联赛筛选"),
+    league_ids: Optional[List[int]] = Query(None, description="联赛筛选，可传多个 league_ids"),
     limit: int = Query(20, description="返回数量"),
     offset: int = Query(0, description="偏移量"),
     db: AsyncSession = Depends(get_db),
 ):
     """获取用户投票历史"""
-    cache_key = f"votes:{user_id}:{league_id}:{limit}:{offset}"
+    league_ids_key = ",".join(str(i) for i in sorted(league_ids or []))
+    cache_key = f"votes:{user_id}:{league_id}:{league_ids_key}:{limit}:{offset}"
 
     async def fetch():
         HomeTeam = aliased(Team)
@@ -314,6 +316,8 @@ async def get_vote_history(
         )
         if league_id is not None:
             stmt = stmt.where(Match.league_id == league_id)
+        elif league_ids:
+            stmt = stmt.where(Match.league_id.in_(league_ids))
         stmt = (
             stmt
             .order_by(UserVote.created_at.desc())
@@ -350,6 +354,7 @@ async def get_vote_history(
         return items
 
     return await get_or_set(user_votes_cache, cache_key, fetch)
+
 
 
 @router.put("/profile", response_model=UserOut)

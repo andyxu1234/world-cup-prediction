@@ -84,6 +84,8 @@ class HomeStatsOut(BaseModel):
     total_predictions: int = 0
     total_users: int = 0
     total_user_predictions: int = 0
+    total_leagues: int = 0
+
 
 
 class HomeTabItem(BaseModel):

@@ -24,11 +24,10 @@ matches_cache = TTLCache(maxsize=50, ttl=300)         # 比赛列表
 match_detail_cache = TTLCache(maxsize=200, ttl=300)   # 比赛详情
 prediction_cache = TTLCache(maxsize=200, ttl=600)     # AI 预测
 compare_cache = TTLCache(maxsize=200, ttl=600)        # 预测对比
-face_slap_cache = TTLCache(maxsize=30, ttl=600)       # 打脸合集
 leaderboard_cache = TTLCache(maxsize=50, ttl=300)     # 排行榜
 standings_cache = TTLCache(maxsize=20, ttl=300)       # 小组积分榜
+player_rankings_cache = TTLCache(maxsize=20, ttl=300) # 球员榜（按联赛聚合）
 long_term_cache = TTLCache(maxsize=10, ttl=600)       # 长期预测
-fun_fact_cache = TTLCache(maxsize=100, ttl=3600)      # 趣味文案（1h，调用 DeepSeek 成本高）
 
 # 用户相关缓存（短 TTL，写后失效）
 user_profile_cache = TTLCache(maxsize=500, ttl=60)    # 用户信息
@@ -66,9 +65,9 @@ def maybe_log_stats(interval: int = 60):
         f"[Cache] hits={_hits} misses={_misses} rate={rate}% | "
         f"sizes: stats={len(stats_cache)} matches={len(matches_cache)} "
         f"match_detail={len(match_detail_cache)} prediction={len(prediction_cache)} "
-        f"compare={len(compare_cache)} face_slap={len(face_slap_cache)} "
-        f"leaderboard={len(leaderboard_cache)} long_term={len(long_term_cache)} "
-        f"fun_fact={len(fun_fact_cache)} "
+        f"compare={len(compare_cache)} "
+        f"leaderboard={len(leaderboard_cache)} standings={len(standings_cache)} "
+        f"player_rankings={len(player_rankings_cache)} long_term={len(long_term_cache)} "
         f"user_profile={len(user_profile_cache)} user_votes={len(user_votes_cache)} "
         f"user_vote={len(user_vote_cache)}"
     )
@@ -98,7 +97,9 @@ def invalidate(cache: TTLCache, key: str):
 def invalidate_user(user_id: int):
     """用户写操作后，清除该用户相关的缓存"""
     user_profile_cache.pop(f"profile:{user_id}", None)
-    user_votes_cache.pop(f"votes:{user_id}", None)
+    for key in list(user_votes_cache.keys()):
+        if key.startswith(f"votes:{user_id}:"):
+            user_votes_cache.pop(key, None)
     # 单场投票 key 包含 match_id，难以精确清除，直接清空整个 cache（短 TTL，代价低）
     user_vote_cache.clear()
     # 用户投票影响排行榜和首页统计
@@ -110,8 +111,8 @@ def clear_all_caches():
     """清空所有缓存"""
     for c in [
         stats_cache, matches_cache, match_detail_cache, prediction_cache,
-        compare_cache, face_slap_cache, leaderboard_cache, standings_cache,
-        long_term_cache, fun_fact_cache, user_profile_cache, user_votes_cache,
+        compare_cache, leaderboard_cache, standings_cache, player_rankings_cache,
+        long_term_cache, user_profile_cache, user_votes_cache,
         user_vote_cache,
     ]:
         c.clear()
@@ -131,11 +132,10 @@ def get_cache_stats() -> dict:
             "match_detail": len(match_detail_cache),
             "prediction": len(prediction_cache),
             "compare": len(compare_cache),
-            "face_slap": len(face_slap_cache),
             "leaderboard": len(leaderboard_cache),
             "standings": len(standings_cache),
+            "player_rankings": len(player_rankings_cache),
             "long_term": len(long_term_cache),
-            "fun_fact": len(fun_fact_cache),
             "user_profile": len(user_profile_cache),
             "user_votes": len(user_votes_cache),
             "user_vote": len(user_vote_cache),

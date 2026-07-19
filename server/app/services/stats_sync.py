@@ -178,12 +178,18 @@ async def _sync_team_stats_batch(
 
     stats_count = 0
     form_count = 0
+    total = len(teams)
 
-    for team in teams:
+    for idx, team in enumerate(teams, start=1):
         # 按球队所属联赛赛季计算统计窗口（多联赛改造）
         season = settings.HIGHLIGHTLY_SEASON
         if league_seasons and team.league_id is not None:
             season = league_seasons.get(team.league_id, settings.HIGHLIGHTLY_SEASON)
+
+        logger.info(
+            f"Syncing stats for team {idx}/{total}: {team.name} "
+            f"(hl_id={team.highlightly_team_id}, season={season})"
+        )
 
         # 同步赛季统计
         try:
@@ -204,9 +210,14 @@ async def _sync_team_stats_batch(
                 form_summary = []
                 for m in recent[:5]:
                     state = m.get("state", {})
-                    score = state.get("score", {}).get("current", "")
-                    home_team = m.get("homeTeam", {}).get("name", "")
-                    away_team = m.get("awayTeam", {}).get("name", "")
+                    score_state = state.get("score") or {}
+                    score = score_state.get("current", "")
+                    if isinstance(score, dict):
+                        score = f"{score.get('home', 0)} - {score.get('away', 0)}"
+                    elif not isinstance(score, str):
+                        score = str(score) if score is not None else ""
+                    home_team = (m.get("homeTeam") or {}).get("name", "")
+                    away_team = (m.get("awayTeam") or {}).get("name", "")
                     form_summary.append({
                         "date": m.get("date", "")[:10],
                         "home": home_team,

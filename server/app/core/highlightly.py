@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import httpx
 from loguru import logger
 from typing import Optional
 from urllib.parse import urlparse
+
+
+class HighlightlyAPIError(Exception):
+    """Highlightly 接口调用失败（含状态码与响应体摘要），便于日志定位"""
 
 
 class HighlightlyClient:
@@ -16,10 +21,18 @@ class HighlightlyClient:
     且路径需带 /football 前缀（默认 base_url 已包含）。
     """
 
+    # 浏览器 UA：soccer.highlightly.net 前置 Cloudflare，会对 python-httpx 等脚本 UA
+    # 返回 403 Error 1010 (Access denied)，必须伪装成浏览器 UA 才能正常拉取。
+    DEFAULT_UA = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
+
     def __init__(
         self,
         api_key: str,
         base_url: str = "https://sport-highlights-api.p.rapidapi.com/football",
+        user_agent: Optional[str] = None,
     ):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
@@ -31,9 +44,69 @@ class HighlightlyClient:
                 "x-rapidapi-key": api_key,
                 "x-rapidapi-host": host,
                 "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": user_agent or self.DEFAULT_UA,
             },
             timeout=30.0,
         )
+
+    # ── 通用 GET（带重试 / 详细错误） ──────────────────────
+
+    async def _request_json(
+        self,
+        path: str,
+        params: Optional[dict] = None,
+        *,
+        retries: int = 3,
+        retriable_statuses: tuple[int, ...] = (403, 429, 500, 502, 503, 504),
+    ) -> tuple[Optional[dict], Optional[list]]:
+        """发起 GET 并解析 JSON，对可重试状态码做指数退避重试。
+
+        返回 (dict_or_list, None) 表示成功；对 404 返回 (None, None) 交由调用方判断。
+        其余不可重试或耗尽重试的失败，抛出携带状态码与响应体的 HighlightlyAPIError。
+        """
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, retries + 1):
+            try:
+                resp = await self.client.get(path, params=params)
+                if resp.status_code == 404:
+                    return None, None
+                if resp.status_code in retriable_statuses:
+                    last_exc = httpx.HTTPStatusError(
+                        f"{resp.status_code} {resp.reason_phrase}",
+                        request=resp.request,
+                        response=resp,
+                    )
+                    if attempt < retries:
+                        await asyncio.sleep(2 ** (attempt - 1))
+                        continue
+                    resp.raise_for_status()
+                if resp.status_code >= 400:
+                    resp.raise_for_status()
+                data = resp.json()
+                return data, None
+            except httpx.HTTPStatusError as e:
+                last_exc = e
+                status = e.response.status_code if e.response is not None else "?"
+                body = ""
+                try:
+                    body = e.response.text[:300] if e.response is not None else ""
+                except Exception:  # noqa
+                    pass
+                if attempt < retries and status in retriable_statuses:
+                    await asyncio.sleep(2 ** (attempt - 1))
+                    continue
+                raise HighlightlyAPIError(
+                    f"HTTP {status} for {path}: {body}"
+                ) from e
+            except (httpx.RequestError, ValueError) as e:
+                last_exc = e
+                if attempt < retries:
+                    await asyncio.sleep(2 ** (attempt - 1))
+                    continue
+                raise HighlightlyAPIError(f"{type(e).__name__} for {path}: {e}") from e
+        # 理论上不会到这，保险起见
+        raise HighlightlyAPIError(f"request failed after {retries} retries: {last_exc}")
 
     # ── Leagues ──────────────────────────────────────────────
 
@@ -108,9 +181,8 @@ class HighlightlyClient:
             "leagueId": league_id,
             "season": season,
         }
-        resp = await self.client.get("/standings", params=params)
-        resp.raise_for_status()
-        return resp.json()
+        data, _ = await self._request_json("/standings", params=params)
+        return data or {}
 
     # ── Highlights ───────────────────────────────────────────
 
@@ -174,6 +246,27 @@ class HighlightlyClient:
         resp.raise_for_status()
         return resp.json()
 
+    # ── Box Score ──────────────────────────────────────────
+
+    async def get_box_score(self, match_id: int) -> list[dict]:
+        """获取单场比赛的盒子分（逐球员详细数据：进球/助攻/牌/射门等）
+
+        Args:
+            match_id: Highlightly 比赛 ID（非本地 ID）
+
+        Returns:
+            list[dict]: 按球队分组的球员数据，结构为
+            [{"team": {...}, "players": [{"id", "name", "statistics": [{...}]}, ...]}]
+            比赛暂无 box-score 时返回空列表。
+        """
+        data, _ = await self._request_json(f"/box-score/{match_id}")
+        if data is None:
+            return []
+        # 部分响应用 {"data": [...]} 包裹
+        if isinstance(data, dict):
+            return data.get("data", [])
+        return data or []
+
     # ── Teams ───────────────────────────────────────────────
 
     async def get_teams(
@@ -221,6 +314,41 @@ class HighlightlyClient:
         resp = await self.client.get(
             "/last-five-games", params={"teamId": team_id}
         )
+        if resp.status_code == 404:
+            return []
+        resp.raise_for_status()
+        return resp.json()
+
+    # ── Players ────────────────────────────────────────────
+
+    async def get_players(
+        self,
+        name: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict:
+        """获取球员列表（仅支持 name/limit/offset 过滤，无 leagueId/teamId）"""
+        params: dict = {"limit": limit, "offset": offset}
+        if name:
+            params["name"] = name
+        resp = await self.client.get("/players", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_player_by_id(self, player_id: int) -> Optional[dict]:
+        """根据 Highlightly player id 获取球员主数据（响应为数组，取首个元素）"""
+        resp = await self.client.get(f"/players/{player_id}")
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list) and data:
+            return data[0]
+        return data if isinstance(data, dict) else None
+
+    async def get_player_statistics(self, player_id: int) -> list[dict]:
+        """获取球员赛季统计（按联赛拆分；联赛名匹配脆弱，仅供补充参考）"""
+        resp = await self.client.get(f"/players/{player_id}/statistics")
         if resp.status_code == 404:
             return []
         resp.raise_for_status()
