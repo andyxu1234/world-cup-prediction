@@ -88,7 +88,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 8px;
+  padding: 12px 10px;
   border-radius: 12px;
   transition: all 0.15s ease;
 
@@ -137,13 +137,13 @@
 }
 
 .league-row-logo-text {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   color: #ffffff;
 }
 
 .league-row-name {
-  font-size: 22px;
+  font-size: 24px;
   color: $text1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -196,7 +196,7 @@
 }
 
 .league-modal-all {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: $green;
   padding: 6px 12px;
@@ -212,7 +212,7 @@
   text-align: center;
   padding: 8px 18px;
   border-radius: 14px;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   flex-shrink: 0;
 

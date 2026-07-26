@@ -116,8 +116,8 @@ export default function ProfileSetup() {
             <Text className='badge-text'>2026</Text>
             <Text className='badge-icon'>🏆</Text>
           </View>
-          <Text className='hero-title'>加入世界杯预测</Text>
-          <Text className='hero-desc'>选择你的头像和昵称，开启预测之旅</Text>
+          <Text className='hero-title'>加入世界杯分析</Text>
+          <Text className='hero-desc'>选择你的头像和昵称，开启足球分析之旅</Text>
         </View>
 
         {/* 头像选择 */}
@@ -181,7 +181,7 @@ export default function ProfileSetup() {
                 <Text>提交中...</Text>
               </View>
             ) : (
-              <Text>{isReady ? '开始预测 →' : (nickname.trim() ? '请选择头像' : '先填写昵称吧')}</Text>
+              <Text>{isReady ? '开始体验 →' : (nickname.trim() ? '请选择头像' : '先填写昵称吧')}</Text>
             )}
           </View>
           <View className='skip-btn' onClick={handleSkip}>

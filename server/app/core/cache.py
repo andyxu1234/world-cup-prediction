@@ -27,7 +27,6 @@ compare_cache = TTLCache(maxsize=200, ttl=600)        # 预测对比
 leaderboard_cache = TTLCache(maxsize=50, ttl=300)     # 排行榜
 standings_cache = TTLCache(maxsize=20, ttl=300)       # 小组积分榜
 player_rankings_cache = TTLCache(maxsize=20, ttl=300) # 球员榜（按联赛聚合）
-long_term_cache = TTLCache(maxsize=10, ttl=600)       # 长期预测
 
 # 用户相关缓存（短 TTL，写后失效）
 user_profile_cache = TTLCache(maxsize=500, ttl=60)    # 用户信息
@@ -67,7 +66,7 @@ def maybe_log_stats(interval: int = 60):
         f"match_detail={len(match_detail_cache)} prediction={len(prediction_cache)} "
         f"compare={len(compare_cache)} "
         f"leaderboard={len(leaderboard_cache)} standings={len(standings_cache)} "
-        f"player_rankings={len(player_rankings_cache)} long_term={len(long_term_cache)} "
+        f"player_rankings={len(player_rankings_cache)} "
         f"user_profile={len(user_profile_cache)} user_votes={len(user_votes_cache)} "
         f"user_vote={len(user_vote_cache)}"
     )
@@ -112,7 +111,7 @@ def clear_all_caches():
     for c in [
         stats_cache, matches_cache, match_detail_cache, prediction_cache,
         compare_cache, leaderboard_cache, standings_cache, player_rankings_cache,
-        long_term_cache, user_profile_cache, user_votes_cache,
+        user_profile_cache, user_votes_cache,
         user_vote_cache,
     ]:
         c.clear()
@@ -135,7 +134,6 @@ def get_cache_stats() -> dict:
             "leaderboard": len(leaderboard_cache),
             "standings": len(standings_cache),
             "player_rankings": len(player_rankings_cache),
-            "long_term": len(long_term_cache),
             "user_profile": len(user_profile_cache),
             "user_votes": len(user_votes_cache),
             "user_vote": len(user_vote_cache),

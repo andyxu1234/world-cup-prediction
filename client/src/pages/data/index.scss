@@ -52,7 +52,7 @@
 }
 
 .data-league-tab-text {
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 700;
   color: $text2;
   line-height: 1;
@@ -121,7 +121,7 @@
 }
 
 .data-league-dropdown-text {
-  font-size: 24px; font-weight: 600;
+  font-size: 25px; font-weight: 600;
   color: $text2; line-height: 1;
 
   .active & { color: #ffffff; font-weight: 700; }
@@ -171,14 +171,14 @@
 }
 
 .data-season-trigger-text {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: $green-dim;
   line-height: 1;
 }
 
 .data-season-trigger-arrow {
-  font-size: 18px;
+  font-size: 20px;
   color: $green;
   font-weight: 700;
   margin-left: 1px;
@@ -234,12 +234,12 @@
 }
 
 .data-season-row-text {
-  font-size: 22px;
+  font-size: 24px;
   color: $text1;
 }
 
 .data-season-row-check {
-  font-size: 22px;
+  font-size: 24px;
   color: $green;
   font-weight: 700;
 }
@@ -258,7 +258,7 @@
   flex: 1;
   text-align: center;
   padding: 9px 0;
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 600;
   color: $text3;
   border-radius: 11px;
@@ -309,7 +309,7 @@
     background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(16,185,129,.04));
   }
   &-title { font-size: 30px; font-weight: 800; color: $text1; margin-bottom: 10px; letter-spacing: .3px; }
-  &-desc { font-size: 23px; color: $text3; line-height: 1.6; max-width: 480px; }
+  &-desc { font-size: 24px; color: $text3; line-height: 1.6; max-width: 480px; }
 }
 
 // ══════════════ 积分榜 ══════════════
@@ -359,7 +359,7 @@
     padding: 12px 16px;
 
     .c-rank, .c-team, .c-num, .c-pts {
-      font-size: 20px;
+      font-size: 22px;
       color: $text3;
       font-weight: 700;
     }
@@ -370,7 +370,7 @@
 
 .c-rank {
   width: 40px; text-align: center;
-  font-size: 24px; font-weight: 800; color: $text2;
+  font-size: 25px; font-weight: 800; color: $text2;
   font-family: 'SF Mono','Menlo',monospace;
 
   &.top { color: $gold; }
@@ -381,7 +381,7 @@
   min-width: 0; gap: 10px;
 
   .c-team-name {
-    font-size: 25px; color: $text1; font-weight: 650;
+    font-size: 26px; color: $text1; font-weight: 650;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 }
@@ -393,7 +393,7 @@
 
 .c-num {
   width: 40px; text-align: center;
-  font-size: 22px; color: $text2;
+  font-size: 24px; color: $text2;
 
   &.c-gf-ga {
     width: 72px;
@@ -404,7 +404,7 @@
 
 .c-pts {
   width: 56px; text-align: center;
-  font-size: 26px; font-weight: 800; color: $green-dim;
+  font-size: 27px; font-weight: 800; color: $green-dim;
   font-family: 'SF Mono','Menlo',monospace;
 }
 
@@ -430,14 +430,14 @@
 }
 
 .schedule-round {
-  font-size: 20px; font-weight: 700; color: $text2;
+  font-size: 22px; font-weight: 700; color: $text2;
   background: #f1f5f9;
   padding: 4px 14px;
   border-radius: 999px;
 }
 
 .schedule-time {
-  font-size: 22px; color: $text3;
+  font-size: 24px; color: $text3;
   font-family: 'SF Mono', 'Menlo', monospace;
   font-weight: 600;
 }
@@ -458,7 +458,7 @@
 }
 
 .schedule-team-name {
-  flex: 1; font-size: 25px; font-weight: 700; color: $text1;
+  flex: 1; font-size: 26px; font-weight: 700; color: $text1;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -475,7 +475,7 @@
 }
 
 .schedule-status {
-  font-size: 18px; color: $text3;
+  font-size: 20px; color: $text3;
   padding: 2px 10px; background: #f1f5f9; border-radius: 999px;
 }
 
@@ -504,7 +504,7 @@
 .rank-sidebar-item {
   flex-shrink: 0;
   padding: 7px 18px;
-  font-size: 23px; font-weight: 600;
+  font-size: 25px; font-weight: 600;
   color: $text3;
   background: rgba(0,0,0,.04);
   border-radius: 999px;
@@ -538,7 +538,7 @@
 }
 
 .rank-th {
-  font-size: 22px; font-weight: 700;
+  font-size: 24px; font-weight: 700;
   color: $text3;
 
   &-no     { width: 48px; }
@@ -591,13 +591,13 @@
 }
 
 .rank-name {
-  flex: 1; font-size: 25px; font-weight: 650; color: $text1;
+  flex: 1; font-size: 26px; font-weight: 650; color: $text1;
   overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; min-width: 0;
 }
 
 .rank-team {
-  width: 130px; font-size: 21px;
+  width: 130px; font-size: 23px;
   color: $text3;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -624,18 +624,18 @@
 }
 
 .safe-img-letter {
-  font-size: 22px; font-weight: 800;
+  font-size: 23px; font-weight: 800;
   color: #059669;
 }
 
 .c-flag.safe-img-fallback { border-radius: 50%; }
-.c-flag.safe-img-fallback .safe-img-letter { font-size: 18px; }
+.c-flag.safe-img-fallback .safe-img-letter { font-size: 19px; }
 
 .rank-avatar.safe-img-fallback {
   border-radius: 50%;
   background: linear-gradient(145deg, #e8f5ee, #d0ebe2);
 
-  .safe-img-letter { color: #059669; font-size: 20px; }
+  .safe-img-letter { color: #059669; font-size: 22px; }
 }
 
 .rank-logo.safe-img-fallback { border-radius: 12px; }

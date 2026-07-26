@@ -35,6 +35,3 @@ class League(Base):
     # relationships
     teams: Mapped[list["Team"]] = relationship("Team", back_populates="league")
     matches: Mapped[list["Match"]] = relationship("Match", back_populates="league")
-    long_term_predictions: Mapped[list["LongTermPrediction"]] = relationship(
-        "LongTermPrediction", back_populates="league"
-    )

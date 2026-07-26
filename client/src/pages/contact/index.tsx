@@ -121,7 +121,7 @@ export default function Contact() {
         {/* <View className='card'>
           <Text className='card-title'>关注公众号</Text>
           <Text className='card-desc'>
-            点击下方按钮阅读公众号文章，在文章页面即可关注公众号，获取最新世界杯动态和AI预测分析。
+            点击下方按钮阅读公众号文章，在文章页面即可关注公众号，获取最新世界杯动态和 AI 赛事分析。
           </Text>
           <View className='action-box' onClick={handleCopyAccountName}>
             <View className='action-left'>
@@ -152,8 +152,8 @@ export default function Contact() {
 
       {/* 底部 */}
       <View className='footer'>
-        <Text className='footer-brand mono'>AI PREDICTOR</Text>
-        <Text className='footer-slogan'>预测快乐 · 理性观赛</Text>
+        <Text className='footer-brand mono'>AI ANALYST</Text>
+        <Text className='footer-slogan'>理性观赛 · 享受足球</Text>
       </View>
     </View>
   )

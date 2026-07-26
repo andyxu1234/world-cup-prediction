@@ -4,6 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { getAIDetail, AIDetailPrediction, AIDetailOut } from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
 import { useRoundStore, getRoundLabel } from '@/stores'
+import { formatMatchTime } from '@/utils/time'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -71,17 +72,7 @@ function getStatusBadge(item: AIDetailPrediction) {
 }
 
 function formatTime(iso: string | null): string {
-  if (!iso) return '--'
-  const d = new Date(iso)
-  const month = d.getMonth() + 1
-  const day = d.getDate()
-  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  const weekday = weekDays[d.getDay()]
-  const hour24 = d.getHours()
-  const min = d.getMinutes().toString().padStart(2, '0')
-  const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
-  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-  return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${min}`
+  return formatMatchTime(iso)
 }
 
 export default function AIDetail() {
@@ -170,7 +161,7 @@ export default function AIDetail() {
         <View className='ad-hero-stats'>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.total_predictions}</Text>
-            <Text className='ad-hero-stat-label'>总预测</Text>
+            <Text className='ad-hero-stat-label'>总分析</Text>
           </View>
           <View className='ad-hero-stat'>
             <Text className='ad-hero-stat-num'>{detail.settled_predictions}</Text>
@@ -192,7 +183,7 @@ export default function AIDetail() {
         {predictions.length === 0 ? (
           <View className='ad-empty'>
             <View className='ad-empty-icon'>📋</View>
-            <Text className='ad-empty-text'>该模型还没有预测记录</Text>
+            <Text className='ad-empty-text'>该模型还没有分析记录</Text>
           </View>
         ) : (
           predictions.map((item) => {
@@ -245,7 +236,7 @@ export default function AIDetail() {
                 <View className='ad-card-ft'>
                   <View className='ad-prediction-group'>
                     <Text className='ad-prediction'>
-                      预测：{getResultLabel(item.predicted_result)}
+                      观点：{getResultLabel(item.predicted_result)}
                       {item.predicted_home_score != null
                         ? ` ${item.predicted_home_score}-${item.predicted_away_score}`
                         : ''}

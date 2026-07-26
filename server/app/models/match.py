@@ -57,3 +57,6 @@ class Match(Base):
     summary: Mapped[Optional["PredictionSummary"]] = relationship(
         "PredictionSummary", back_populates="match", uselist=False
     )
+    match_odds: Mapped[list["MatchOdd"]] = relationship(
+        "MatchOdd", back_populates="match"
+    )

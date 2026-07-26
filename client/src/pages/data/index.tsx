@@ -15,6 +15,7 @@ import {
   proxiedSofifa,
 } from '@/services/api'
 import { getRoundLabel, useRoundStore } from '@/stores'
+import { formatDateTime } from '@/utils/time'
 import './index.scss'
 
 type SubTab = 'standings' | 'players' | 'teams' | 'schedule'
@@ -123,17 +124,6 @@ function resolveLeagueIdByNameAndSeason(leagues: League[], name: string, season:
   )
   if (candidates.length > 0) return candidates[0].id
   return null
-}
-
-function formatDateTime(iso: string | null) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const month = `${d.getMonth() + 1}`.padStart(2, '0')
-  const day = `${d.getDate()}`.padStart(2, '0')
-  const hour = `${d.getHours()}`.padStart(2, '0')
-  const minute = `${d.getMinutes()}`.padStart(2, '0')
-  return `${month}-${day} ${hour}:${minute}`
 }
 
 function formatScore(m: Match) {

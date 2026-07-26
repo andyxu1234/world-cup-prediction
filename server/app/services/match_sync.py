@@ -273,6 +273,10 @@ async def _upsert_match(session, match_data: dict, league_id: Optional[int] = No
         match.status = status
         match.home_score = home_score
         match.away_score = away_score
+        # 刷新比赛时间：Highlightly 常在赛前逐步确定准确开球时间，
+        # 若只更新 status/score 而不同步 match_time，旧的错误时间会一直保留。
+        match.match_time = match_time
+        match.match_day = _calc_match_day(match_time)
         if status == MatchStatus.finished:
             match.result = _calc_result(home_score, away_score)
         # 检测状态从非 finished 变为 finished

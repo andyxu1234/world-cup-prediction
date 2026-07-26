@@ -320,6 +320,8 @@
 
 // 综合备选比分 — 复用 pred-alt-score 样式
 
+
+
 // 综合信心 — 复用 pred-conf / pred-conf-hd / conf-bar 样式
 
 // 总结文字
@@ -1137,4 +1139,56 @@
   &:active {
     background: #f0f0f0;
   }
+}
+
+// ==================== 底部免责声明 ====================
+.detail-footer-tip {
+  display: flex;
+  gap: 16px;
+  margin: 40px 28px 24px;
+  padding: 24px 24px 22px 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.detail-footer-tip-bar {
+  flex-shrink: 0;
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #94a3b8 0%, #cbd5e1 100%);
+}
+
+.detail-footer-tip-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-footer-tip-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 2px;
+  line-height: 1.4;
+}
+
+.detail-footer-tip-text {
+  font-size: 24px;
+  line-height: 1.7;
+  color: #64748b;
+  letter-spacing: 0.3px;
+  text-align: justify;
+}
+
+.detail-footer-tip-emphasis {
+  font-size: 25px;
+  line-height: 1.6;
+  color: #475569;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
 }

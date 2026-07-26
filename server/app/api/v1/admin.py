@@ -10,9 +10,10 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.database import get_db, async_session_factory
-from app.models.league import League
+from app.models.league import League, LeagueType
 from app.schemas.league import LeagueOut
 from app.services.match_sync import sync_matches
+from app.services.odds_service import sync_all_upcoming_odds, sync_league_odds
 from app.services.ai_predictor import generate_predictions, generate_single_match_predictions
 from app.services.prediction_evaluator import evaluate_predictions
 from app.services.stats_sync import sync_standings_and_stats
@@ -20,6 +21,8 @@ from app.services.h2h_sync import sync_all_h2h
 from app.services.sync_pipeline import sync_matches_and_respond
 from app.services.player_stats_sync import sync_all_player_stats, sync_player_master_and_season_stats
 from app.services.standings_sync import sync_league_standings
+from app.services.polymarket_sync import sync_polymarket_events
+from app.services.polymarket_match import match_polymarket_events
 from app.services.vip_service import (
     get_vip_status,
     add_vip,
@@ -72,6 +75,61 @@ async def trigger_sync_matches():
     except Exception as e:
         logger.error(f"Match sync failed: {e}")
         raise HTTPException(status_code=500, detail=f"Match sync failed: {e}")
+
+
+@router.post("/polymarket/sync")
+async def trigger_sync_polymarket():
+    """手动触发 Polymarket 赛事同步 + 与本地比赛匹配（只读，落 polymarket_events 表）"""
+    try:
+        result = await sync_polymarket_events()
+        return {"status": "ok", "message": "Polymarket sync completed", "detail": result}
+    except Exception as e:
+        logger.error(f"Polymarket sync failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Polymarket sync failed: {e}")
+
+
+@router.post("/polymarket/match")
+async def trigger_match_polymarket():
+    """手动触发 Polymarket 事件与本地 matches 的 DeepSeek 匹配（回填 match_id）
+
+    仅对 polymarket_events.match_id IS NULL 的比赛生效；匹配不上的留 NULL。
+    """
+    try:
+        result = await match_polymarket_events()
+        return {"status": "ok", "message": "Polymarket match completed", "detail": result}
+    except Exception as e:
+        logger.error(f"Polymarket match failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Polymarket match failed: {e}")
+
+
+@router.post("/odds/sync")
+async def trigger_sync_odds(odds_type: str = "prematch"):
+    """手动触发赔率同步（追加式每日快照，用于构建赔率走势）
+
+    与 scheduler 每日 04:00 的 sync_odds 任务行为一致，可随时手动补拉。
+    仅同步未来 7 天内 status=upcoming 的比赛；若窗口内无 upcoming 比赛则跳过。
+    """
+    try:
+        result = await sync_all_upcoming_odds(odds_type=odds_type)
+        return {"status": "ok", "message": "Odds sync completed", "detail": result}
+    except Exception as e:
+        logger.error(f"Odds sync failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Odds sync failed: {e}")
+
+
+@router.post("/odds/sync-league")
+async def trigger_sync_league_odds(league_id: int = 1, odds_type: str = "prematch"):
+    """同步指定联赛全部比赛的赔率（一次性拉全量，不限状态/时间窗口）
+
+    默认 league_id=1（世界杯 2026）。用于补齐历史赛事（如已结束的世界杯）
+    的完整赔率快照；与每日增量同步 /odds/sync 互补。
+    """
+    try:
+        result = await sync_league_odds(league_id=league_id, odds_type=odds_type)
+        return {"status": "ok", "message": "League odds sync completed", "detail": result}
+    except Exception as e:
+        logger.error(f"League odds sync failed: {e}")
+        raise HTTPException(status_code=500, detail=f"League odds sync failed: {e}")
 
 
 @router.post("/stats/sync")
@@ -150,6 +208,20 @@ class BackfillSeasonRequest(BaseModel):
     season: int
     with_players: bool = True
     is_active: bool = False
+
+
+class CreateLeagueRequest(BaseModel):
+    """创建一个 Highlightly 上从未同步过的新联赛（区别于 clone：clone 是同联赛换赛季）"""
+
+    name: str
+    cn_name: str
+    highlightly_league_id: int
+    season: int
+    type: str  # "league" 或 "cup"
+    logo: Optional[str] = None
+    country: Optional[str] = None
+    is_active: bool = True
+    sort_order: int = 0
 
 
 async def _clone_league_row(source_league_id: int, season: int, is_active: bool) -> League:
@@ -239,6 +311,49 @@ async def backfill_season(req: BackfillSeasonRequest):
     except Exception as e:
         logger.error(f"Season backfill failed: {e}")
         raise HTTPException(status_code=500, detail=f"Season backfill failed: {e}")
+
+
+@router.post("/leagues/create")
+async def create_league(req: CreateLeagueRequest):
+    """创建一个全新联赛（新 highlightly_league_id），区别于 clone（同联赛换赛季）
+
+    用于接入 Highlightly 上从未同步过的联赛；元数据全部由调用方提供。
+    按 (highlightly_league_id, season) 幂等去重：已存在则返回已有行，不重复插入。
+    """
+    async with async_session_factory() as session:
+        existing = (
+            await session.execute(
+                select(League).where(
+                    League.highlightly_league_id == req.highlightly_league_id,
+                    League.season == req.season,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return {"status": "exists", "league": LeagueOut.from_orm(existing)}
+        try:
+            lg_type = LeagueType(req.type)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid type: {req.type}, must be 'league' or 'cup'",
+            )
+        new = League(
+            name=req.name,
+            cn_name=req.cn_name,
+            logo=req.logo,
+            highlightly_league_id=req.highlightly_league_id,
+            season=req.season,
+            type=lg_type,
+            country=req.country,
+            is_active=req.is_active,
+            sort_order=req.sort_order,
+        )
+        session.add(new)
+        await session.commit()
+        await session.refresh(new)
+        clear_all_caches()
+        return {"status": "created", "league": LeagueOut.from_orm(new)}
 
 
 @router.post("/predictions/generate")
@@ -368,3 +483,105 @@ async def get_vip_statistics(
     except Exception as e:
         logger.error(f"获取 VIP 统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取统计失败: {e}")
+
+
+# ==================== Telegram 推送接口 ====================
+
+@router.get("/telegram/test")
+async def test_telegram_connection():
+    """测试 Telegram Bot 连接
+
+    验证 Bot Token 是否有效，并返回 Bot 信息。
+    """
+    from app.services.telegram_service import get_telegram_service
+
+    telegram = get_telegram_service()
+    bot_info = await telegram.get_me()
+
+    if bot_info:
+        return {
+            "status": "ok",
+            "message": "Telegram Bot 连接成功",
+            "bot": {
+                "id": bot_info.get("id"),
+                "username": bot_info.get("username"),
+                "first_name": bot_info.get("first_name"),
+            },
+        }
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Telegram Bot 连接失败，请检查 BOT_TOKEN 配置"
+        )
+
+
+@router.post("/telegram/push")
+async def trigger_telegram_push():
+    """手动触发 Telegram 每日推送
+
+    立即执行每日推送任务，用于测试或补发。
+    """
+    from app.services.telegram_daily_push import daily_push
+
+    try:
+        await daily_push()
+        return {"status": "ok", "message": "Telegram 推送已执行"}
+    except Exception as e:
+        logger.error(f"Telegram 推送失败: {e}")
+        raise HTTPException(status_code=500, detail=f"Telegram 推送失败: {e}")
+
+
+@router.post("/telegram/send")
+async def send_telegram_message(message: str):
+    """发送自定义消息到 Telegram
+
+    Args:
+        message: 要发送的消息内容（支持 Markdown 格式）
+    """
+    from app.services.telegram_service import get_telegram_service
+
+    telegram = get_telegram_service()
+
+    if not telegram.settings.TELEGRAM_CHAT_IDS:
+        raise HTTPException(
+            status_code=400,
+            detail="Telegram Chat IDs 未配置"
+        )
+
+    try:
+        result = await telegram.broadcast(message)
+        return {
+            "status": "ok",
+            "message": "消息发送完成",
+            "detail": result,
+        }
+    except Exception as e:
+        logger.error(f"Telegram 消息发送失败: {e}")
+        raise HTTPException(status_code=500, detail=f"消息发送失败: {e}")
+
+
+@router.get("/telegram/status")
+async def get_telegram_status():
+    """获取 Telegram 推送配置状态
+
+    返回当前配置信息（隐藏敏感信息）。
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+
+    has_token = bool(settings.TELEGRAM_BOT_TOKEN)
+    chat_ids = [
+        cid.strip()
+        for cid in settings.TELEGRAM_CHAT_IDS.split(",")
+        if cid.strip()
+    ] if settings.TELEGRAM_CHAT_IDS else []
+
+    return {
+        "status": "ok",
+        "config": {
+            "bot_token_configured": has_token,
+            "chat_ids_count": len(chat_ids),
+            "chat_ids": chat_ids,  # Chat ID 不是敏感信息，可以显示
+        },
+    }

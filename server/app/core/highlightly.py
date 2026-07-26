@@ -354,6 +354,35 @@ class HighlightlyClient:
         resp.raise_for_status()
         return resp.json()
 
+    # ── Odds ────────────────────────────────────────────────
+
+    async def get_odds(
+        self,
+        match_id: int,
+        odds_type: str = "prematch",
+        limit: int = 5,
+        offset: int = 0,
+    ) -> Optional[dict]:
+        """获取单场比赛赔率（GET /odds）
+
+        Args:
+            match_id: Highlightly 比赛 ID（对应 matches.highlightly_id）
+            odds_type: "prematch"（默认）或 "live"
+            limit / offset: 分页；接口限制 limit 最大为 5（实测 limit=100 返回 400）。
+                单场查询（matchId）通常一次返回该场所有博彩公司，无需翻页。
+
+        Returns:
+            {"data": [...], "pagination": {...}} 或 None（404 / 无数据）
+        """
+        params = {
+            "matchId": match_id,
+            "oddsType": odds_type,
+            "limit": limit,
+            "offset": offset,
+        }
+        data, _ = await self._request_json("/odds", params=params)
+        return data
+
     # ── Countries ────────────────────────────────────────────
 
     async def get_countries(self, name: Optional[str] = None) -> list[dict]:

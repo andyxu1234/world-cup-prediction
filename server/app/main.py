@@ -63,6 +63,17 @@ app.add_middleware(
 # 挂载头像静态文件目录
 app.mount("/static/avatars", StaticFiles(directory=str(settings.AVATAR_SAVE_PATH)), name="avatars")
 
+# 挂载私密赔率展示页（仅自己看，需 ?token= 或 X-Access-Token；不进小程序）
+_ODDS_STATIC_DIR = Path(__file__).resolve().parent / "static"
+if _ODDS_STATIC_DIR.exists():
+    app.mount(
+        "/internal/odds",
+        StaticFiles(directory=str(_ODDS_STATIC_DIR), html=True),
+        name="odds-private",
+    )
+else:
+    logger.warning(f"私密赔率页目录不存在，跳过挂载: {_ODDS_STATIC_DIR}")
+
 
 @app.get("/health")
 async def health_check():

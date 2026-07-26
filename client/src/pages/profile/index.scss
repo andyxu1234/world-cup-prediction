@@ -443,3 +443,32 @@
   font-weight: 500;
   white-space: nowrap;
 }
+
+// ==================== 打赏区域 ====================
+
+.prof-donate {
+  margin: 28rpx 28rpx 40rpx;
+  padding: 32rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.prof-donate-img {
+  width: 100%;
+  max-width: 520rpx;
+  display: block;
+  border-radius: 16rpx;
+}
+
+.prof-donate-tip {
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  color: $text2;
+  font-weight: 500;
+  text-align: center;
+}

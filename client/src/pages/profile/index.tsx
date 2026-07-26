@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Input, Button, Image } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { useUserStore } from '@/stores'
 import * as api from '@/services/api'
 import { resolveAvatarUrl } from '@/services/api'
 import { isAdmin } from '@/utils/admin'
+import giveMeMoneyPng from '@/assets/givememoney.png'
 import './index.scss'
 
 const MENU_ITEMS = [
-  { icon: '🏆', label: '我的战绩', color: 'rgba(0,255,135,0.1)', textColor: '#00ff87' },
-  { icon: '🔗', label: '分享给好友', color: 'rgba(168,85,247,0.1)', textColor: '#a855f7' },
   { icon: 'ℹ️', label: '关于小程序', color: 'rgba(59,130,246,0.1)', textColor: '#3b82f6' },
   { icon: '💬', label: '联系作者', color: 'rgba(16,185,129,0.1)', textColor: '#10b981' },
   { icon: '⚠️', label: '免责声明', color: 'rgba(251,191,36,0.1)', textColor: '#fbbf24' },
@@ -28,7 +27,7 @@ function formatVipExpire(expireAt: string | null): string {
 }
 
 export default function Profile() {
-  const { user, token, profileSetup, fetchProfile, login, updateProfile, isVip, vipExpireAt, vipPlanType, vipDaysRemaining } = useUserStore()
+  const { user, token, profileSetup, fetchProfile, updateProfile, isVip, vipExpireAt, vipPlanType, vipDaysRemaining } = useUserStore()
   const [avatarUrl, setAvatarUrl] = useState('')
   const [nickname, setNickname] = useState('')
   const [editing, setEditing] = useState(false)
@@ -40,27 +39,6 @@ export default function Profile() {
   const wasVip = vipPlanType !== null
   // 判断是否即将过期（7天内）
   const isExpiringSoon = isVip && vipPlanType !== 'permanent' && vipDaysRemaining <= 7 && vipDaysRemaining > 0
-
-  // 分享给好友成功回调
-  const handleShared = () => Taro.showToast({ title: '已分享', icon: 'success' })
-
-  // 微信分享配置（点击"分享给好友"或右上角转发时使用）
-  useShareAppMessage(() => {
-    const count = user?.total_votes ?? 0
-    return {
-      title: `我在AI预测世界杯完成了${count}场预测，快来和我一起参与吧`,
-      path: '/pages/index/index',
-    }
-  })
-
-  // 分享到朋友圈
-  useShareTimeline(() => {
-    const count = user?.total_votes ?? 0
-    return {
-      title: `我在AI预测世界杯完成了${count}场预测，快来和我一起参与吧`,
-      query: '',
-    }
-  })
 
   useEffect(() => {
     if (user?.id) {
@@ -82,18 +60,7 @@ export default function Profile() {
   // 不强制进入编辑模式，用户可通过点击头像手动编辑
 
   const handleReLogin = () => {
-    Taro.login({
-      success: async (res) => {
-        if (res.code) {
-          try {
-            await login(res.code)
-            Taro.showToast({ title: '登录成功', icon: 'success' })
-          } catch {
-            Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
-          }
-        }
-      },
-    })
+    Taro.showToast({ title: '暂时不支持登录功能', icon: 'none' })
   }
 
   const handleChooseAvatar = async (e: any) => {
@@ -158,14 +125,6 @@ export default function Profile() {
   }
 
   const handleMenuClick = (label: string) => {
-    if (label === '分享给好友') {
-      // 由 Button openType='share' 直接处理
-      return
-    }
-    if (label === '我的战绩') {
-      Taro.navigateTo({ url: '/pages/vote-history/index' })
-      return
-    }
     if (label === '关于小程序') {
       Taro.navigateTo({ url: '/pages/about/index' })
       return
@@ -267,9 +226,7 @@ export default function Profile() {
         {/* 已完善资料 → 展示模式 */}
         {isLoggedIn && !editing && (
           <View className='prof-hd-center' onClick={() => {
-            setNickname(user?.nickname || '')
-            setAvatarUrl('')
-            setEditing(true)
+            Taro.showToast({ title: '暂时不支持登录功能', icon: 'none' })
           }}>
             {/* VIP 皇冠 + 标签 */}
             {wasVip && (
@@ -280,7 +237,7 @@ export default function Profile() {
                   <View className='prof-vip-right'>
                     <Text className={`prof-vip-tag ${!isVip ? 'expired' : ''}`}>
                       {!isVip
-                        ? 'VIP已过期，请续费'
+                        ? 'VIP 已过期'
                         : vipPlanType === 'permanent'
                           ? '尊贵的永久VIP'
                           : `VIP · 到期 ${formatVipExpire(vipExpireAt)}`
@@ -289,7 +246,7 @@ export default function Profile() {
                     {/* 即将过期提醒 - VIP标签正下方 */}
                     {isExpiringSoon && (
                       <Text className='prof-expire-warn'>
-                        ⚠️ VIP将在{vipDaysRemaining}天后过期，请续费
+                        ⚠️ VIP 将在{vipDaysRemaining}天后过期
                       </Text>
                     )}
                   </View>
@@ -309,41 +266,8 @@ export default function Profile() {
         )}
       </View>
 
-      <View className='prof-stats'>
-        <View className='prof-stat prof-stat-clickable' onClick={() => Taro.navigateTo({ url: '/pages/vote-history/index' })}>
-          <Text className='prof-stat-num mono'>{isLoggedIn ? (user?.total_votes ?? 0) : '-'}</Text>
-          <Text className='prof-stat-label'>已预测</Text>
-        </View>
-        <View className='prof-stat-divider' />
-        <View className='prof-stat'>
-          <Text className='prof-stat-num mono'>{isLoggedIn ? (user?.correct_results ?? 0) : '-'}</Text>
-          <Text className='prof-stat-label'>胜负正确</Text>
-        </View>
-        <View className='prof-stat-divider' />
-        <View className='prof-stat'>
-          <Text className='prof-stat-num mono'>{isLoggedIn ? (user?.correct_scores ?? 0) : '-'}</Text>
-          <Text className='prof-stat-label'>比分命中</Text>
-        </View>
-      </View>
-
       <View className='prof-menu'>
         {filteredMenuItems.map((item) => (
-          item.label === '分享给好友' ? (
-            <Button
-              key={item.label}
-              className='prof-menu-item'
-              openType='share'
-              onShareAppMessageSuccess={handleShared}
-            >
-              <View className='prof-menu-left'>
-                <View className='prof-menu-icon' style={{ background: item.color, color: item.textColor }}>
-                  <Text>{item.icon}</Text>
-                </View>
-                <Text className={`prof-menu-text ${item.label === '免责声明' ? 'disclaimer-text' : ''}`}>{item.label}</Text>
-              </View>
-              <Text className='prof-menu-arrow'>›</Text>
-            </Button>
-          ) : (
           <View
             key={item.label}
             className='prof-menu-item'
@@ -357,8 +281,12 @@ export default function Profile() {
             </View>
             <Text className='prof-menu-arrow'>›</Text>
           </View>
-          )
         ))}
+      </View>
+
+      <View className='prof-donate'>
+        <Image className='prof-donate-img' src={giveMeMoneyPng} mode='widthFix' />
+        <Text className='prof-donate-tip'>欢迎各位大佬打赏一下</Text>
       </View>
 
       {pickingAvatar && (

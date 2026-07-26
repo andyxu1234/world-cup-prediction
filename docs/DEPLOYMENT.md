@@ -121,8 +121,8 @@ API 容器启动时，`entrypoint.sh` 自动执行以下步骤：
 | `DB_NAME` | ❌ | `worldcup_prediction` | 数据库名 |
 | `DB_USER` | ❌ | `root` | 数据库用户 |
 | `OFOXAI_API_KEY` | ✅ | - | OfoxAI AI 网关密钥 |
-| `OFOXAI_BASE_URL` | ❌ | `https://api.ofox.ai/v1` | AI 网关地址 |
-| `HIGHLIGHTLY_API_KEY` | ❌ | - | 比赛数据源密钥 |
+| `OFOXAI_BASE_URL` | ❌ | `https://api.ofox.io/v1` | AI 网关地址（注意是 `ofox.io`，非 `ofox.ai`） |
+| `HIGHLIGHTLY_API_KEY` | ✅ | - | 比赛数据源密钥（无则无法同步比赛/积分榜/球员/赔率） |
 | `WECHAT_APP_ID` | ✅ | - | 微信小程序 AppID |
 | `WECHAT_APP_SECRET` | ✅ | - | 微信小程序 AppSecret |
 | `SECRET_KEY` | ❌ | 内置默认值 | JWT 签名密钥，**生产环境务必更换** |

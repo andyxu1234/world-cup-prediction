@@ -180,11 +180,14 @@ async def parallel_predict(state: PredictionState) -> PredictionState:
     total_skipped = 0
 
     try:
-        async with async_session_factory() as session:
-            for match_info in state.get("match_data_list", []):
-                match_id = match_info["id"]
-                existing_model_ids = match_info.get("existing_model_ids", [])
+        for match_info in state.get("match_data_list", []):
+            match_id = match_info["id"]
+            existing_model_ids = match_info.get("existing_model_ids", [])
 
+            # 1) 短生命周期 session：仅读取比赛 + H2H，读取后立即关闭。
+            #    避免 LLM 调用（可能长达数分钟）期间长时间占用数据库连接，
+            #    导致连接被 MySQL/代理回收（2013 Lost connection to MySQL server）。
+            async with async_session_factory() as session:
                 # 加载完整 Match 对象
                 stmt = (
                     select(Match)
@@ -193,6 +196,7 @@ async def parallel_predict(state: PredictionState) -> PredictionState:
                         selectinload(Match.home_team),
                         selectinload(Match.away_team),
                         selectinload(Match.league),
+                        selectinload(Match.match_odds),
                     )
                 )
                 result = await session.execute(stmt)
@@ -216,81 +220,84 @@ async def parallel_predict(state: PredictionState) -> PredictionState:
                 except Exception as e:
                     logger.warning(f"Failed to get H2H for match {match_id}: {e}")
 
-                # 构建 prompt (所有模型共享)
+                # 构建 prompt (所有模型共享) —— 必须在 session 关闭前完成
                 user_prompt = build_user_prompt(
                     home_team=match.home_team,
                     away_team=match.away_team,
                     match=match,
                     head_to_head=h2h_data,
                     league_name=match.league.cn_name if match.league else None,
+                    match_odds=match.match_odds,
                 )
 
-                # 过滤需要预测的模型
-                models_to_predict = []
-                skipped = 0
-                for model_info in state["models"]:
-                    if model_info["id"] in existing_model_ids:
-                        skipped += 1
-                        logger.debug(f"  [{model_info['name']}] already predicted for match {match_id}, skip")
-                        continue
-                    models_to_predict.append(model_info)
-                total_skipped += skipped
+            # —— session 已关闭，以下 LLM 调用不再占用数据库连接 ——
 
-                if not models_to_predict:
-                    logger.info(f"Match {match_id}: all models already predicted, skip")
+            # 过滤需要预测的模型
+            models_to_predict = []
+            skipped = 0
+            for model_info in state["models"]:
+                if model_info["id"] in existing_model_ids:
+                    skipped += 1
+                    logger.debug(f"  [{model_info['name']}] already predicted for match {match_id}, skip")
                     continue
+                models_to_predict.append(model_info)
+            total_skipped += skipped
 
-                home_name = match_info["home_name"]
-                away_name = match_info["away_name"]
-                logger.info(
-                    f"Match {match_id} ({home_name} vs {away_name}): "
-                    f"predicting with {len(models_to_predict)} models, {skipped} skipped"
-                )
+            if not models_to_predict:
+                logger.info(f"Match {match_id}: all models already predicted, skip")
+                continue
 
-                # 并行调用所有模型
-                async def _call_single_model(m_info: dict) -> dict:
-                    m_name = m_info["name"]
-                    m_id = m_info["model_id"]
-                    try:
-                        raw = await client.predict_match(
-                            model=m_id,
-                            system_prompt=SYSTEM_PROMPT,
-                            user_prompt=user_prompt,
-                        )
-                        logger.info(
-                            f"  [{m_name}] OK → result={raw.get('result')}, "
-                            f"score={raw.get('score', {}).get('home')}-{raw.get('score', {}).get('away')}, "
-                            f"confidence={raw.get('confidence')}"
-                        )
-                        return {
-                            "match_id": match_id,
-                            "model_id": m_info["id"],
-                            "model_name": m_name,
-                            "raw": raw,
-                        }
-                    except Exception as exc:
-                        logger.error(f"  [{m_name}] FAILED: {exc}")
-                        return {
-                            "match_id": match_id,
-                            "model_id": m_info["id"],
-                            "model_name": m_name,
-                            "error": str(exc),
-                            "retries": state.get("retry_count", 0),
-                        }
+            home_name = match_info["home_name"]
+            away_name = match_info["away_name"]
+            logger.info(
+                f"Match {match_id} ({home_name} vs {away_name}): "
+                f"predicting with {len(models_to_predict)} models, {skipped} skipped"
+            )
 
-                results = await asyncio.gather(
-                    *[_call_single_model(m) for m in models_to_predict],
-                    return_exceptions=True,
-                )
+            # 并行调用所有模型
+            async def _call_single_model(m_info: dict) -> dict:
+                m_name = m_info["name"]
+                m_id = m_info["model_id"]
+                try:
+                    raw = await client.predict_match(
+                        model=m_id,
+                        system_prompt=SYSTEM_PROMPT,
+                        user_prompt=user_prompt,
+                    )
+                    logger.info(
+                        f"  [{m_name}] OK → result={raw.get('result')}, "
+                        f"score={raw.get('score', {}).get('home')}-{raw.get('score', {}).get('away')}, "
+                        f"confidence={raw.get('confidence')}"
+                    )
+                    return {
+                        "match_id": match_id,
+                        "model_id": m_info["id"],
+                        "model_name": m_name,
+                        "raw": raw,
+                    }
+                except Exception as exc:
+                    logger.error(f"  [{m_name}] FAILED: {exc}")
+                    return {
+                        "match_id": match_id,
+                        "model_id": m_info["id"],
+                        "model_name": m_name,
+                        "error": str(exc),
+                        "retries": state.get("retry_count", 0),
+                    }
 
-                for r in results:
-                    if isinstance(r, Exception):
-                        logger.error(f"  Unexpected error: {r}")
-                        continue
-                    if "error" in r:
-                        all_failed.append(r)
-                    else:
-                        all_predictions.append(r)
+            results = await asyncio.gather(
+                *[_call_single_model(m) for m in models_to_predict],
+                return_exceptions=True,
+            )
+
+            for r in results:
+                if isinstance(r, Exception):
+                    logger.error(f"  Unexpected error: {r}")
+                    continue
+                if "error" in r:
+                    all_failed.append(r)
+                else:
+                    all_predictions.append(r)
 
     finally:
         await client.close()
@@ -381,29 +388,30 @@ async def retry_failed(state: PredictionState) -> PredictionState:
     _retry_start = _time.monotonic()
 
     try:
-        async with async_session_factory() as session:
-            for idx, failed_pred in enumerate(_failed_list):
-                match_id = failed_pred.get("match_id")
-                model_name = failed_pred.get("model_name", "")
-                _model_start = _time.monotonic()
+        for idx, failed_pred in enumerate(_failed_list):
+            match_id = failed_pred.get("match_id")
+            model_name = failed_pred.get("model_name", "")
+            _model_start = _time.monotonic()
 
-                logger.info(f"[Retry] --- [{idx+1}/{len(_failed_list)}] START | "
-                            f"model={model_name} | match_id={match_id} | "
-                            f"prev_error={failed_pred.get('error', 'N/A')!r}")
+            logger.info(f"[Retry] --- [{idx+1}/{len(_failed_list)}] START | "
+                        f"model={model_name} | match_id={match_id} | "
+                        f"prev_error={failed_pred.get('error', 'N/A')!r}")
 
-                # 找到模型信息
-                model_info = None
-                for m in state["models"]:
-                    if m["id"] == failed_pred.get("model_id"):
-                        model_info = m
-                        break
-                if not model_info:
-                    logger.warning(f"[Retry] [{model_name}] SKIP: model_info not found")
-                    still_failed.append(failed_pred)
-                    continue
+            # 找到模型信息
+            model_info = None
+            for m in state["models"]:
+                if m["id"] == failed_pred.get("model_id"):
+                    model_info = m
+                    break
+            if not model_info:
+                logger.warning(f"[Retry] [{model_name}] SKIP: model_info not found")
+                still_failed.append(failed_pred)
+                continue
 
-                # 加载比赛 + H2H
-                _db_start = _time.monotonic()
+            # 短生命周期 session：仅读取比赛 + H2H，读取后立即关闭，
+            # 避免 LLM 重试调用期间长时间占用数据库连接导致连接被回收（2013）。
+            _db_start = _time.monotonic()
+            async with async_session_factory() as session:
                 stmt = (
                     select(Match)
                     .where(Match.id == match_id)
@@ -411,6 +419,7 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                         selectinload(Match.home_team),
                         selectinload(Match.away_team),
                         selectinload(Match.league),
+                        selectinload(Match.match_odds),
                     )
                 )
                 result = await session.execute(stmt)
@@ -434,49 +443,51 @@ async def retry_failed(state: PredictionState) -> PredictionState:
                 except Exception:
                     pass
 
-                _db_elapsed = _time.monotonic() - _db_start
                 user_prompt = build_user_prompt(
                     home_team=match.home_team,
                     away_team=match.away_team,
                     match=match,
                     head_to_head=h2h_data,
                     league_name=match.league.cn_name if match.league else None,
+                    match_odds=match.match_odds,
                 )
+            # session 已关闭
+            _db_elapsed = _time.monotonic() - _db_start
 
-                try:
-                    _ai_start = _time.monotonic()
-                    raw = await client.predict_match(
-                        model=model_info["model_id"],
-                        system_prompt=SYSTEM_PROMPT,
-                        user_prompt=user_prompt,
-                    )
-                    _ai_elapsed = _time.monotonic() - _ai_start
-                    parser = get_parser(model_name)
-                    parsed = parser.parse(raw, model_name)
-                    parsed = parser.validate(parsed, model_name)
+            try:
+                _ai_start = _time.monotonic()
+                raw = await client.predict_match(
+                    model=model_info["model_id"],
+                    system_prompt=SYSTEM_PROMPT,
+                    user_prompt=user_prompt,
+                )
+                _ai_elapsed = _time.monotonic() - _ai_start
+                parser = get_parser(model_name)
+                parsed = parser.parse(raw, model_name)
+                parsed = parser.validate(parsed, model_name)
 
-                    _total_elapsed = _time.monotonic() - _model_start
-                    succeeded.append({
-                        "match_id": match_id,
-                        "model_id": model_info["id"],
-                        "model_name": model_name,
-                        "raw": raw,
-                        "parsed": parsed,
-                    })
-                    logger.info(
-                        f"  [{model_name}] Retry OK | "
-                        f"db_cost={_db_elapsed:.2f}s | ai_cost={_ai_elapsed:.2f}s | total={_total_elapsed:.2f}s"
-                    )
-                except Exception as exc:
-                    _total_elapsed = _time.monotonic() - _model_start
-                    _exc_type = type(exc).__name__
-                    _exc_msg = str(exc)[:300]
-                    logger.error(
-                        f"  [{model_name}] Retry FAILED: {_exc_type}: {_exc_msg} | "
-                        f"db_cost={_db_elapsed:.2f}s | total={_total_elapsed:.2f}s"
-                    )
-                    failed_pred["retries"] = retry_count
-                    still_failed.append(failed_pred)
+                _total_elapsed = _time.monotonic() - _model_start
+                succeeded.append({
+                    "match_id": match_id,
+                    "model_id": model_info["id"],
+                    "model_name": model_name,
+                    "raw": raw,
+                    "parsed": parsed,
+                })
+                logger.info(
+                    f"  [{model_name}] Retry OK | "
+                    f"db_cost={_db_elapsed:.2f}s | ai_cost={_ai_elapsed:.2f}s | total={_total_elapsed:.2f}s"
+                )
+            except Exception as exc:
+                _total_elapsed = _time.monotonic() - _model_start
+                _exc_type = type(exc).__name__
+                _exc_msg = str(exc)[:300]
+                logger.error(
+                    f"  [{model_name}] Retry FAILED: {_exc_type}: {_exc_msg} | "
+                    f"db_cost={_db_elapsed:.2f}s | total={_total_elapsed:.2f}s"
+                )
+                failed_pred["retries"] = retry_count
+                still_failed.append(failed_pred)
 
     finally:
         await client.close()
@@ -503,6 +514,8 @@ async def aggregate(state: PredictionState) -> PredictionState:
     from app.utils.prompt_builder import build_summary_prompt
     from app.services.prediction_parsers import SummaryParser
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from collections import defaultdict
 
     predictions = state.get("predictions", [])
     if not predictions:
@@ -513,171 +526,167 @@ async def aggregate(state: PredictionState) -> PredictionState:
     client = OfoxAIClient(api_key=settings.OFOXAI_API_KEY, base_url=settings.OFOXAI_BASE_URL)
     summary_parser = SummaryParser()
 
+    # 按 match_id 分组
+    by_match: dict[int, list[dict]] = defaultdict(list)
+    for pred in predictions:
+        by_match[pred["match_id"]].append(pred)
+
+    # ── Phase 1: 短生命周期 session 读取历史预测 ──
+    # 仅读取，读取后立即关闭，避免后续 LLM 汇总调用（可能数分钟）期间占用连接被回收。
+    historical_by_match: dict[int, list] = {}
+    async with async_session_factory() as session:
+        for match_id, match_preds in by_match.items():
+            existing_model_ids_from_new = {p["model_id"] for p in match_preds}
+            hist_stmt = (
+                select(Prediction)
+                .options(selectinload(Prediction.ai_model))  # 预加载模型关系
+                .where(Prediction.match_id == match_id)
+                .where(Prediction.model_id.notin_(existing_model_ids_from_new))
+            )
+            hist_result = await session.execute(hist_stmt)
+            historical_by_match[match_id] = list(hist_result.scalars().all())
+    # session 已关闭
+
+    # ── Phase 2: 调用汇总模型（不占用数据库连接）──
+    summary_results: dict[int, tuple] = {}  # match_id -> (parsed_summary, merged_preds)
+    for match_id, match_preds in by_match.items():
+        match_info = None
+        for md in state.get("match_data_list", []):
+            if md["id"] == match_id:
+                match_info = md
+                break
+        if not match_info:
+            continue
+
+        historical_predictions = historical_by_match.get(match_id, [])
+
+        # 合并历史预测为统一格式
+        merged_preds = list(match_preds)
+        for hp in historical_predictions:
+            try:
+                import json as _json
+                raw_parsed = _json.loads(hp.raw_response) if hp.raw_response else {}
+            except (TypeError, ValueError):
+                raw_parsed = {}
+            merged_preds.append({
+                "match_id": match_id,
+                "model_id": hp.model_id,
+                "model_name": getattr(hp.ai_model, 'name', f'Model_{hp.model_id}'),
+                "raw": raw_parsed,
+                "parsed": {
+                    "result": hp.result.value if hasattr(hp.result, 'value') else str(hp.result),
+                    "score": {"home": hp.score_home, "away": hp.score_away},
+                    "confidence": hp.confidence,
+                    "analysis": hp.analysis or "",
+                },
+                "_is_historical": True,  # 标记为历史数据
+            })
+
+        logger.info(
+            f"Aggregate match {match_id}: "
+            f"{len(match_preds)} new + {len(historical_predictions)} historical = "
+            f"{len(merged_preds)} total predictions"
+        )
+
+        # 构建汇总 prompt（使用合并后的完整数据）
+        pred_data = []
+        for p in merged_preds:
+            parsed = p.get("parsed", p.get("raw", {}))
+            pred_data.append({
+                "model_name": p.get("model_name", ""),
+                "result": parsed.get("result", ""),
+                "score_home": parsed.get("score", {}).get("home"),
+                "score_away": parsed.get("score", {}).get("away"),
+                "confidence": parsed.get("confidence", 5),
+                "analysis": parsed.get("analysis", ""),
+            })
+
+        summary_prompt = build_summary_prompt(
+            home_team=match_info["home_name"],
+            away_team=match_info["away_name"],
+            predictions=pred_data,
+            league_name=match_info.get("league_name"),
+        )
+
+        try:
+            summary_raw = await client.predict_match(
+                model=state["summary_model_id"],
+                system_prompt="你是一位足球分析总编辑，请综合多个AI模型的预测结果，生成统一的综合预测结论。严格按照JSON格式输出，不要输出其他任何内容。",
+                user_prompt=summary_prompt,
+            )
+            parsed_summary = summary_parser.parse(summary_raw)
+            parsed_summary = summary_parser.validate(parsed_summary)
+            logger.info(
+                f"Summary for match {match_id}: "
+                f"score={parsed_summary.get('score', {}).get('home')}-"
+                f"{parsed_summary.get('score', {}).get('away')}, "
+                f"short={parsed_summary.get('short_summary')}"
+            )
+            summary_results[match_id] = (parsed_summary, merged_preds)
+        except Exception as e:
+            logger.error(f"Summary generation failed for match {match_id}: {e}")
+            summary_results[match_id] = (None, merged_preds)
+
+    # ── Phase 3: 短生命周期 session 写入数据库 ──
     try:
         async with async_session_factory() as session:
-            # 按 match_id 分组
-            from collections import defaultdict
-            by_match: dict[int, list[dict]] = defaultdict(list)
-            for pred in predictions:
-                by_match[pred["match_id"]].append(pred)
-
-            for match_id, match_preds in by_match.items():
-                # 获取比赛信息
-                match_info = None
-                for md in state.get("match_data_list", []):
-                    if md["id"] == match_id:
-                        match_info = md
-                        break
-                if not match_info:
+            for match_id, (parsed_summary, merged_preds) in summary_results.items():
+                if parsed_summary is None:
                     continue
 
-                # ── 加载历史预测（补充被跳过的模型）─────────────
-                existing_model_ids_from_new = {p["model_id"] for p in match_preds}
-                
-                # 从数据库查询该比赛的所有历史预测（预加载 ai_model 关系避免异步懒加载错误）
-                from sqlalchemy.orm import selectinload
-                hist_stmt = (
-                    select(Prediction)
-                    .options(selectinload(Prediction.ai_model))  # 预加载模型关系
-                    .where(Prediction.match_id == match_id)
-                    .where(Prediction.model_id.notin_(existing_model_ids_from_new))
-                )
-                hist_result = await session.execute(hist_stmt)
-                historical_predictions = list(hist_result.scalars().all())
-
-                # 转换历史预测为统一格式
-                for hp in historical_predictions:
-                    try:
-                        # 尝试解析 raw_response 为 JSON
-                        import json as _json
-                        raw_parsed = _json.loads(hp.raw_response) if hp.raw_response else {}
-                    except (TypeError, ValueError):
-                        raw_parsed = {}
-
-                    match_preds.append({
-                        "match_id": match_id,
-                        "model_id": hp.model_id,
-                        "model_name": getattr(hp.ai_model, 'name', f'Model_{hp.model_id}'),
-                        "raw": raw_parsed,
-                        "parsed": {
-                            "result": hp.result.value if hasattr(hp.result, 'value') else str(hp.result),
-                            "score": {
-                                "home": hp.score_home,
-                                "away": hp.score_away,
-                            },
-                            "confidence": hp.confidence,
-                            "analysis": hp.analysis or "",
-                        },
-                        "_is_historical": True,  # 标记为历史数据
-                    })
-
-                logger.info(
-                    f"Aggregate match {match_id}: "
-                    f"{len(match_preds) - len(historical_predictions)} new + "
-                    f"{len(historical_predictions)} historical = "
-                    f"{len(match_preds)} total predictions"
-                )
-
-                # 构建汇总 prompt（使用合并后的完整数据）
-                pred_data = []
-                for p in match_preds:
+                # 仅保存本次新生成的预测（跳过历史数据避免重复）
+                new_predictions = [p for p in merged_preds if not p.get("_is_historical")]
+                for p in new_predictions:
                     parsed = p.get("parsed", p.get("raw", {}))
-                    pred_data.append({
-                        "model_name": p.get("model_name", ""),
-                        "result": parsed.get("result", ""),
-                        "score_home": parsed.get("score", {}).get("home"),
-                        "score_away": parsed.get("score", {}).get("away"),
-                        "confidence": parsed.get("confidence", 5),
-                        "analysis": parsed.get("analysis", ""),
-                    })
+                    score = parsed.get("score", {})
+                    score_alt = parsed.get("score_alt", {})
 
-                summary_prompt = build_summary_prompt(
-                    home_team=match_info["home_name"],
-                    away_team=match_info["away_name"],
-                    predictions=pred_data,
-                    league_name=match_info.get("league_name"),
-                )
-
-                # 调用汇总模型
-                try:
-                    summary_raw = await client.predict_match(
-                        model=state["summary_model_id"],
-                        system_prompt="你是一位足球分析总编辑，请综合多个AI模型的预测结果，生成统一的综合预测结论。严格按照JSON格式输出，不要输出其他任何内容。",
-                        user_prompt=summary_prompt,
+                    prediction = Prediction(
+                        match_id=match_id,
+                        model_id=p["model_id"],
+                        result=parsed["result"],
+                        score_home=score.get("home"),
+                        score_away=score.get("away"),
+                        score_alt_home=score_alt.get("home"),
+                        score_alt_away=score_alt.get("away"),
+                        score_alt_prob=score_alt.get("probability"),
+                        confidence=parsed.get("confidence"),
+                        analysis=parsed.get("analysis"),
+                        raw_response=p.get("raw"),
                     )
+                    session.add(prediction)
 
-                    # 解析汇总
-                    parsed_summary = summary_parser.parse(summary_raw)
-                    parsed_summary = summary_parser.validate(parsed_summary)
+                # 保存/更新汇总
+                score = parsed_summary.get("score", {})
+                score_alt = parsed_summary.get("score_alt", {})
+                sum_stmt = select(PredictionSummary).where(PredictionSummary.match_id == match_id)
+                sum_result = await session.execute(sum_stmt)
+                existing = sum_result.scalar_one_or_none()
 
-                    logger.info(
-                        f"Summary for match {match_id}: "
-                        f"score={parsed_summary.get('score', {}).get('home')}-"
-                        f"{parsed_summary.get('score', {}).get('away')}, "
-                        f"short={parsed_summary.get('short_summary')}"
+                if existing:
+                    existing.score_home = score.get("home")
+                    existing.score_away = score.get("away")
+                    existing.score_alt_home = score_alt.get("home")
+                    existing.score_alt_away = score_alt.get("away")
+                    existing.short_summary = parsed_summary.get("short_summary")
+                    existing.summary = parsed_summary.get("summary")
+                    existing.confidence = parsed_summary.get("confidence")
+                    logger.info(f"Summary updated for match {match_id}")
+                else:
+                    summary = PredictionSummary(
+                        match_id=match_id,
+                        score_home=score.get("home"),
+                        score_away=score.get("away"),
+                        score_alt_home=score_alt.get("home"),
+                        score_alt_away=score_alt.get("away"),
+                        short_summary=parsed_summary.get("short_summary"),
+                        summary=parsed_summary.get("summary"),
+                        confidence=parsed_summary.get("confidence"),
                     )
-
-                    # 存入 state
-                    state["summary_raw"] = summary_raw
-                    state["summary"] = parsed_summary
-
-                    # 写入数据库 — 仅保存本次新生成的预测（跳过历史数据避免重复）
-                    new_predictions = [p for p in match_preds if not p.get("_is_historical")]
-                    for p in new_predictions:
-                        parsed = p.get("parsed", p.get("raw", {}))
-                        score = parsed.get("score", {})
-                        score_alt = parsed.get("score_alt", {})
-
-                        prediction = Prediction(
-                            match_id=match_id,
-                            model_id=p["model_id"],
-                            result=parsed["result"],
-                            score_home=score.get("home"),
-                            score_away=score.get("away"),
-                            score_alt_home=score_alt.get("home"),
-                            score_alt_away=score_alt.get("away"),
-                            score_alt_prob=score_alt.get("probability"),
-                            confidence=parsed.get("confidence"),
-                            analysis=parsed.get("analysis"),
-                            raw_response=p.get("raw"),
-                        )
-                        session.add(prediction)
-
-                    # 保存/更新汇总
-                    score = parsed_summary.get("score", {})
-                    score_alt = parsed_summary.get("score_alt", {})
-                    sum_stmt = select(PredictionSummary).where(PredictionSummary.match_id == match_id)
-                    sum_result = await session.execute(sum_stmt)
-                    existing = sum_result.scalar_one_or_none()
-
-                    if existing:
-                        existing.score_home = score.get("home")
-                        existing.score_away = score.get("away")
-                        existing.score_alt_home = score_alt.get("home")
-                        existing.score_alt_away = score_alt.get("away")
-                        existing.short_summary = parsed_summary.get("short_summary")
-                        existing.summary = parsed_summary.get("summary")
-                        existing.confidence = parsed_summary.get("confidence")
-                        logger.info(f"Summary updated for match {match_id}")
-                    else:
-                        summary = PredictionSummary(
-                            match_id=match_id,
-                            score_home=score.get("home"),
-                            score_away=score.get("away"),
-                            score_alt_home=score_alt.get("home"),
-                            score_alt_away=score_alt.get("away"),
-                            short_summary=parsed_summary.get("short_summary"),
-                            summary=parsed_summary.get("summary"),
-                            confidence=parsed_summary.get("confidence"),
-                        )
-                        session.add(summary)
-                        logger.info(f"Summary created for match {match_id}")
-
-                except Exception as e:
-                    logger.error(f"Summary generation failed for match {match_id}: {e}")
+                    session.add(summary)
+                    logger.info(f"Summary created for match {match_id}")
 
             await session.commit()
-
     finally:
         await client.close()
 

@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: 'AI 足球预测',
+  navigationBarTitleText: 'AI 足球分析',
   navigationBarBackgroundColor: '#0a0e17',
   navigationBarTextStyle: 'white',
   shareTimeline: true,

@@ -48,6 +48,70 @@ class Settings(BaseSettings):
     HIGHLIGHTLY_LEAGUE_ID: int = 1635   # World Cup (default/fallback)
     HIGHLIGHTLY_SEASON: int = 2026
 
+    # ── Polymarket 赛事抓取（只读）──
+    # 只拉五大联赛 + 欧冠 + 欧联，未来 POLYMARKET_DAYS_AHEAD 天内的比赛，
+    # 且只取"胜负平"（moneyline 3-way）市场，落 polymarket_events / polymarket_markets 表。
+    # 每个元素 {"id": Polymarket series_id, "name": 展示名}。
+    # 注意：本 venv 为 Python 3.9，pydantic-settings 不支持订阅式注解
+    # （list[dict] 在 field_is_complex 里会触发 issubclass() 异常），
+    # 故此处用裸 list / dict 注解，内层类型在使用处自行解析。
+    POLYMARKET_SERIES: list = [
+        {"id": "10188", "name": "English Premier League"},
+        {"id": "10193", "name": "La Liga"},
+        {"id": "10194", "name": "Bundesliga"},
+        {"id": "10203", "name": "Serie A"},
+        {"id": "10195", "name": "Ligue 1"},
+        {"id": "10204", "name": "UEFA Champions League"},
+        {"id": "10209", "name": "UEFA Europa League"},
+    ]
+    # 只保留未来 N 天内开赛的比赛（按 Polymarket gameStartTime/UTC 过滤）
+    POLYMARKET_DAYS_AHEAD: int = 7
+    # 单 series 最多翻页数（防御性上限）：Polymarket 某联赛 open 事件可能极多，
+    # 若服务端 endDate 过滤失效可防止无限翻页；正常工作时远不会触发。
+    POLYMARKET_MAX_PAGES: int = 50
+    # 队名别名：Polymarket 队名(小写) -> 本地 teams.name(小写)。
+    # 仅覆盖确有可能不一致的少数情况；其余靠大小写不敏感精确匹配。
+    # 若某赛事未匹配到本地比赛（match_id 为 NULL），多半是此处需补别名。
+    # 裸 dict 注解（Py3.9 兼容，见 POLYMARKET_SERIES 说明）。
+    POLYMARKET_TEAM_ALIASES: dict = {
+        "usa": "united states",
+        "united states": "united states",
+        "korea republic": "south korea",
+        "holland": "netherlands",
+        "czech republic": "czechia",
+    }
+    # 匹配时开赛时间容差（小时）；Polymarket endDate 与本地 match_time 均按 UTC 比较。
+    POLYMARKET_MATCH_WINDOW_HOURS: int = 24
+    # 静态映射：Polymarket series_id -> Highlightly highlightly_league_id。
+    # 匹配时据此把 Polymarket 联赛锁定到本地 leagues 行（按 season=2026 取活跃行）。
+    # 值来自 leagues 表查询（2026 赛季）：
+    #   Premier League=33973, La Liga=119924, Bundesliga=67162, Serie A=115669,
+    #   Ligue 1=52695, UEFA Champions League=2486, UEFA Europa League=3337。
+    # 裸 dict 注解（Py3.9 兼容，见 POLYMARKET_SERIES 说明）。
+    POLYMARKET_SERIES_LEAGUE: dict = {
+        "10188": 33973,   # English Premier League
+        "10193": 119924,  # La Liga
+        "10194": 67162,   # Bundesliga
+        "10203": 115669,  # Serie A
+        "10195": 52695,   # Ligue 1
+        "10204": 2486,    # UEFA Champions League
+        "10209": 3337,    # UEFA Europa League
+    }
+
+    # Polymarket 抓取的 outbound 代理（可选）。
+    # 国内网络直连 gamma-api.polymarket.com 会被墙/地域封锁；
+    # 设为 http 代理（如 "http://127.0.0.1:10808"）即可走代理拉取。
+    # 留空时按 HTTPS_PROXY -> HTTP_PROXY 顺序读取环境变量。
+    # 建议写进 .env（而非 export 到全局 shell），避免污染 OfoxAI / Highlightly
+    # 等其他 httpx 客户端的出站流量。
+    POLYMARKET_PROXY: str = "http://127.0.0.1:10808"
+
+    # ── Polymarket Standalone 市场配置 ──
+    # NO farming 最高入场价格（0-1），低于此价格的 NO 市场被认为符合条件
+    POLYMARKET_MAX_ENTRY_PRICE: float = 0.65
+    # 只保留未来 N 个月内结束的市场
+    POLYMARKET_MAX_END_DATE_MONTHS: int = 3
+
     # 微信小程序
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
@@ -59,6 +123,14 @@ class Settings(BaseSettings):
     # 应用
     APP_NAME: str = "World Cup AI Prediction"
     DEBUG: bool = False
+
+    # 私密赔率展示页（/internal/odds）共享访问令牌
+    # 本地默认开发令牌；公网部署前务必改为强随机值，并配合 IP 白名单
+    ODDS_VIEW_TOKEN: str = "odds-dev-local"
+
+    # Telegram Bot 配置
+    TELEGRAM_BOT_TOKEN: str = ""  # Telegram Bot Token（从 @BotFather 获取）
+    TELEGRAM_CHAT_IDS: str = ""  # 推送目标 Chat ID，多个用逗号分隔（支持个人和群组）
 
     # 头像存储（微信临时 URL 需要下载转存）
     AVATAR_DIR: str = "avatars"  # 相对于项目根目录的子目录

@@ -69,7 +69,7 @@ export default function LeaguePicker() {
             <ScrollView
               scrollY
               className='league-modal-list'
-              style={{ height: `${Math.min(leagues.length * 50 + 10, 240)}px` }}
+              style={{ height: `${Math.min(leagues.length * 56 + 10, 260)}px` }}
             >
               <View className='league-list'>
                 {leagues.map((lg) => {

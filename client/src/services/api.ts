@@ -567,21 +567,6 @@ export function votePrediction(userId: number, matchId: number, predictedResult:
   })
 }
 
-// ==================== 长期预测 ====================
-
-export interface LongTermPrediction {
-  model_id: number
-  model_name: string
-  champion: string | null
-  runner_up: string | null
-  third_place: string | null
-  analysis: string | null
-}
-
-export function getLongTermPredictions() {
-  return request<LongTermPrediction[]>({ url: '/long-term-predictions' })
-}
-
 // ==================== 积分榜 ====================
 
 export interface TeamStandingOut {

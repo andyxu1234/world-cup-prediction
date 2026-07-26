@@ -3,7 +3,7 @@ client/node_modules/
 server/.venv/
 
 # Build outputs
-client/dist/
+#client/dist/
 
 # IDE
 .vscode/

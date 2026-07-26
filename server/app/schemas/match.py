@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Union
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, field_serializer
 
 from app.schemas.league import LeagueBrief
 
@@ -39,6 +39,16 @@ class MatchListOut(BaseModel):
     summary: Optional["PredictionSummaryOut"] = None
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("match_time")
+    def serialize_match_time(self, value: Optional[datetime]) -> Optional[str]:
+        # 数据库里 match_time 按北京时间（UTC+8）存储（naive），
+        # 序列化时明确标注 +08:00，避免前端/调用方误当成 UTC。
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone(timedelta(hours=8)))
+        return value.isoformat()
 
 
 class MatchDetailOut(MatchListOut):

@@ -3,6 +3,8 @@ import { View, Text, Input, ScrollView, Image } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useMatchStore, useUserStore, useRoundStore, getRoundLabel } from '@/stores'
 import { AD_UNIT_IDS, isAdUnlocked, showRewardedVideo, setAdUnlocked, createRewardedVideoAd, shouldShowAd } from '@/utils/ad'
+import { formatMatchTime } from '@/utils/time'
+import { FEATURES } from '@/config/features'
 import deepseekImg from '@/assets/aimodels/deepseek.svg'
 import qwenImg from '@/assets/aimodels/qwen.svg'
 import claudeImg from '@/assets/aimodels/claude.svg'
@@ -36,6 +38,7 @@ const MODEL_FALLBACKS: Record<string, { gradient: string; letter: string }> = {
   '智谱GLM': { gradient: 'linear-gradient(135deg, #0d9488, #2dd4bf)', letter: 'Z' },
 }
 
+// AI 模型对赛果的分析倾向标签（中性表述，不构成投资或决策建议）
 function getResultLabel(result: string) {
   if (result === 'home_win') return { text: '主胜', cls: 'pred-home' }
   if (result === 'draw') return { text: '平局', cls: 'pred-draw' }
@@ -78,13 +81,14 @@ export default function MatchDetail() {
   const [pageReady, setPageReady] = useState(false)
   const [voteValidationError, setVoteValidationError] = useState('')
   // 广告解锁 — 显式三态状态机，无中间态
-  // 'cinema' = 广告加载中(影院动画) | 'locked' = 锁+按钮 | 'unlocked' = 预测数据
-  const [adPhase, setAdPhase] = useState<'cinema' | 'locked' | 'unlocked'>('cinema')
+  // 'cinema' = 广告加载中(影院动画) | 'locked' = 锁+按钮 | 'unlocked' = 分析数据
+  // 关闭 AD_UNLOCK 开关时直接置为 unlocked（只读展示），不创建广告实例
+  const [adPhase, setAdPhase] = useState<'cinema' | 'locked' | 'unlocked'>(FEATURES.AD_UNLOCK ? 'cinema' : 'unlocked')
   // 防止广告并发重入
   const adPlayingRef = useRef(false)
   // 广告实例引用（在页面内创建，避免页面上下文不一致问题）
   const adInstanceRef = useRef<any>(null)
-  // 动态计算 AI 预测列表区高度，解决 iOS 设备底部空白导致预测表单被推到屏幕外的问题
+  // 动态计算 AI 分析列表区高度，解决 iOS 设备底部空白问题
   // 根因：CSS 中 calc(100vh - 400px) 的 400px 是硬编码 CSS px，
   //       页面元素全部用 rpx 编写，不同设备 rpx→px 转换比例不同（尤其 iOS）
   const [predListHeight, setPredListHeight] = useState<string>('')
@@ -172,7 +176,7 @@ export default function MatchDetail() {
     }
   })
 
-  // 动态计算主内容滚动区高度（仅测量 Hero，summary+预测+投票统一在内部滚动）
+  // 动态计算主内容滚动区高度（仅测量 Hero，summary+分析列表统一在内部滚动）
   useEffect(() => {
     if (!pageReady || !currentMatch) return
     const timer = setTimeout(() => {
@@ -199,15 +203,20 @@ export default function MatchDetail() {
   }, [pageReady, currentMatch])
 
   // 广告解锁逻辑 — 显式三态状态机，无中间态闪烁
-  // adPhase: 'cinema'(影院加载) | 'locked'(锁+按钮) | 'unlocked'(预测数据)
+  // adPhase: 'cinema'(影院加载) | 'locked'(锁+按钮) | 'unlocked'(分析数据)
+  // 开关关闭时直接解锁，不创建/播放广告
   useEffect(() => {
+    if (!FEATURES.AD_UNLOCK) {
+      setAdPhase('unlocked')
+      return
+    }
     if (!pageReady || !currentMatch) return
     if (adPlayingRef.current) return
 
     // 获取 VIP 状态
     const { isVip, vipExpireAt } = useUserStore.getState()
 
-    // 无需广告：已结束 / 无预测 / 已缓存解锁 / 首场免费 / VIP 用户 → 直接到预测数据页
+    // 无需广告：已结束 / 无分析 / 已缓存解锁 / 首场免费 / VIP 用户 → 直接到分析数据页
     if (
       currentMatch.status === 'finished' ||
       predictions.length === 0 ||
@@ -233,7 +242,7 @@ export default function MatchDetail() {
         await new Promise(r => setTimeout(r, 150))
         if (completed || !available) {
           setAdUnlocked(matchId)
-          setAdPhase('unlocked')  // 看完/无广告 → 直接切到预测数据，无中间态
+          setAdPhase('unlocked')  // 看完/无广告 → 直接切到分析数据，无中间态
         } else {
           setAdPhase('locked')    // 未看完 → 切到锁+按钮
         }
@@ -307,49 +316,36 @@ export default function MatchDetail() {
           <Text className='match-hero-vs mono'>VS</Text>
           <TeamInfo team={currentMatch.away_team} />
         </View>
-        <Text className='match-hero-meta'>
-          {(() => {
-            if (!currentMatch.match_time) return '待定'
-            const d = new Date(currentMatch.match_time)
-            const month = d.getMonth() + 1
-            const day = d.getDate()
-            const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-            const weekday = weekDays[d.getDay()]
-            const hour24 = d.getHours()
-            const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
-            const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-            return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
-          })()}
-        </Text>
+        <Text className='match-hero-meta'>{formatMatchTime(currentMatch.match_time)}</Text>
       </View>
 
       {/* 风险提醒 — 顶部醒目位置 */}
       <View className='risk-reminder'>
         <View className='risk-reminder-wrap'>
-          <Text className='risk-reminder-text'>⚠️ AI预测仅供参考，不构成投注建议，请理性娱乐</Text>
+          <Text className='risk-reminder-text'>⚠️ 以下内容由 AI 模型基于公开数据分析生成，仅供研究参考，不构成任何投资或决策建议</Text>
         </View>
       </View>
 
-      {/* VIP 用户专属提示 */}
-      {useUserStore.getState().isVip && adPhase === 'unlocked' && (
+      {/* VIP 用户专属提示（仅开启广告解锁时显示） */}
+      {FEATURES.AD_UNLOCK && useUserStore.getState().isVip && adPhase === 'unlocked' && (
         <View className='vip-hint'>
           <Text className='vip-hint-icon'>👑</Text>
           <Text className='vip-hint-text'>尊贵的VIP用户，已为您去除广告</Text>
         </View>
       )}
 
-      {/* 主内容区 — 统一滚动：AI综合分析 + AI预测列表 + 投票区域 一起下滑 */}
+      {/* 主内容区 — 统一滚动：AI综合分析 + AI分析列表 一起下滑 */}
       <ScrollView scrollY className='main-scroll' style={predListHeight ? { height: predListHeight } : undefined}>
         {/* AI 综合总结 */}
-        {adPhase === 'unlocked' && currentMatch?.summary && (
+        {(!FEATURES.AD_UNLOCK || adPhase === 'unlocked') && currentMatch?.summary && (
         <View className='summary-card'>
           <View className='summary-hd'>
             <Text className='summary-title'>📊 AI 综合分析</Text>
           </View>
-          {/* AI 共识（简短结论） */}
+          {/* AI 观点（简短结论） */}
           {currentMatch.summary.short_summary && (
             <View className='summary-short-row'>
-              <Text className='summary-short-label'>AI 共识</Text>
+              <Text className='summary-short-label'>AI 观点</Text>
               <Text className='summary-short-text'>{currentMatch.summary.short_summary}</Text>
             </View>
           )}
@@ -364,7 +360,7 @@ export default function MatchDetail() {
               {currentMatch.summary.confidence != null && (
                 <View className='pred-conf'>
                   <View className='pred-conf-hd'>
-                    <Text>综合信心</Text>
+                    <Text>模型信心</Text>
                     <Text style={{ color: (currentMatch.summary.confidence || 0) >= 7 ? '#00ff87' : '#ffd700' }}>
                       {currentMatch.summary.confidence}/10
                     </Text>
@@ -380,10 +376,10 @@ export default function MatchDetail() {
                   </View>
                 </View>
               )}
-              {/* 备选比分 */}
+              {/* 备选参考 */}
               {currentMatch.summary.score_alt_home != null && currentMatch.summary.score_alt_away != null && (
                 <View className='pred-alt-score'>
-                  <Text className='pred-alt-label'>备选：{currentMatch.summary.score_alt_home}:{currentMatch.summary.score_alt_away}</Text>
+                  <Text className='pred-alt-label'>备选参考：{currentMatch.summary.score_alt_home}:{currentMatch.summary.score_alt_away}</Text>
                 </View>
               )}
             </>
@@ -397,8 +393,8 @@ export default function MatchDetail() {
       {/* 信息流广告 */}
       <ad unit-id={AD_UNIT_IDS.feed} ad-intervals={30} />
 
-      {/* AI 预测卡片 — 三态显式切换，无中间态 */}
-      {adPhase === 'unlocked' ? (
+      {/* AI 预测卡片 — 开关关闭时直接展示；开启广告解锁时按三态显式切换，无中间态 */}
+      {!FEATURES.AD_UNLOCK ? (
         <>
           {predictions.length === 0 && (
             <View className='pred-empty'>
@@ -455,10 +451,82 @@ export default function MatchDetail() {
                   <View className='conf-bar'>
                     <View className='conf-fill' style={{ width: `${(pred.confidence || 0) * 10}%`, background: confColor }} />
                   </View>
-                  {/* 备选分数 */}
+                  {/* 备选参考 */}
                   {pred.score_alt && (
                     <View className='pred-alt-score'>
-                      <Text className='pred-alt-label'>备选：{pred.score_alt}</Text>
+                      <Text className='pred-alt-label'>备选参考：{pred.score_alt}</Text>
+                    </View>
+                  )}
+                </View>
+                {/* AI 分析 */}
+                {pred.analysis && (
+                  <Text className='pred-analysis'>{pred.analysis}</Text>
+                )}
+              </View>
+            )
+          })}
+        </>
+      ) : adPhase === 'unlocked' ? (
+        <>
+          {predictions.length === 0 && (
+            <View className='pred-empty'>
+              <Text className='pred-empty-icon'>🤖</Text>
+              <Text className='pred-empty-title'>AI 预测尚未生成</Text>
+              <Text className='pred-empty-desc'>AI 分析结果将于比赛前三天生成，届时将为你呈现多模型智能预测</Text>
+            </View>
+          )}
+          {predictions.map((pred, idx) => {
+            const avatarUrl = MODEL_AVATARS[pred.model_name]
+            const fallback = MODEL_FALLBACKS[pred.model_name] || { gradient: 'linear-gradient(135deg, #666, #999)', letter: '?' }
+            const resultInfo = getResultLabel(pred.result)
+            const confColor = (pred.confidence || 5) >= 7 ? '#00ff87' : (pred.confidence || 5) >= 5 ? '#ffd700' : '#ff3b5c'
+            const scores = (pred.score || '0:0').split(':')
+            return (
+              <View key={idx} className='pred-card'>
+                <View className='pred-hd'>
+                  <View className='pred-model'>
+                    {avatarUrl ? (
+                      <Image className='model-av-img' src={avatarUrl} mode='aspectFit' />
+                    ) : (
+                      <View className='model-av' style={{ background: fallback.gradient }}>
+                        {fallback.letter}
+                      </View>
+                    )}
+                    <View>
+                      <Text className='pred-name'>{pred.model_name}</Text>
+                    </View>
+                  </View>
+                  <Text className={`pred-result ${resultInfo.cls}`}>{resultInfo.text}</Text>
+                </View>
+                <View className='pred-score-area'>
+                  <View className='pred-score-col'>
+                    <Text className='pred-score-big' style={{ color: '#00ff87' }}>{scores[0] || '0'}</Text>
+                    <Text className='pred-score-label'>{currentMatch.home_team.cn_name || currentMatch.home_team.name}</Text>
+                    {currentMatch.home_team.group_name && (
+                      <Text className='pred-team-sub'>{currentMatch.home_team.group_name}组 · FIFA #{currentMatch.home_team.fifa_rank || '?'}</Text>
+                    )}
+                  </View>
+                  <Text className='pred-colon mono'>:</Text>
+                  <View className='pred-score-col'>
+                    <Text className='pred-score-big' style={{ color: '#00b4d8' }}>{scores[1] || '0'}</Text>
+                    <Text className='pred-score-label'>{currentMatch.away_team.cn_name || currentMatch.away_team.name}</Text>
+                    {currentMatch.away_team.group_name && (
+                      <Text className='pred-team-sub'>{currentMatch.away_team.group_name}组 · FIFA #{currentMatch.away_team.fifa_rank || '?'}</Text>
+                    )}
+                  </View>
+                </View>
+                <View className='pred-conf'>
+                  <View className='pred-conf-hd'>
+                    <Text>信心指数</Text>
+                    <Text style={{ color: confColor }}>{pred.confidence || '-'}/10</Text>
+                  </View>
+                  <View className='conf-bar'>
+                    <View className='conf-fill' style={{ width: `${(pred.confidence || 0) * 10}%`, background: confColor }} />
+                  </View>
+                  {/* 备选参考 */}
+                  {pred.score_alt && (
+                    <View className='pred-alt-score'>
+                      <Text className='pred-alt-label'>备选参考：{pred.score_alt}</Text>
                     </View>
                   )}
                 </View>
@@ -525,58 +593,70 @@ export default function MatchDetail() {
         </View>
       )}
 
-      {/* 投票区域：比赛未结束时允许修改预测 */}
-      <View className='vote-card'>
-        {(!!myVote && currentMatch?.status === 'finished') ? (
-          <>
-            <Text className='vote-title'>✅ 你的预测</Text>
-            <View className='vote-opts'>
-              {['home_win', 'draw', 'away_win'].map((opt) => {
-                const label = opt === 'home_win' ? '主胜' : opt === 'draw' ? '平局' : '客胜'
-                return (
-                  <View key={opt} className={`vote-btn ${myVote!.result === opt ? 'sel' : ''} voted`}>
-                    <Text>{label}</Text>
-                  </View>
-                )
-              })}
-            </View>
-            <View className='vote-score'>
-              <Text className='sc-display mono'>{myVote!.score_home ?? 0}</Text>
-              <Text className='sc-colon mono'>:</Text>
-              <Text className='sc-display mono'>{myVote!.score_away ?? 0}</Text>
-            </View>
-            <View className='vote-submitted'><Text>✓ 已提交</Text></View>
-          </>
-        ) : (
-          <>
-            <Text className='vote-title'>{myVote ? '✅ 修改你的预测' : '✏️ 投出你的预测'}</Text>
-            <View className='vote-opts'>
-              {['home_win', 'draw', 'away_win'].map((opt) => {
-                const label = opt === 'home_win' ? '主胜' : opt === 'draw' ? '平局' : '客胜'
-                return (
-                  <View
-                    key={opt}
-                    className={`vote-btn ${selectedResult === opt ? 'sel' : ''}`}
-                    onClick={() => setSelectedResult(opt)}
-                  >
-                    <Text>{label}</Text>
-                  </View>
-                )
-              })}
-            </View>
-            <View className='vote-score'>
-              <Input className='sc-input mono' type='number' value={homeScore} onInput={(e) => setHomeScore(e.detail.value)} />
-              <Text className='sc-colon mono'>:</Text>
-              <Input className='sc-input mono' type='number' value={awayScore} onInput={(e) => setAwayScore(e.detail.value)} />
-            </View>
-            {voteValidationError ? (
-              <Text className='vote-error-hint'>{voteValidationError}</Text>
-            ) : null}
-            <View className='vote-submit' onClick={handleVote}>
-              <Text>{myVote ? '修改预测' : '提交预测'}</Text>
-            </View>
-          </>
-        )}
+      {/* 投票区域：比赛未结束时允许修改预测（受 FEATURES.VOTE 开关控制） */}
+      {FEATURES.VOTE && (
+        <View className='vote-card'>
+          {(!!myVote && currentMatch?.status === 'finished') ? (
+            <>
+              <Text className='vote-title'>✅ 你的预测</Text>
+              <View className='vote-opts'>
+                {['home_win', 'draw', 'away_win'].map((opt) => {
+                  const label = opt === 'home_win' ? '主胜' : opt === 'draw' ? '平局' : '客胜'
+                  return (
+                    <View key={opt} className={`vote-btn ${myVote!.result === opt ? 'sel' : ''} voted`}>
+                      <Text>{label}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+              <View className='vote-score'>
+                <Text className='sc-display mono'>{myVote!.score_home ?? 0}</Text>
+                <Text className='sc-colon mono'>:</Text>
+                <Text className='sc-display mono'>{myVote!.score_away ?? 0}</Text>
+              </View>
+              <View className='vote-submitted'><Text>✓ 已提交</Text></View>
+            </>
+          ) : (
+            <>
+              <Text className='vote-title'>{myVote ? '✅ 修改你的预测' : '✏️ 投出你的预测'}</Text>
+              <View className='vote-opts'>
+                {['home_win', 'draw', 'away_win'].map((opt) => {
+                  const label = opt === 'home_win' ? '主胜' : opt === 'draw' ? '平局' : '客胜'
+                  return (
+                    <View
+                      key={opt}
+                      className={`vote-btn ${selectedResult === opt ? 'sel' : ''}`}
+                      onClick={() => setSelectedResult(opt)}
+                    >
+                      <Text>{label}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+              <View className='vote-score'>
+                <Input className='sc-input mono' type='number' value={homeScore} onInput={(e) => setHomeScore(e.detail.value)} />
+                <Text className='sc-colon mono'>:</Text>
+                <Input className='sc-input mono' type='number' value={awayScore} onInput={(e) => setAwayScore(e.detail.value)} />
+              </View>
+              {voteValidationError ? (
+                <Text className='vote-error-hint'>{voteValidationError}</Text>
+              ) : null}
+              <View className='vote-submit' onClick={handleVote}>
+                <Text>{myVote ? '修改预测' : '提交预测'}</Text>
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* 底部免责声明 */}
+      <View className='detail-footer-tip'>
+        <View className='detail-footer-tip-bar' />
+        <View className='detail-footer-tip-body'>
+          <Text className='detail-footer-tip-title'>免责说明</Text>
+          <Text className='detail-footer-tip-text'>本页所有 AI 分析内容均为模型基于历史数据的推演，仅供学术研究与内容参考。</Text>
+          <Text className='detail-footer-tip-emphasis'>不构成任何投资或决策建议。</Text>
+        </View>
       </View>
 
       {/* 主内容区滚动结束 */}
@@ -584,4 +664,3 @@ export default function MatchDetail() {
     </View>
   )
 }
-

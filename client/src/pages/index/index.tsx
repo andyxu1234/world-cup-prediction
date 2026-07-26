@@ -4,6 +4,7 @@ import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/
 import { useMatchStore, useLeaderboardStore, useLeagueStore, useRoundStore, getRoundLabel } from '@/stores'
 import { shallow } from 'zustand/shallow'
 import LeaguePicker from '@/components/LeaguePicker'
+import { formatMatchTime, getBeijingDateStr } from '@/utils/time'
 import './index.scss'
 
 // 默认 Tab 配置（后端接口失败时的 fallback，顺序与后端 get_home_tabs 一致）
@@ -22,25 +23,10 @@ function FlagImage({ src, className }: { src: string; className: string }) {
   return <Image className={className} src={src} mode='aspectFit' onError={() => setFailed(true)} />
 }
 
-
-
-function formatMatchTime(timeStr: string | null): string {
-  if (!timeStr) return '待定'
-  const d = new Date(timeStr)
-  const month = d.getMonth() + 1
-  const day = d.getDate()
-  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  const weekday = weekDays[d.getDay()]
-  const hour24 = d.getHours()
-  const min = d.getMinutes().toString().padStart(2, '0')
-  const period = hour24 < 6 ? '凌晨' : hour24 < 12 ? '上午' : hour24 < 14 ? '中午' : hour24 < 18 ? '下午' : '晚上'
-  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-  return `${month}月${day}日 ${weekday} ${period}${hour12.toString().padStart(2, '0')}:${min}`
-}
-
 function formatVoteCount(count: number): string {
   return String(count)
 }
+
 
 function getStatusLabel(status: string) {
   if (status === 'finished') return { text: '已结束', cls: 'badge-red' }
@@ -136,13 +122,13 @@ export default function Index() {
 
   // 分享给好友
   useShareAppMessage(() => ({
-    title: 'AI 足球预测 · 和 AI 一起预测比赛结果',
+    title: 'AI 足球分析 · 多模型赛事解读',
     path: '/pages/index/index',
   }))
 
   // 分享到朋友圈
   useShareTimeline(() => ({
-    title: 'AI 足球预测 · 和 AI 一起预测比赛结果',
+    title: 'AI 足球分析 · 多模型赛事解读',
     query: '',
   }))
 
@@ -157,11 +143,11 @@ export default function Index() {
       // 其余标签（近期赛事/今日/明日）：全部排除已结束的比赛，只显示未开始/进行中的比赛
       params.status_not = 'finished'
     }
-    if (activeChip === '今日') params.date = new Date().toISOString().slice(0, 10)
+    if (activeChip === '今日') params.date = getBeijingDateStr()
     if (activeChip === '明日') {
       const d = new Date()
       d.setDate(d.getDate() + 1)
-      params.date = d.toISOString().slice(0, 10)
+      params.date = getBeijingDateStr(d)
     }
     params.limit = MATCH_LIST_LIMIT
     fetchMatches(params)
@@ -180,11 +166,11 @@ export default function Index() {
       // 近期赛事/今日/明日：只显示未结束的比赛
       params.status_not = 'finished'
     }
-    if (activeChip === '今日') params.date = new Date().toISOString().slice(0, 10)
+    if (activeChip === '今日') params.date = getBeijingDateStr()
     if (activeChip === '明日') {
       const d = new Date()
       d.setDate(d.getDate() + 1)
-      params.date = d.toISOString().slice(0, 10)
+      params.date = getBeijingDateStr(d)
     }
     params.limit = MATCH_LIST_LIMIT
     fetchMatches(params)
@@ -235,9 +221,9 @@ export default function Index() {
                 </View>
                 <View className='m-card-ft'>
                   <Text className='m-consensus'>
-                    AI 共识：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
+                    AI 观点：<Text className='highlight'>{match.summary?.short_summary || '--'}</Text>
                   </Text>
-                  <Text className='m-action'>查看预测 ›</Text>
+                  <Text className='m-action'>查看分析 ›</Text>
                 </View>
               </View>
             </View>
@@ -253,9 +239,9 @@ export default function Index() {
       <View className='hero'>
         <View className='hero-glow' />
         <View className='hero-title-row'>
-          <Text className='hero-title'>AI足球预测</Text>
+          <Text className='hero-title'>AI足球分析</Text>
         </View>
-        <Text className='hero-sub'>{homeStats?.total_leagues ?? '--'}大赛事 · {homeStats?.active_ai_models ?? '--'} 个 AI 模型 · 智能预测 · 人机对决</Text>
+        <Text className='hero-sub'>{homeStats?.total_leagues ?? '--'}大赛事 · {homeStats?.active_ai_models ?? '--'} 个 AI 模型 · 多模型赛事分析</Text>
 
         <View className='hero-stats'>
           <View className='hero-stat'>
@@ -288,7 +274,7 @@ export default function Index() {
             }}
           >
             <Text className='hero-stat-num'>{homeStats?.total_predictions ?? '--'}</Text>
-            <Text className='hero-stat-label'>AI预测总数</Text>
+            <Text className='hero-stat-label'>AI分析总数</Text>
           </View>
           <View
             className='hero-stat hero-stat-clickable'

@@ -3,13 +3,23 @@ from __future__ import annotations
 import json
 from loguru import logger
 from openai import AsyncOpenAI
+from httpx import Timeout
 
 
 class OfoxAIClient:
     """OfoxAI 统一 AI 网关客户端 — 通过 OpenAI 兼容接口调用所有 LLM 模型"""
 
     def __init__(self, api_key: str, base_url: str = "https://api.ofox.io/v1"):
-        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        # 细粒度超时（秒）：
+        #   connect=30 -> 建连慢直接放弃，不卡在 TCP 握手
+        #   read=120   -> 连上但不返回（响应回传卡死，如 MiniMax）或推理模型慢时快速失败并进入重试
+        #   write=30   -> 请求体很小，给合理上限
+        #   pool=10    -> 从连接池取连接的上限
+        self.client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=Timeout(connect=30.0, read=120.0, write=30.0, pool=10.0),
+        )
 
     async def chat_completion(
         self,
@@ -58,15 +68,23 @@ class OfoxAIClient:
             )
             raise
 
-    async def predict_match(self, model: str, system_prompt: str, user_prompt: str) -> dict:
+    # 部分模型对 temperature 有强制约束（如 moonshotai/kimi-k3 只允许 temperature=1），
+    # 否则返回 400 invalid temperature。在此统一覆盖。
+    _MODEL_TEMPERATURE_OVERRIDES: dict[str, float] = {
+        "moonshotai/kimi-k3": 1.0,
+    }
+
+    async def predict_match(self, model: str, system_prompt: str, user_prompt: str, temperature: float | None = None) -> dict:
         """单场预测便捷方法：构建 messages 并解析 JSON 响应"""
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
         # 预测响应通常包含结构化JSON，需要较大输出窗口（部分模型如Gemini容易截断，推理模型如Qwen3.6需要更大空间给reasoning_tokens+输出）
+        if temperature is None:
+            temperature = self._MODEL_TEMPERATURE_OVERRIDES.get(model, 0.7)
         content = await self.chat_completion(
-            model=model, messages=messages, max_tokens=8192,
+            model=model, messages=messages, temperature=temperature, max_tokens=8192,
         )
         # 尝试解析 JSON（AI 可能返回 markdown 代码块包裹的 JSON）
         parsed = self._extract_json(content)

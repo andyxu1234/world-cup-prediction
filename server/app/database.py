@@ -13,6 +13,9 @@ engine = create_async_engine(
     pool_size=5,
     max_overflow=10,
     pool_recycle=3600,
+    # 取出连接前先发 SELECT 1 探活：若连接已被 MySQL/代理回收（2013 Lost connection），
+    # 自动丢弃并新建，避免长耗时 AI 调用后复用到死连接。
+    pool_pre_ping=True,
     connect_args={"ssl": {"check_hostname": False, "verify_mode": "CERT_NONE"}},
 )
 

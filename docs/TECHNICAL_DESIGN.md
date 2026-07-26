@@ -1,63 +1,74 @@
 # 世界杯 AI 预测大赛 — 技术方案文档
 
+> 本文档描述系统**当前**的实际架构与设计。相比早期版本，主要变化：
+> 1. 比赛数据源由 API-Football 切换为 **Highlightly**；
+> 2. 由「单世界杯」升级为 **多联赛**（leagues 表驱动）；
+> 3. 新增 **赔率**（bookmakers / match_odds）、**VIP 会员**、**数据中心**（积分榜/球员榜）等模块；
+> 4. AI 预测改用 **LangGraph** 编排 + OfoxAI 统一网关。
+
 ## 1. 整体架构
 
 ```
 ┌─────────────────────────────────────────────────┐
 │                  微信小程序 (Taro + React)         │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐  │
-│  │ 首页 │ │ 预测 │ │ 排行 │ │ 用户 │ │ 分享 │  │
-│  └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘  │
-└─────┼────────┼────────┼────────┼────────┼──────┘
-      │        │        │        │        │
-      ▼        ▼        ▼        ▼        ▼
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐             │
+│  │ 首页 │ │ 排行 │ │ 数据 │ │ 我的 │  (4 Tab)     │
+│  └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘             │
+└─────┼────────┼────────┼────────┼─────────────────┘
+      │        │        │        │
+      ▼        ▼        ▼        ▼
 ┌─────────────────────────────────────────────────┐
-│              阿里云 ECS (2核2G)                    │
+│              服务器 (Docker / 裸机)                │
 │                                                    │
-│  ┌─────────────────────────────────────────────┐  │
-│  │         Nginx (反向代理 + 静态资源)            │  │
-│  └──────────────────┬──────────────────────────┘  │
-│                     ▼                              │
 │  ┌─────────────────────────────────────────────┐  │
 │  │       FastAPI (Python 3.12 + Uvicorn)        │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ │  │
 │  │  │ REST API │ │ 定时任务  │ │ AI 调用网关  │ │  │
+│  │  │ (50端点) │ │ (5 cron) │ │ (LangGraph)  │ │  │
 │  │  └──────────┘ └──────────┘ └──────────────┘ │  │
 │  │  ┌──────────┐ ┌──────────────────────────┐  │  │
-│  │  │ 本地缓存  │ │ APScheduler 定时调度     │  │  │
+│  │  │ 本地缓存  │ │ cachetools TTLCache       │  │  │
 │  │  └──────────┘ └──────────────────────────┘  │  │
 │  └────┬────────────────────────────────────────┘  │
 │       ▼                                           │
 │  ┌─────────┐                                      │
 │  │ MySQL   │                                      │
-│  │ (数据)  │                                      │
+│  │ (18表)  │                                      │
 │  └─────────┘                                      │
 └─────────────────────────────────────────────────┘
-       │                │
-       ▼                ▼
-┌────────────┐   ┌──────────────┐
-│ API-Football│  │   OfoxAI     │
-│ (比赛数据)  │  │ (AI 统一网关) │
-└────────────┘   └──────────────┘
+       │                               │
+       ▼                               ▼
+┌────────────┐                 ┌──────────────┐
+│ Highlightly│                 │   OfoxAI     │
+│ (比赛/积分/ │                 │ (AI 统一网关) │
+│  球员/赔率) │                 │              │
+└────────────┘                 └──────────────┘
 ```
+
+**数据流向**：
+- **比赛 / 积分榜 / 球员 / 赔率**：全部来自 Highlightly（`soccer.highlightly.net`），经各 `*_sync` service 落地到 MySQL。
+- **AI 预测**：LangGraph 编排，逐模型调用 OfoxAI 网关（`api.ofox.io/v1`），结果写入 `predictions` / `prediction_summaries`。
+- **客户端**：小程序通过 `/api/v1` 读取上述数据，缓存层（TTLCache）拦截高频只读查询。
 
 ## 2. 技术栈选型
 
 | 层级 | 技术 | 理由 |
 |------|------|------|
 | **小程序前端** | Taro 4 + React 18 + TypeScript | 跨端能力，后续可扩展 Web 版 |
-| **UI 组件库** | NutUI (京东) | Taro 生态首选，组件丰富 |
+| **UI 方案** | 自研 SCSS 组件（非组件库） | 轻量可控，避免包体积膨胀 |
 | **状态管理** | Zustand | 轻量，适合小程序场景 |
-| **后端框架** | FastAPI (Python 3.12) | 异步高性能，自动生成 API 文档，Python 生态做 AI 调用更自然 |
+| **后端框架** | FastAPI (Python 3.12) | 异步高性能，自动生成 API 文档 |
 | **ASGI 服务器** | Uvicorn | 高性能异步服务器 |
-| **ORM** | SQLAlchemy 2.0 + Alembic | Python ORM 首选，Alembic 做数据库迁移 |
-| **数据库** | MySQL 8.0 | 成熟稳定，2核2G 资源友好 |
-| **缓存** | cachetools (本地内存缓存) | 数据量极小（~620 条），无需 Redis |
-| **定时任务** | APScheduler | 轻量级 Python 定时任务框架 |
-| **HTTP 客户端** | httpx | 异步 HTTP 客户端，调用外部 API |
-| **反向代理** | Nginx | SSL、静态资源、负载均衡 |
-| **部署** | Docker + Docker Compose | 一键部署，环境一致性 |
-| **进程管理** | Uvicorn (多 worker) | 生产部署标配 |
+| **ORM** | SQLAlchemy 2.0 + Alembic | 异步驱动（asyncmy）+ 迁移 |
+| **数据库** | MySQL 8.0 | 成熟稳定 |
+| **缓存** | cachetools (本地内存缓存) | 数据量小，无需 Redis |
+| **定时任务** | APScheduler | 轻量级 Python 定时任务 |
+| **HTTP 客户端** | httpx | 异步 HTTP，调用外部 API |
+| **AI 编排** | LangGraph `StateGraph` | 多模型并行预测 + 聚合 + 重试 |
+| **AI 网关** | OfoxAI (OpenAI 兼容 `AsyncOpenAI`) | 一个 Key、国内直连、覆盖国内外主流模型 |
+| **比赛数据** | Highlightly | 替代 API-Football，覆盖比赛/积分榜/球员/赔率 |
+| **反向代理** | Nginx | SSL、静态资源 |
+| **部署** | Docker + Docker Compose | 一键部署，环境一致 |
 
 ## 3. 数据量分析与缓存方案
 
@@ -65,261 +76,133 @@
 
 | 数据类型 | 预估总量 | 内存占用 | 说明 |
 |----------|---------|---------|------|
-| 比赛 | ~104 条 | < 1MB | 整表缓存都行 |
-| AI 预测 | ~520 条 | < 5MB | 比赛结束后不再变动 |
-| 排行榜 | 5-10 条 | < 1KB | 简单聚合计算 |
-| 用户投票 | 万级 | 查询时计算 | SQL 聚合即可 |
+| 比赛 | 数百~数千条（多联赛） | < 5MB | 列表分页读取 |
+| AI 预测 | 比赛数 × 模型数 | 数十 MB | 按比赛缓存 |
+| 排行榜 | 数十~数百条 | < 1MB | 聚合计算 |
+| 用户投票 | 万级 | 查询时计算 | SQL 聚合 |
+| 赔率快照 | 视比赛数 × 博彩公司 | 数十 MB | 仅详情页按需 |
 
-**结论**：全量缓存到 Python 进程内存也只需 < 10MB，无需 Redis，用 `cachetools` 的 TTLCache 即可。
+**结论**：全量缓存到 Python 进程内存仍可控（< 100MB），用 `cachetools` 的 TTLCache 即可，无需 Redis。
 
 ### 3.2 缓存实现
 
-```python
-# app/core/cache.py
-from cachetools import TTLCache
-from functools import wraps
+`app/core/cache.py` 定义多组 TTLCache 实例，按业务划分 TTL：
+- 只读类：`stats_cache`(5min)、`matches_cache`(5min)、`match_detail_cache`(10min)、`prediction_cache`(10min)、`compare_cache`(10min)、`leaderboard_cache`(5min)、`standings_cache`(10min)、`player_rankings_cache`(5min)、`long_term_cache`(30min)。
+- 用户类：`user_profile_cache`、`user_votes_cache`、`user_vote_cache`（写后失效 `invalidate_user`）。
 
-# 比赛列表缓存 5 分钟
-match_cache = TTLCache(maxsize=100, ttl=300)
-# 预测结果缓存 10 分钟（赛前不变，赛后更新一次即可）
-prediction_cache = TTLCache(maxsize=500, ttl=600)
-# 排行榜缓存 5 分钟
-leaderboard_cache = TTLCache(maxsize=20, ttl=300)
+`cache_warmer.py` 的 `refresh_all_caches`（每 5 分钟）主动预热只读缓存，降低 DB 压力。
 
-def cached(cache_obj, key_fn=None):
-    """通用缓存装饰器"""
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            key = key_fn(*args, **kwargs) if key_fn else f"{func.__name__}:{args}:{kwargs}"
-            if key in cache_obj:
-                return cache_obj[key]
-            result = await func(*args, **kwargs)
-            cache_obj[key] = result
-            return result
-        return wrapper
-    return decorator
-```
+## 4. 数据库设计（18 张表）
 
-## 4. 数据库设计
+> 完整 SQLAlchemy 模型见 `server/app/models/`，迁移见 `server/alembic/versions/`。
 
-### 4.1 球队表
+### 4.1 核心表清单
 
-```sql
-CREATE TABLE teams (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(100) NOT NULL,        -- 球队名称
-  flag_url VARCHAR(500),             -- 国旗图片URL
-  group_name VARCHAR(10),            -- 小组(A-H)
-  fifa_rank INT,                     -- FIFA排名
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
+| 表 | 关键字段 | 说明 |
+|----|---------|------|
+| `leagues` | name, cn_name, highlightly_league_id, season, type(league/cup), country, is_active, sort_order | 多联赛驱动核心 |
+| `teams` | name, cn_name, flag_url, group_name, fifa_rank, season_stats(JSON), recent_form(JSON), highlightly_team_id | 球队 |
+| `matches` | match_day, round, home_team_id, away_team_id, league_id(FK), match_time, venue, status, home_score, away_score, result, highlightly_match_id | 比赛 |
+| `ai_models` | name, model_id(唯一), avatar_url, style_tags(JSON), is_active | 模型阵容（DB 驱动） |
+| `predictions` | match_id, model_id, result, score_home/away, score_alt_*, confidence, analysis, is_correct_result, is_correct_score | 单场预测 |
+| `prediction_summaries` | match_id, score_*, summary, short_summary, confidence | 多模型共识 |
+| `long_term_predictions` | model_id, champion/runner_up/third_team_id, analysis | 冠亚季军 |
+| `users` | openid(唯一), nickname, avatar_url | 微信用户 |
+| `user_votes` | user_id, match_id, result, score_home/away, is_correct_* | 投票 |
+| `head_to_heads` | home_team_id, away_team_id, detail(JSON) | 历史交锋 |
+| `vip_members` | user_id, openid, plan_type(monthly/quarterly/yearly/permanent), start_at, expire_at | VIP |
+| `cn_mappings` | category, key, cn_value, is_series | 中英文映射 |
+| `match_player_stats` | match_id, player_id, team_id, league_id, goals, assists, cards, minutes… | 球员逐场盒子分 |
+| `league_standings` | league_id, team_id, group_name, position, played, won, draw, lost, points… | 积分榜 |
+| `players` | id(highlightly), name, cn_name, logo, position_*, height, citizenship, club… | 球员主数据 |
+| `player_season_stats` | player_id, league_id, season, team_*, goals, assists, cards… | 球员赛季快照 |
+| `bookmakers` | highlightly_bookmaker_id(唯一), name, is_active | 博彩公司 |
+| `match_odds` | match_id, bookmaker_id, bookmaker_name, odds_type(prematch/live), market, value, odd, snapshot_date, fetched_at | 赔率快照 |
 
-### 4.2 比赛表
+### 4.2 关键约束
 
-```sql
-CREATE TABLE matches (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  match_day INT NOT NULL,            -- 比赛日
-  round VARCHAR(50) NOT NULL,        -- 轮次: 小组赛/16强/8强/半决赛/决赛
-  home_team_id INT NOT NULL REFERENCES teams(id),
-  away_team_id INT NOT NULL REFERENCES teams(id),
-  match_time DATETIME NOT NULL,      -- 开赛时间(UTC)
-  venue VARCHAR(200),                -- 场地
-  status ENUM('upcoming','live','finished') DEFAULT 'upcoming',
-  home_score INT,                    -- 主队进球
-  away_score INT,                    -- 客队进球
-  result ENUM('home_win','draw','away_win'),  -- 赛果
-  api_football_id INT,               -- API-Football 的比赛ID
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 4.3 AI 模型表
-
-```sql
-CREATE TABLE ai_models (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(50) NOT NULL,         -- 展示名称
-  model_id VARCHAR(100) NOT NULL,    -- OfoxAI 中的模型标识
-  avatar_url VARCHAR(500),
-  style_tags JSON,                   -- 风格标签
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 4.4 AI 单场预测表
-
-```sql
-CREATE TABLE predictions (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  match_id INT NOT NULL REFERENCES matches(id),
-  model_id INT NOT NULL REFERENCES ai_models(id),
-  result ENUM('home_win','draw','away_win') NOT NULL,
-  score_home INT,                    -- 预测主队进球
-  score_away INT,                    -- 预测客队进球
-  score_alt_home INT,                -- 备选比分-主队
-  score_alt_away INT,                -- 备选比分-客队
-  score_alt_prob DECIMAL(5,2),       -- 备选比分概率
-  confidence TINYINT,                -- 信心指数 1-10
-  analysis TEXT,                     -- 预测分析文字
-  raw_response JSON,                 -- 原始返回
-  is_correct_result BOOLEAN,         -- 胜负是否正确
-  is_correct_score BOOLEAN,          -- 比分是否完全命中
-  calculated_at DATETIME,            -- 计算正确性时间
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_match_model (match_id, model_id)
-);
-```
-
-### 4.5 长期预测表
-
-```sql
-CREATE TABLE long_term_predictions (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  model_id INT NOT NULL REFERENCES ai_models(id),
-  champion_team_id INT REFERENCES teams(id),
-  runner_up_team_id INT REFERENCES teams(id),
-  third_place_team_id INT REFERENCES teams(id),
-  analysis TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 4.6 用户表
-
-```sql
-CREATE TABLE users (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  openid VARCHAR(100) NOT NULL UNIQUE,
-  nickname VARCHAR(100),
-  avatar_url VARCHAR(500),
-  supported_model_id INT REFERENCES ai_models(id),  -- 站队
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 4.7 用户投票表
-
-```sql
-CREATE TABLE user_votes (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  user_id INT NOT NULL REFERENCES users(id),
-  match_id INT NOT NULL REFERENCES matches(id),
-  result ENUM('home_win','draw','away_win') NOT NULL,
-  score_home INT,
-  score_away INT,
-  is_correct_result BOOLEAN,
-  is_correct_score BOOLEAN,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_user_match (user_id, match_id)
-);
-```
+- `match_odds` 唯一约束 `uk_match_odds`（match_id, bookmaker_id, odds_type, market, value, snapshot_date），**追加式每日快照**，用于构建赔率走势。
+- `bookmakers.bookmaker_id` 指向 `bookmakers.highlightly_bookmaker_id`（历史迁移曾误指 `id`，后由 `q2r3s4t5u6v7` 修正）。
+- `matches.league_id` / `teams` / `long_term_predictions` 等均有 `league_id` 外键，支撑多联赛隔离与聚合。
 
 ## 5. 后端 API 设计
 
-```
-基础路径: /api/v1
+基础路径 `/api/v1`，共 **50 个端点 / 13 个路由模块**。详见 README「API 概览」。模块划分：
 
-// 比赛相关
-GET    /matches                    获取比赛列表 (?round=小组赛&status=upcoming)
-GET    /matches/:id                获取比赛详情(含各AI预测)
+| 模块 | 前缀 | 端点数 | 主要职责 |
+|------|------|--------|----------|
+| matches | `/matches` | 4 | 比赛列表/详情/首页统计/Tab |
+| leagues | `/leagues` | 3 | 联赛列表/赛季/详情 |
+| predictions | `/predictions` | 2 | 单场预测 / 对比 |
+| leaderboard | `/leaderboard` | 3 | AI / 人类 / 单模型 |
+| standings | `/standings` | 2 | 单联赛 / 全部积分榜 |
+| users | `/users` | 9 | 登录/投票/资料/战绩/VIP状态/搜索 |
+| admin | `/admin` | 21 | 同步/预测/VIP/历史赛季回填（运维） |
+| long_term | `/long-term-predictions` | 1 | 长期预测 |
+| cn_mapping | `/cn-mappings` | 1 | 中英文映射 |
+| data | `/data` | 1 | 球员榜 |
+| teams | `/teams` | 1 | 球队详情 |
+| players | `/players` | 1 | 球员详情 |
+| proxy | `/proxy` | 1 | sofifa 图片代理 |
 
-// 预测相关
-GET    /matches/:id/predictions    获取某场比赛所有AI预测
-GET    /predictions/compare/:id    预测对比视图数据
-GET    /predictions/face-slaps     "被打脸"合集
-
-// 排行榜
-GET    /leaderboard/ai             AI模型排行榜 (?round=全部)
-GET    /leaderboard/human          人机排行榜
-GET    /leaderboard/stand          站队排行榜
-
-// 长期预测
-GET    /long-term-predictions      冠亚季军预测
-
-// 用户相关
-POST   /users/login                微信登录(code换openid)
-POST   /users/vote                 用户投票预测
-PUT    /users/support              选择站队
-GET    /users/profile              用户信息
-
-// 分享
-GET    /share/card/:matchId        生成分享卡片数据
-
-// 管理后台(内部)
-POST   /admin/matches/sync         同步比赛数据
-POST   /admin/predictions/generate 触发AI预测生成
-POST   /admin/predictions/evaluate 评估预测准确性
-```
+> 注：`fun_fact.py` / `share.py` / `round_translations.py` 已为空文件（历史遗留，未注册路由）。
 
 ## 6. 核心业务流程
 
-### 6.1 AI 预测生成流程（定时任务）
+### 6.1 数据同步编排（`sync_pipeline.py`）
 
 ```
-每日 00:00 定时触发 (APScheduler)
+每 30 分钟 (APScheduler sync_matches_and_respond)
   │
-  ├── 1. 调用 API-Football 获取未来48h比赛列表
-  │       └── 更新 matches 表
+  ├── 1. 遍历所有活跃联赛 (match_sync.get_active_leagues)
+  │       └── 调用 Highlightly 拉取比赛 → 更新 matches 表
   │
-  ├── 2. 遍历未来24h内的未预测比赛
-  │       │
-  │       └── 对每个AI模型:
-  │             │
-  │             ├── 构建 Prompt（含两队信息、历史交锋、FIFA排名等）
-  │             ├── 调用 OfoxAI API (httpx 异步，兼容 OpenAI 格式)
-  │             ├── 解析 JSON 响应
-  │             └── 存入 predictions 表
+  ├── 2. 事件驱动下游：
+  │       ├── 新增比赛 → 触发 H2H 同步 (h2h_sync)
+  │       └── 比赛结束 → 触发 stats_sync + prediction_evaluator
   │
-  └── 3. 缓存结果到本地 TTLCache
+  └── 3. 写后失效相关缓存
 ```
 
-### 6.2 预测评估流程（比赛结束后）
+其他同步 job（每日 02:00 `sync_standings_and_stats`、每日 04:00 `sync_odds`）独立运行，补全积分榜/球员/赔率数据。
+
+### 6.2 AI 预测生成流程（LangGraph）
 
 ```
-每 30 分钟轮询 (APScheduler)
+每日 01:00 (APScheduler generate_predictions) 或手动触发
   │
-  ├── 1. 调用 API-Football 获取已结束比赛的结果
+  └── prediction_graph.StateGraph:
+        load_match
+          └── 读取比赛 + 两队信息 + 历史交锋 + 球队统计
+        parallel_predict (并行)
+          └── 对每个 is_active 的 AI 模型：
+                ├── 构建 Prompt（prompt_builder）
+                ├── 调用 OfoxAI（AsyncOpenAI，兼容 OpenAI 格式）
+                ├── prediction_parsers 解析 JSON（多模型适配 + 修复）
+                └── 存入 predictions 表
+        validate_outputs → retry_failed（失败重试）
+        aggregate
+          └── 用汇总模型（默认 DeepSeek）综合所有预测 → prediction_summaries
+        validate_summary → END
+```
+
+### 6.3 预测评估流程
+
+```
+比赛结束后（事件驱动 / 手动 /admin/predictions/evaluate）
   │
-  ├── 2. 更新 matches 表 (status=finished, 比分, result)
-  │
-  ├── 3. 批量评估 predictions
+  ├── 1. 更新 matches（status=finished, 比分, result）
+  ├── 2. 批量评估 predictions：
   │       ├── is_correct_result = (预测胜负 == 实际胜负)
-  │       └── is_correct_score = (预测比分 == 实际比分)
-  │
-  ├── 4. 更新排行榜本地缓存
-  │
-  └── 5. 生成"被打脸"数据(置信度高但预测错误)
+  │       └── is_correct_score = (预测比分 == 实际比分，含备选比分)
+  └── 3. 刷新排行榜 / 用户战绩缓存
 ```
 
-### 6.3 AI Prompt 模板
+### 6.4 赔率同步（`odds_service.py`）
 
-```
-你是一位足球分析专家，请预测以下世界杯比赛的结果。
-
-比赛信息：
-- 比赛：{home_team} vs {away_team}
-- 轮次：{round}
-- 场地：{venue}
-
-球队信息：
-- {home_team}：FIFA排名 #{home_rank}，近期战绩 {home_recent_form}
-- {away_team}：FIFA排名 #{away_rank}，近期战绩 {away_recent_form}
-
-历史交锋：{head_to_head}
-
-请严格按照以下JSON格式输出预测结果，不要输出其他内容：
-{
-  "result": "home_win|draw|away_win",
-  "score": { "home": 0, "away": 0 },
-  "score_alt": { "home": 0, "away": 0, "probability": 0.0 },
-  "confidence": 5,
-  "analysis": "50-150字的预测分析"
-}
-```
+- `sync_all_upcoming_odds`：每日 04:00，仅同步未来 7 天 `upcoming` 比赛，追加式快照。
+- `sync_league_odds(league_id)`：一次性拉全量（含历史赛事），用于补齐如已结束世界杯的完整赔率。
+- 有效博彩公司白名单 `ACTIVE_BOOKMAKER_IDS`，市场白名单 `MARKET_WHITELIST`（胜平负 / 进球数等）。
 
 ## 7. 项目结构
 
@@ -329,202 +212,46 @@ POST   /admin/predictions/evaluate 评估预测准确性
 world-cup-prediction/
 ├── client/                          # Taro 小程序
 ├── server/                          # FastAPI 后端
+│   ├── app/
+│   │   ├── main.py                  # 入口 + 生命周期
+│   │   ├── config.py                # Pydantic Settings
+│   │   ├── database.py              # SQLAlchemy 异步引擎
+│   │   ├── deps.py                  # 依赖注入
+│   │   ├── models/                  # 18 张表 ORM（19 个类）
+│   │   ├── schemas/                 # 14 个 Pydantic 模型
+│   │   ├── api/
+│   │   │   ├── router.py            # 路由聚合 (/api/v1)
+│   │   │   └── v1/                  # 13 个有效路由模块
+│   │   ├── services/                # 16 个业务逻辑模块
+│   │   ├── core/                    # ofoxai / highlightly / wechat / scheduler / cache / auth
+│   │   └── utils/prompt_builder.py  # Prompt 模板
+│   ├── alembic/versions/            # 17 个迁移
+│   ├── static/                      # 头像 / 代理缓存
+│   └── docker-compose.yml / Dockerfile
 ├── docs/                            # 文档
-└── scripts/                         # 部署脚本
+└── (scripts/ 如需部署脚本)
 ```
 
-### 7.2 前端 (client/)
+### 7.2 后端模块要点
 
-```
-client/
-├── src/
-│   ├── pages/
-│   │   ├── index/               # 首页(今日比赛)
-│   │   ├── match/               # 比赛详情+AI预测
-│   │   ├── leaderboard/         # 排行榜
-│   │   ├── profile/             # 个人中心
-│   │   ├── face-slap/           # 打脸合集
-│   │   └── share/               # 分享卡片
-│   ├── components/              # 公共组件
-│   ├── stores/                  # Zustand 状态
-│   ├── services/                # API 请求
-│   └── utils/
-├── package.json
-└── config/                      # Taro 编译配置
-```
-
-### 7.3 后端 (server/)
-
-```
-server/
-├── app/
-│   ├── __init__.py
-│   ├── main.py                     # FastAPI 入口
-│   ├── config.py                   # 配置(环境变量)
-│   ├── database.py                 # SQLAlchemy 连接
-│   ├── deps.py                     # 依赖注入
-│   │
-│   ├── models/                     # SQLAlchemy ORM 模型
-│   │   ├── team.py
-│   │   ├── match.py
-│   │   ├── ai_model.py
-│   │   ├── prediction.py
-│   │   ├── long_term_prediction.py
-│   │   ├── user.py
-│   │   └── user_vote.py
-│   │
-│   ├── schemas/                    # Pydantic 请求/响应模型
-│   │   ├── match.py
-│   │   ├── prediction.py
-│   │   ├── leaderboard.py
-│   │   ├── user.py
-│   │   └── share.py
-│   │
-│   ├── api/                        # 路由
-│   │   ├── v1/
-│   │   │   ├── matches.py
-│   │   │   ├── predictions.py
-│   │   │   ├── leaderboard.py
-│   │   │   ├── users.py
-│   │   │   ├── share.py
-│   │   │   └── admin.py
-│   │   └── router.py              # 路由聚合
-│   │
-│   ├── services/                   # 业务逻辑
-│   │   ├── match_sync.py           # API-Football 数据同步
-│   │   ├── ai_predictor.py         # AI 预测生成
-│   │   ├── prediction_evaluator.py # 预测评估
-│   │   ├── leaderboard_calc.py     # 排行榜计算
-│   │   └── share_card.py           # 分享卡片生成
-│   │
-│   ├── core/                       # 核心模块
-│   │   ├── cache.py                # 本地缓存
-│   │   ├── scheduler.py            # APScheduler 定时任务
-│   │   ├── ofoxai.py               # OfoxAI 统一网关客户端
-│   │   ├── api_football.py         # API-Football 客户端
-│   │   └── wechat.py               # 微信登录
-│   │
-│   └── utils/
-│       └── prompt_builder.py       # Prompt 构建工具
-│
-├── alembic/                        # 数据库迁移
-│   ├── env.py
-│   └── versions/
-├── alembic.ini
-├── requirements.txt
-├── Dockerfile
-└── docker-compose.yml
-```
+- **models/**：`league, team, match, ai_model, prediction, prediction_summary, long_term_prediction, user, user_vote, head_to_head, vip_member, cn_mapping, match_player_stat, data_detail(LeagueStanding/Player/PlayerSeasonStat), odds(Bookmaker/MatchOdd/OddsType)`。
+- **services/**：同步类（`match_sync, stats_sync, player_stats_sync, standings_sync, h2h_sync, odds_service`）、预测类（`ai_predictor, prediction_graph, prediction_parsers, prediction_evaluator`）、计算类（`leaderboard_calc, standings_calc`）、业务类（`vip_service, sync_pipeline`）。
+- **core/**：`ofoxai`（OfoxAI 网关，含 `_MODEL_TEMPERATURE_OVERRIDES` 与 `_extract_json` 多策略修复）、`highlightly`（Highlightly 客户端）、`scheduler`（5 job）、`cache` / `cache_warmer`、`wechat`、`auth`。
 
 ## 8. Docker 部署方案
 
-### 8.1 Dockerfile
+详见 [部署指南](DEPLOYMENT.md)。要点：
 
-```dockerfile
-FROM python:3.12-slim
-
-WORKDIR /app
-
-# 安装依赖
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-
-# 复制代码
-COPY . .
-
-# 暴露端口
-EXPOSE 8000
-
-# 启动
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
-```
-
-### 8.2 docker-compose.yml
-
-```yaml
-version: '3.8'
-
-services:
-  db:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: worldcup_prediction
-    ports:
-      - "127.0.0.1:3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command: >
-      --innodb-buffer-pool-size=256M
-      --max-connections=50
-      --character-set-server=utf8mb4
-    mem_limit: 400m
-
-  api:
-    build: .
-    restart: always
-    environment:
-      DATABASE_URL: mysql+asyncmy://root:${DB_PASSWORD}@db:3306/worldcup_prediction
-      OFOXAI_API_KEY: ${OFOXAI_API_KEY}
-      API_FOOTBALL_KEY: ${API_FOOTBALL_KEY}
-      WECHAT_APP_ID: ${WECHAT_APP_ID}
-      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET}
-    ports:
-      - "127.0.0.1:8000:8000"
-    depends_on:
-      - db
-    mem_limit: 400m
-
-  nginx:
-    image: nginx:alpine
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - api
-    mem_limit: 50m
-
-volumes:
-  mysql_data:
-```
-
-### 8.3 部署命令
-
-```bash
-# 在服务器上
-git clone <repo> && cd world-cup-prediction/server
-
-# 配置环境变量
-cp .env.example .env
-# 编辑 .env 填入：
-#   DB_PASSWORD — 数据库密码
-#   OFOXAI_API_KEY — OfoxAI API Key
-#   API_FOOTBALL_KEY — API-Football Key
-#   WECHAT_APP_ID / WECHAT_APP_SECRET — 微信小程序凭证
-
-# 一键启动
-docker compose up -d
-
-# 查看日志
-docker compose logs -f api
-
-# 数据库迁移
-docker compose exec api alembic upgrade head
-
-# 更新部署
-git pull && docker compose up -d --build
-```
+- `docker-compose.yml` 编排 `db`(mysql:8.0) / `api`(FastAPI) / `nginx`。
+- `entrypoint.sh` 启动顺序：等待 MySQL → `alembic upgrade head` → 启动 uvicorn。
+- 数据库名 `worldcup_prediction`，`DATABASE_URL` 由 `DB_*` 环境变量拼接（asyncmy 异步 / pymysql 同步迁移）。
+- 生产 HTTPS 由 Nginx 终止，反向代理 `/api/` 到 `api:8000`。
 
 ## 9. 服务器资源规划（2核2G）
 
 | 组件 | 内存占用 | 说明 |
 |------|---------|------|
-| MySQL 8.0 | ~350MB | buffer_pool=256M + 连接池 |
+| MySQL 8.0 | ~350MB | buffer_pool + 连接池 |
 | FastAPI (2 workers) | ~150MB | uvicorn + Python |
 | Nginx | ~20MB | - |
 | 系统 + 余量 | ~480MB | 充足 |
@@ -553,6 +280,9 @@ httpx==0.27.0
 # 定时任务
 apscheduler==3.10.4
 
+# AI 编排
+langgraph (LangGraph StateGraph)
+
 # 数据验证
 pydantic==2.9.0
 pydantic-settings==2.5.0
@@ -560,7 +290,7 @@ pydantic-settings==2.5.0
 # 微信小程序
 wechatpy==2.1.0
 
-# 图片生成(分享卡片)
+# 图片生成(分享卡片/头像)
 Pillow==10.4.0
 
 # 工具
@@ -572,151 +302,84 @@ loguru==0.7.2
 
 ### 11.1 为什么选择 OfoxAI
 
-| 对比项 | OfoxAI | 硅基流动 + OpenRouter 双网关 |
-|--------|--------|---------------------------|
-| API Key 数量 | 1 个 | 2 个 |
-| 网络要求 | 国内直连 | OpenRouter 需代理 |
+| 对比项 | OfoxAI | 多网关方案 |
+|--------|--------|-----------|
+| API Key 数量 | 1 个 | 多个 |
+| 网络要求 | 国内直连 | 部分需代理 |
 | 模型覆盖 | 国内外 100+ 模型 | 各自覆盖一部分 |
-| API 格式 | 兼容 OpenAI/Claude/Gemini | 各自兼容 OpenAI |
-| 维护复杂度 | 低（单网关） | 高（双网关+降级逻辑） |
-| 降级策略 | 不需要 | 需要跨网关降级 |
+| API 格式 | 兼容 OpenAI | 各自兼容 OpenAI |
+| 维护复杂度 | 低（单网关） | 高（多网关+降级） |
 
-**OfoxAI 优势**：一个 Key、一个 base_url、国内直连，覆盖 GPT/Claude/Gemini/DeepSeek/Qwen/GLM 等全部主流模型，且支持多种 LLM 协议（OpenAI/Claude/Gemini），无需代理。
+**OfoxAI 优势**：一个 Key、一个 base_url、国内直连，覆盖 GPT/Claude/Gemini/DeepSeek/Qwen/GLM 等全部主流模型。
 
-### 11.2 模型阵容
+> 网关地址：**`https://api.ofox.io/v1`**（注意是 `ofox.io`，非 `ofox.ai`）。客户端使用 OpenAI 兼容的 `AsyncOpenAI`。
 
-国内外模型混搭，增加对比话题性：
+### 11.2 模型阵容（DB 驱动）
 
-| OfoxAI model_id | 展示名称 | 产地 | 说明 |
-|-----------------|---------|------|------|
-| `deepseek/deepseek-v3.2` | DeepSeek | 🇨🇳 | 国产性价比之王 |
-| `bailian/qwen3.5-plus` | 通义千问 | 🇨🇳 | 阿里旗舰大模型 |
-| `z-ai/glm-5` | 智谱GLM | 🇨🇳 | 清华系，推理能力强 |
-| `anthropic/claude-sonnet-4.6` | Claude | 🇺🇸 | Anthropic 旗舰 |
-| `openai/gpt-5.2` | GPT | 🇺🇸 | OpenAI 旗舰 |
+模型阵容由 `ai_models` 表驱动（可随时增删改、启停），无硬编码上限。当前默认接入约 10+ 个国内外主流模型，典型供应商：
 
-### 11.3 OfoxAI 客户端实现
+| 供应商 | 产地 | 备注 |
+|--------|------|------|
+| DeepSeek | 🇨🇳 | 汇总模型默认（DeepSeek） |
+| 通义千问 Qwen | 🇨🇳 | 含推理模型（注意 reasoning_tokens 占用） |
+| 智谱 GLM | 🇨🇳 | - |
+| Claude | 🇺🇸 | - |
+| GPT | 🇺🇸 | - |
+| Gemini | 🇺🇸 | 输出易截断，parsers 有专门处理 |
+| 豆包 Doubao | 🇨🇳 | - |
+| Kimi 月之暗面 | 🇨🇳 | `moonshotai/kimi-k3` 强制 temperature=1 |
+| MiniMax | 🇨🇳 | 响应回传可能卡死，需超时重试 |
+| Grok | 🇺🇸 | - |
+| 混元 Hunyuan | 🇨🇳 | - |
+| 小车 MIMO | 🇨🇳 | - |
+
+### 11.3 OfoxAI 客户端实现（`app/core/ofoxai.py`）
 
 ```python
-# app/core/ofoxai.py
-import httpx
-from loguru import logger
+# 使用 OpenAI 兼容的 AsyncOpenAI 客户端
+from openai import AsyncOpenAI
 
 class OfoxAIClient:
-    """OfoxAI 统一网关客户端 — 兼容 OpenAI Chat Completions 格式"""
-
-    BASE_URL = "https://api.ofox.ai/v1"
+    BASE_URL = "https://api.ofox.io/v1"
 
     def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.client = httpx.AsyncClient(
-            base_url=self.BASE_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=60.0,
+        self.client = AsyncOpenAI(api_key=api_key, base_url=self.BASE_URL, timeout=...)
+
+    async def chat_completion(self, model, messages, temperature, max_tokens):
+        resp = await self.client.chat.completions.create(
+            model=model, messages=messages, temperature=temperature, max_tokens=max_tokens
         )
-
-    async def chat_completion(
-        self,
-        model: str,
-        messages: list[dict],
-        temperature: float = 0.7,
-        max_tokens: int = 1024,
-    ) -> str:
-        """调用 OfoxAI Chat Completions API"""
-        resp = await self.client.post("/chat/completions", json={
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        })
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
-        logger.info(f"OfoxAI [{model}] response length: {len(content)}")
-        return content
-
-    async def predict_match(self, model: str, system_prompt: str, user_prompt: str) -> dict:
-        """单场预测便捷方法：构建 messages 并解析 JSON 响应"""
-        import json
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-        content = await self.chat_completion(model=model, messages=messages)
-        # 尝试解析 JSON（AI 可能返回 markdown 代码块包裹的 JSON）
-        content = content.strip()
-        if content.startswith("```"):
-            content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        return json.loads(content)
+        return resp.choices[0].message.content
 ```
 
-### 11.4 调用示例
+- `_MODEL_TEMPERATURE_OVERRIDES`：如 `moonshotai/kimi-k3` 固定 `temperature=1.0`。
+- `_extract_json`：多策略修复 LLM 返回的 JSON（去 markdown 包裹、补括号、截断修复等）。
+- 推理模型（如 Qwen3.6）会优先消耗 `reasoning_tokens`，需调大 `max_tokens` 避免输出为空。
 
-```python
-# 在 ai_predictor.py 中使用
-from app.core.ofoxai import OfoxAIClient
+## 12. 外部数据源接入
 
-ofoxai = OfoxAIClient(api_key=settings.OFOXAI_API_KEY)
+### 12.1 Highlightly（比赛 / 积分榜 / 球员 / 赔率）
 
-# 所有模型走同一个 base_url，只需切换 model 参数
-result = await ofoxai.predict_match(
-    model="deepseek/deepseek-v3.2",
-    system_prompt="你是一位足球分析专家...",
-    user_prompt="请预测阿根廷 vs 法国的比赛..."
-)
+- 地址：`https://soccer.highlightly.net`（RapidAPI 代理路径需带 `/football` 前缀）。
+- 覆盖：比赛赛程与比分、积分榜（`/standings`）、球员盒子分、历史交锋、博彩公司赔率。
+- 各 `*_sync` service 负责拉取并落地；`leagues` 表以 `highlightly_league_id` 关联 Highlightly 联赛 ID。
+- 注意：Highlightly 对历史赛事（>28 天）的赔率可能拉取不到，需用 `sync_league_odds` 一次性补齐或接受缺数。
 
-result = await ofoxai.predict_match(
-    model="anthropic/claude-sonnet-4.6",
-    system_prompt="你是一位足球分析专家...",
-    user_prompt="请预测阿根廷 vs 法国的比赛..."
-)
-```
+### 12.2 OfoxAI（AI 模型）
 
-## 12. API Key 申请流程
-
-### 12.1 OfoxAI（AI 模型统一网关）
-
-1. 访问 https://ofox.ai/ → 注册账号
-2. 点击 "Get API Key" → 创建密钥
-3. 免费计划包含 10+ 免费模型，付费按量计费（Pro 计划无月费）
-4. 保存 Key
-5. 验证：`curl https://api.ofox.ai/v1/models -H "Authorization: Bearer YOUR_KEY"`
-
-**费用参考**（OfoxAI 按 token 计费，以下为单次预测约 500 input + 200 output tokens 估算）：
-
-| 模型 | Input 价格 | Output 价格 | 520次预估费用 |
-|------|-----------|------------|-------------|
-| DeepSeek V3.2 | $0.29/M | $0.43/M | ~$0.15 |
-| Qwen3.5 Plus | $0.40/M | $2.40/M | ~$0.70 |
-| GLM-5 | $1.00/M | $3.20/M | ~$1.15 |
-| Claude Sonnet 4.6 | $3.00/M | $15.00/M | ~$4.50 |
-| GPT-5.2 | $1.75/M | $14.00/M | ~$3.85 |
-| **合计** | | | **~$10.35** |
-
-> **注意**：OfoxAI 国内可直连，无需配置代理。
-
-### 12.2 API-Football（比赛数据）
-
-1. 访问 https://www.api-football.com/ → 注册
-2. 免费计划：**100次/天**，足够 MVP（每日同步1-2次比赛数据）
-3. 付费计划：$9.99/月，10000次/天
-4. 获取 Key 后验证：`curl https://v3.football.api-sports.io/status -H "x-apisports-key: YOUR_KEY"`
-5. 世界杯相关 Endpoints：
-   - `/fixtures` — 赛程与比分
-   - `/fixtures/headtohead` — 历史交锋
-   - `/teams` — 球队信息
-   - `/standings` — 积分榜
+- 地址：`https://api.ofox.io/v1`。
+- 费用按 token 计费，不同模型差异大；单次预测约 500 input + 200 output tokens。
+- 国内可直连，无需代理。
 
 ## 13. 里程碑
 
-2026 世界杯开赛时间：**6月11日**，按当前日期（4月9日）有约 9 周时间。
+- 2026 世界杯于 **6 月 11 日**开赛。
+- 当前系统已超越单一世界杯，演进为多联赛足球数据 + AI 预测平台，新增赔率、VIP、数据中心等模块。
 
-| 阶段 | 时间 | 目标 |
+| 阶段 | 目标 | 状态 |
 |------|------|------|
-| **P0 基础搭建** | 第 1-2 周 | 项目脚手架、数据库建表、Docker 部署、API Key 就位 |
-| **P1 核心功能** | 第 3-4 周 | 比赛同步、AI 预测生成、预测展示、排行榜 |
-| **P2 用户功能** | 第 5-6 周 | 微信登录、投票、站队、人机排行 |
-| **P3 传播功能** | 第 7-8 周 | 分享卡片、打脸合集、UI 打磨 |
-| **P4 上线** | 第 9 周 | 内测、Bug 修复、小程序审核、正式上线 |
+| P0 基础搭建 | 脚手架 / 数据库 / Docker / Key | 已完成 |
+| P1 核心功能 | 比赛同步 / AI 预测 / 展示 / 排行榜 | 已完成 |
+| P2 用户功能 | 微信登录 / 投票 / 人机排行 | 已完成 |
+| P3 增强功能 | 多联赛 / 赔率 / VIP / 数据中心 | 已完成 |
+| P4 上线 | 审核 / 部署 / 运维 | 进行中 |

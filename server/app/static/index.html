@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Signal Room · 私密赔率台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="odds.v15.css?v=4" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+
+  <!-- ============ TOPBAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">◆</span>
+      <div class="brand-text">
+        <span class="brand-title">SIGNAL ROOM</span>
+        <span class="brand-subtitle">私密赔率 · 情报看板</span>
+      </div>
+      <span class="badge">CLASSIFIED</span>
+    </div>
+    <div class="token-area">
+      <div class="token-field">
+        <span class="token-label">ACCESS</span>
+        <input id="token" type="password" placeholder="••••••••" autocomplete="off" />
+        <button id="saveToken" class="btn-token">UNLOCK</button>
+      </div>
+      <button id="themeToggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle light/dark theme">
+        <span class="theme-icon">☽</span>
+      </button>
+      <span id="tokenState" class="token-state"></span>
+    </div>
+  </header>
+
+  <!-- ============ TABS ============ -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="list">
+      <span class="tab-num">01</span>
+      <span class="tab-label">比赛情报</span>
+      <span class="tab-desc">Match Dossiers</span>
+    </button>
+    <button class="tab" data-tab="backtest">
+      <span class="tab-num">02</span>
+      <span class="tab-label">投注回测</span>
+      <span class="tab-desc">Backtest Lab</span>
+    </button>
+    <button class="tab" data-tab="polymarket">
+      <span class="tab-num">03</span>
+      <span class="tab-label">PM 关联</span>
+      <span class="tab-desc">Polymarket Linkage</span>
+    </button>
+    <button class="tab" data-tab="admin">
+      <span class="tab-num">04</span>
+      <span class="tab-label">管理控制台</span>
+      <span class="tab-desc">Admin Console</span>
+    </button>
+    <button class="tab" data-tab="standalone">
+      <span class="tab-num">05</span>
+      <span class="tab-label">通用市场</span>
+      <span class="tab-desc">Standalone Markets</span>
+    </button>
+  </nav>
+
+  <!-- ============ PANEL: 比赛情报 ============ -->
+  <section id="tab-list" class="panel active">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <span class="filter-label">LEAGUE</span>
+        <span id="ms-league" class="ms"></span>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">STATUS</span>
+        <select id="f_status" class="filter-select">
+          <option value="">All</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="live">Live</option>
+          <option value="finished">Finished</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">SORT</span>
+        <select id="f_sort" class="filter-select">
+          <option value="asc">Match Time ↑</option>
+          <option value="desc">Match Time ↓</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">FROM</span>
+        <input id="f_start_date" type="date" class="filter-input" />
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">TO</span>
+        <input id="f_end_date" type="date" class="filter-input" />
+      </div>
+      <button id="btnLoadMatches" class="btn-primary">
+        <span class="btn-icon">⟐</span>
+        <span>Load Dossiers</span>
+      </button>
+    </div>
+    <div id="matchContainer" class="match-container"></div>
+    <!-- Loading state -->
+    <div id="matchLoading" class="loading-state" hidden>
+      <div class="loader-ring"></div>
+      <span>Decrypting signal data…</span>
+    </div>
+    <!-- Empty state -->
+    <div id="matchEmpty" class="empty-state" hidden>
+      <span class="empty-icon">◈</span>
+      <span class="empty-text">No match data received</span>
+      <span class="empty-hint">Adjust filters and try again</span>
+    </div>
+  </section>
+
+  <!-- ============ PANEL: 投注回测 ============ -->
+  <section id="tab-backtest" class="panel">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <span class="filter-label">BOOKMAKER</span>
+        <select id="bt_bookmaker" class="filter-select">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">LEAGUE</span>
+        <span id="ms-league-bt" class="ms"></span>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">FROM</span>
+        <input id="bt_start_date" type="date" class="filter-input" />
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">TO</span>
+        <input id="bt_end_date" type="date" class="filter-input" />
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">STRATEGY</span>
+        <select id="bt_strategy" class="filter-select">
+          <option value="both">Fixed + Kelly</option>
+          <option value="fixed">Fixed ¥100</option>
+          <option value="kelly">Kelly</option>
+        </select>
+      </div>
+      <div class="filter-group" id="bt_kelly_params">
+        <span class="filter-label">BANKROLL</span>
+        <input id="bt_bankroll" type="number" value="10000" class="filter-input" style="width:90px" />
+      </div>
+      <div class="filter-group" id="bt_kelly_fraction_group">
+        <span class="filter-label">KELLY</span>
+        <select id="bt_kelly_frac" class="filter-select">
+          <option value="0.25">1/4 Kelly</option>
+          <option value="0.5">1/2 Kelly</option>
+          <option value="1">Full Kelly</option>
+          <option value="0.1">1/10 Kelly</option>
+        </select>
+      </div>
+      <button id="btnRunBacktest" class="btn-primary">
+        <span class="btn-icon">⌗</span>
+        <span>Run Backtest</span>
+      </button>
+      <div class="filter-note">按赛前最近快照结算</div>
+    </div>
+
+    <div id="btSummary" class="bt-summary"></div>
+
+    <div class="section-heading">
+      <span class="section-number">Ⅰ</span>
+      <span>模型盈亏排行</span>
+      <span class="section-desc">按总盈亏降序</span>
+    </div>
+    <div id="btRankWrap" class="table-dossier"></div>
+
+    <div class="section-heading">
+      <span class="section-number">Ⅱ</span>
+      <span>累计盈亏曲线</span>
+    </div>
+    <div id="btChart" class="chart-box"></div>
+
+    <div class="section-heading">
+      <span class="section-number">Ⅲ</span>
+      <span>逐场明细</span>
+    </div>
+    <div id="btDetailWrap" class="table-dossier"></div>
+  </section>
+
+  <!-- ============ PANEL: PM 关联管理 ============ -->
+  <section id="tab-polymarket" class="panel">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <span class="filter-label">LINK STATUS</span>
+        <select id="pm_linked" class="filter-select">
+          <option value="">All</option>
+          <option value="yes">Linked ✓</option>
+          <option value="no">Unlinked ✗</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">MATCH STATUS</span>
+        <select id="pm_status" class="filter-select">
+          <option value="">All</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="live">Live</option>
+          <option value="finished">Finished</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">SERIES</span>
+        <select id="pm_series" class="filter-select">
+          <option value="">All Series</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">SORT</span>
+        <select id="pm_sort" class="filter-select">
+          <option value="asc">Start Time ↑</option>
+          <option value="desc">Start Time ↓</option>
+        </select>
+      </div>
+      <button id="btnLoadPM" class="btn-primary">
+        <span class="btn-icon">⟐</span>
+        <span>Load PM Events</span>
+      </button>
+    </div>
+
+    <!-- 统计概览 -->
+    <div id="pmStats" class="pm-stats-bar"></div>
+
+    <!-- PM 事件表格 -->
+    <div id="pmTableWrap" class="table-dossier">
+      <p style="color:var(--text-dim);padding:30px;text-align:center">Click "Load PM Events" to fetch data</p>
+    </div>
+
+    <!-- 手动关联弹窗 -->
+    <div id="pmLinkModal" class="pm-modal-overlay" hidden>
+      <div class="pm-modal">
+        <div class="pm-modal-header">
+          <span class="pm-modal-title">Link to Highlightly Match</span>
+          <button type="button" class="pm-modal-close" id="pmModalClose">✕</button>
+        </div>
+        <div class="pm-modal-body">
+          <div class="pm-link-info" id="pmLinkInfo"></div>
+          <div class="pm-link-form">
+            <label class="filter-label">HIGHLIGHTLY MATCH ID</label>
+            <input id="pmMatchIdInput" type="number" class="filter-input" placeholder="Enter Highlightly match_id..." min="1" />
+            <div class="pm-link-hint">Enter the matches.id from Highlightly; the backend will map it to the local match.</div>
+          </div>
+        </div>
+        <div class="pm-modal-footer">
+          <button type="button" class="btn-pm-secondary" id="pmModalCancel">Cancel</button>
+          <button type="button" class="btn-primary" id="pmModalConfirm">Confirm Link</button>
+        </div>
+      </div>
+    </div>
+
+
+  </section>
+
+  <!-- ============ PANEL: 管理控制台 ============ -->
+  <section id="tab-admin" class="panel">
+    <div class="admin-header">
+      <div class="admin-header-left">
+        <span class="admin-header-icon">⚙</span>
+        <span class="admin-header-title">控制台操作台</span>
+        <span class="admin-header-desc">手动触发后台维护任务</span>
+      </div>
+      <div class="admin-header-right">
+        <span class="admin-env-badge">ADMIN</span>
+      </div>
+    </div>
+
+    <div class="admin-warn-note">⚠️ 所有 /admin 接口<b>均无鉴权</b>，公网部署前务必加令牌（尤其可写 / 可触发外部调用的）。</div>
+
+    <div class="admin-grid">
+
+      <!-- 缓存 -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-icon">◈</span>
+          <span class="admin-card-title">缓存</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-action">
+            <button class="btn-admin" data-action="cache/clear" data-method="POST">清空缓存</button>
+            <div class="admin-action-desc">代码改完后立即生效。仅清<b>内存缓存</b>，不碰数据库。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 同步 -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-icon">⟐</span>
+          <span class="admin-card-title">数据同步</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-action">
+            <button class="btn-admin" data-action="pipeline/sync" data-method="POST">完整流水线</button>
+            <div class="admin-action-desc">一键编排：遍历活跃联赛 → 比赛 → 新比赛补 H2H → 结束比赛补球队统计+盒子分+评估+积分榜。<br>落库：matches / teams / h2h / match_player_stats / players / predictions / user_votes / league_standings</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="matches/sync" data-method="POST">比赛数据</button>
+            <div class="admin-action-desc">同步赛程+球队。upsert <b>matches</b> / <b>teams</b>。</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="stats/sync" data-method="POST">统计 + 状态</button>
+            <div class="admin-action-desc">同步积分榜+球队赛季统计/近期状态。写 <b>teams</b> 列（season_stats / recent_form），<b>不写</b> league_standings。</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="h2h/sync" data-method="POST">H2H 数据</button>
+            <div class="admin-action-desc">同步所有 upcoming 比赛的交锋历史。写 <b>h2h</b>。</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="standings/sync" data-method="POST">官方积分榜</button>
+            <div class="admin-action-desc">拉 /standings 落地。写 <b>league_standings</b>（删旧插新）+ 更新 teams.highlightly_team_id。</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="player-stats/sync" data-method="POST">球员数据</button>
+            <div class="admin-action-desc">全量重建球员盒子分+赛季快照。可带 body {"league_ids":[id]} 只重建指定联赛。写 match_player_stats / players / player_season_stats。</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="players/season-stats/sync" data-method="POST">赛季快照</button>
+            <div class="admin-action-desc">仅由现有 match_player_stats 聚合重算赛季快照，<b>不重新拉</b> box-score。写 player_season_stats。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 赔率 -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-icon">⌗</span>
+          <span class="admin-card-title">赔率同步</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-action">
+            <button class="btn-admin" data-action="odds/sync" data-method="POST">赔率（增量）</button>
+            <div class="admin-action-desc">拉未来 7 天 upcoming 比赛赔率快照（追加式）。query odds_type=prematch。写 <b>match_odds</b>。</div>
+          </div>
+          <div class="admin-action">
+            <div class="admin-inline">
+              <button class="btn-admin" data-action="odds/sync-league" data-method="POST">联赛赔率</button>
+              <input class="admin-input" id="admin_league_id" type="number" value="1" placeholder="league_id" />
+            </div>
+            <div class="admin-action-desc">拉指定联赛<b>全部</b>比赛赔率（不限时间，补历史）。需填 league_id。写 <b>match_odds</b>。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Polymarket -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-icon">◈</span>
+          <span class="admin-card-title">Polymarket</span>
+          <span class="admin-card-tag">预测市场信号</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-btn-row">
+            <button class="btn-admin" data-action="polymarket/sync" data-method="POST">同步事件<sup class="admin-sup">1</sup></button>
+            <button class="btn-admin" data-action="polymarket/match" data-method="POST">自动匹配<sup class="admin-sup">2</sup></button>
+          </div>
+
+          <div class="admin-refs">
+            <div class="admin-refs-head">References</div>
+
+            <div class="admin-ref">
+              <span class="admin-ref-num">[1]</span>
+              <div class="admin-ref-body">
+                <b>POST /admin/polymarket/sync</b> — 拉 PM 赛事 + 胜负平市场，落库后<b>立即自动触发</b>本地匹配（≈ sync+match 一步做完）。<br><br>
+                <b>① 拉取（fetch_upcoming_moneyline）</b><br>
+                · 读配置 <b>POLYMARKET_SERIES</b>（要拉的联赛列表）+ <b>POLYMARKET_DAYS_AHEAD</b>（默认 <b>7 天</b>）<br>
+                · 端点 <b>gamma-api.polymarket.com/events/keyset</b>，参数 closed=false（只拉未收盘，历史赛事不拉）<br>
+                · <b>代理</b>：POLYMARKET_PROXY &gt; HTTPS_PROXY &gt; 直连。国内直连被墙（ETIMEDOUT），必须走代理（本机如 127.0.0.1:10808）<br>
+                · 用 <b>endDate</b> 把窗口收窄到未来 N 天，避免翻完整个联赛历史（曾单 series 7万+ 事件翻 700 页）；翻页上限 <b>POLYMARKET_MAX_PAGES</b>（默认 50）<br>
+                · 时间窗 <b>[now-2h, now+N天]</b>：-2h 容忍刚开球还没收盘的场次<br>
+                · 只保留「能解析出主客队 + 至少 1 条 moneyline 腿」的赛事；主客队优先 teams[] 的 ordering（home/away），退化用标题解析「A vs. B」<br>
+                · 比赛时间优先级：markets[].gameStartTime &gt; event.startTime &gt; event.endDate（<b>startDate 是上架时间，绝不能用</b>——曾踩坑）<br>
+                · moneyline（胜负平）3 条腿识别顺序：marketMetadata.opticOddsSelectionLine(home/draw/away) → question 含 draw/队名 → groupItemThreshold(0/1/2)；同 outcome 取成交量大的<br><br>
+                <b>② 落库（upsert）</b><br>
+                · <b>polymarket_events</b>：按 <b>slug</b> upsert（一行=一场比赛：联赛 / 主客队 / 开球时间 / 标题）<br>
+                · <b>polymarket_markets</b>：按 <b>pm_market_id</b> upsert（home/draw/away 的 price / volume / liquidity + clob_token_id_yes/no + position_id_yes/no）<br>
+                · 这一步<b>不写 match_id</b>（留给匹配步骤）<br><br>
+                <b>③ 自动匹配</b><br>
+                · sync 末尾 try 调 match_polymarket_events()，异常被 catch，<b>匹配失败不影响已落库事件</b>（返回里 match 字段为 None）<br>
+                · <b>只读，不交易、不下单</b>。只覆盖 POLYMARKET_SERIES 配置的联赛（当前=五大联赛+欧冠欧联；世界杯走专属逻辑，不经此）<br><br>
+                <b>返回示例</b><br>
+                { "total_events": 12, "total_markets": 36, "series": [{"series":"Premier League","events":6,"markets":18}], "match": { "total_events":12, "total_matched":10, "total_failed":2, "leagues":[...] } }
+              </div>
+            </div>
+
+            <div class="admin-ref">
+              <span class="admin-ref-num">[2]</span>
+              <div class="admin-ref-body">
+                <b>POST /admin/polymarket/match</b> — 用 DeepSeek 把 <b>match_id IS NULL</b> 的事件回填 match_id。只更新 <b>polymarket_events.match_id</b>（NULL 留空）。<b>不重拉</b> API，省代理流量 + 限频额度。<br><br>
+                <b>设计（代码与 AI 分工）</b><br>
+                · 代码做粗活：按联赛 + 时间窗捞出候选 matches（DeepSeek 不会写 SQL）<br>
+                · DeepSeek 做细活：在候选集内挑 match_id（主依据 kickoff 时间，队名佐证）<br>
+                · 代码校验兜底：只接受候选集内的 match_id，<b>越界 / None / 非法 → 留 NULL（防幻觉）</b><br><br>
+                <b>流程（按联赛逐个跑 _match_one_league）</b><br>
+                · 待匹配：SELECT * FROM polymarket_events WHERE series_id=? AND match_id IS NULL<br>
+                · 时间窗：基于事件 kickoff 前后各扩 <b>_POLYMATCH_CANDIDATE_MARGIN_DAYS = 3 天</b>，作为本地 matches.match_time 的过滤范围<br>
+                · 候选：matches WHERE league_id=? AND match_time 在窗内，并查队名映射<br>
+                · 调 DeepSeek：用 ai_models 表<b>活跃的 DeepSeek</b>（无则兜底 deepseek/deepseek-v3.2），temperature=0.0，max_tokens=4096；system prompt 明确「<b>只许用候选集里的 match_id，不要编造</b>」<br>
+                · 校验落地：遍历返回 {slug: match_id|null}，只接受候选集内整数 id → 写 match_id；None/越界/非法 → 留 NULL<br><br>
+                <b>映射解析</b><br>
+                · _resolve_series_league_map() 用 config.POLYMARKET_SERIES_LEAGUE（series_id → highlightly_league_id），再按 <b>league.season = 2026</b> 找本地 leagues.id<br>
+                · ⚠️ 此处<b>硬编码 season=2026</b>，将来做非 2026 赛季，这处得改<br><br>
+                <b>时区归一</b><br>
+                · Highlightly match_time=北京时间(UTC+8)，Polymarket game_start_time=UTC；匹配前统一 <b>+8h 转北京时间</b>再比，<b>绝不直接比两套时区</b><br><br>
+                <b>依赖 / 性质</b><br>
+                · 依赖 DeepSeek 实时调用（走 OfoxAI 网关），需本机网络 + 密钥<br>
+                · <b>已匹配</b>（match_id 非 NULL）的不会再动 → 可重复跑，只补新的<br><br>
+                <b>返回示例</b><br>
+                { "total_events":12, "total_matched":10, "total_failed":2, "leagues":[{"series_id":"...","events":6,"matched":5,"failed":1}] }
+              </div>
+            </div>
+
+            <div class="admin-ref">
+              <span class="admin-ref-num">[3]</span>
+              <div class="admin-ref-body">
+                <b>相关配置项速查</b><br>
+                <span class="cfg-k">POLYMARKET_SERIES</span>：要拉的联赛 series 列表（id+name）<br>
+                <span class="cfg-k">POLYMARKET_SERIES_LEAGUE</span>：series_id → highlightly_league_id 映射（决定能匹配到哪些本地联赛）<br>
+                <span class="cfg-k">POLYMARKET_DAYS_AHEAD</span>：拉取窗口天数（默认 7）<br>
+                <span class="cfg-k">POLYMARKET_MAX_PAGES</span>：单 series 翻页上限（默认 50）<br>
+                <span class="cfg-k">POLYMARKET_PROXY</span> / <span class="cfg-k">HTTPS_PROXY</span>：出网代理（必配，否则国内超时）<br>
+                <span class="cfg-k">POLYMARKET_TEAM_ALIASES</span>：队名别名（队名差异大时补，DeepSeek 一般能兜）<br>
+                <span class="cfg-k">OFOXAI_API_KEY</span> / <span class="cfg-k">OFOXAI_BASE_URL</span>：DeepSeek 调用网关密钥<br><br>
+                <b>调度</b>：scheduler 每天 <b>00:30</b> 自动跑 sync（含 match），正常不需手动；手动调 match 用于 DeepSeek 上次挂了 / 后来本地补了比赛 / 想重匹配。两者均<b>无 body、无 query 参数、无鉴权</b>。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI 预测 -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-icon">*</span>
+          <span class="admin-card-title">AI 预测</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-action">
+            <button class="btn-admin" data-action="predictions/generate" data-method="POST">生成全部</button>
+            <div class="admin-action-desc">为未来 3 天未预测比赛生成全部 AI 预测。写 <b>predictions</b>(insert) + <b>prediction_summary</b>(upsert)。</div>
+          </div>
+          <div class="admin-action">
+            <div class="admin-inline">
+              <button class="btn-admin" data-action="predictions/generate" data-method="POST" data-single="1">单场生成</button>
+              <input class="admin-input" id="admin_match_id" type="number" placeholder="match_id" />
+            </div>
+            <div class="admin-action-desc">单场重新生成。写 predictions + prediction_summary。</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="predictions/evaluate" data-method="POST">评估</button>
+            <div class="admin-action-desc">评估已结束比赛命中率。更新 predictions(is_correct/score) + user_votes。</div>
+          </div>
+          <div class="admin-action">
+            <button class="btn-admin" data-action="predictions/reevaluate" data-method="POST">重新评估</button>
+            <div class="admin-action-desc">强制重算<b>全部</b>预测命中率（修复备选比分逻辑）。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 联赛管理 -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-icon">⊞</span>
+          <span class="admin-card-title">联赛管理</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-action">
+            <button class="btn-admin" data-action="leagues/create" data-method="POST">创建联赛</button>
+            <div class="admin-fields">
+              <input class="admin-input" id="admin_create_name" placeholder="英文名" />
+              <input class="admin-input" id="admin_create_cn" placeholder="中文名" />
+              <input class="admin-input" id="admin_create_hl" type="number" placeholder="hl_id" style="width:70px" />
+              <input class="admin-input" id="admin_create_season" type="number" placeholder="season" style="width:64px" />
+              <input class="admin-input" id="admin_create_type" placeholder="league/cup" style="width:84px" />
+              <input class="admin-input" id="admin_create_country" placeholder="国家(可选)" />
+            </div>
+            <div class="admin-action-desc"><b>接入全新联赛</b>：手动传 hl_id + 元数据（hl_id 用 HighlightlyClient.get_leagues() 查）。(hl_id, season) 唯一，重复返回 exists。创建后需手动逐个 sync。</div>
+          </div>
+          <div class="admin-action">
+            <div class="admin-inline">
+              <button class="btn-admin btn-admin-warn" data-action="leagues/clone" data-method="POST">克隆联赛</button>
+              <input class="admin-input" id="admin_clone_src" type="number" placeholder="src_id" style="width:60px" />
+              <input class="admin-input" id="admin_clone_season" type="number" placeholder="season" style="width:70px" />
+            </div>
+            <div class="admin-action-desc"><b>同联赛换赛季</b>（hl_id 锁死 = source 的）。只建<b>空壳</b>行，不拉数据。</div>
+          </div>
+          <div class="admin-action">
+            <div class="admin-inline">
+              <button class="btn-admin btn-admin-warn" data-action="leagues/backfill-season" data-method="POST">回填赛季</button>
+              <input class="admin-input" id="admin_bf_src" type="number" placeholder="src_id" style="width:60px" />
+              <input class="admin-input" id="admin_bf_season" type="number" placeholder="season" style="width:70px" />
+            </div>
+            <div class="admin-action-desc"><b>= 克隆 + 一键拉满数据</b>（积分榜 + 比赛 + 球员榜）。同联赛历史赛季用这个最省事。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIP 会员（小程序后台操作） -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-icon">★</span>
+          <span class="admin-card-title">VIP 会员</span>
+          <span class="admin-card-tag">小程序后台</span>
+        </div>
+        <div class="admin-card-body admin-card-body-col">
+          <div class="admin-action-desc"><b>以下 5 个接口在小程序 /pages/admin 后台操作，私密台无按钮：</b></div>
+          <div class="admin-action"><span class="admin-api">POST /vip/add</span><span class="admin-action-desc">新增/续费会员 → vip_members(insert/update) + users(select)</span></div>
+          <div class="admin-action"><span class="admin-api">GET /vip/list</span><span class="admin-action-desc">会员列表（join users 取昵称/头像）</span></div>
+          <div class="admin-action"><span class="admin-api">GET /vip/stats</span><span class="admin-action-desc">会员统计（总/月/季/年/永久）</span></div>
+          <div class="admin-action"><span class="admin-api">POST /vip/renew</span><span class="admin-action-desc">续费 → vip_members(update 过期时间)</span></div>
+          <div class="admin-action"><span class="admin-api">DELETE /vip/{id}</span><span class="admin-action-desc">删除会员 → vip_members(delete)</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 操作日志 -->
+    <div class="admin-log-section">
+      <div class="admin-log-head">
+        <span class="admin-log-title">操作日志</span>
+        <button class="btn-admin-log-clear" id="adminLogClear">清空</button>
+      </div>
+      <div id="adminLog" class="admin-log"></div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- ============ PANEL: 通用市场 ============ -->
+  <section id="tab-standalone" class="panel">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <span class="filter-label">FILTER</span>
+        <select id="sa_filter" class="filter-select">
+          <option value="all">All</option>
+          <option value="eligible" selected>Eligible Only</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">SORT</span>
+        <select id="sa_sort" class="filter-select">
+          <option value="volume">Volume</option>
+          <option value="liquidity">Liquidity</option>
+          <option value="no_price">NO Price</option>
+          <option value="end_ts">End Date</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">VIEW</span>
+        <select id="sa_view" class="filter-select">
+          <option value="group" selected>Grouped</option>
+          <option value="flat">Flat</option>
+        </select>
+      </div>
+      <button id="btnLoadSA" class="btn-primary">
+        <span class="btn-icon">⟐</span>
+        <span>Load Markets</span>
+      </button>
+      <button id="btnSyncFDV" class="btn-primary" style="background:var(--blue)">
+        <span class="btn-icon">⌗</span>
+        <span>Sync FDV</span>
+      </button>
+    </div>
+
+    <!-- 统计概览 -->
+    <div id="saStats" class="pm-stats-bar"></div>
+
+    <!-- 市场内容 -->
+    <div id="saTableWrap" class="table-dossier">
+      <p style="color:var(--text-dim);padding:30px;text-align:center">Click "Load Markets" to fetch data</p>
+    </div>
+  </section>
+
+  <script src="odds.v15.js?v=4"></script>
+</body>
+</html>

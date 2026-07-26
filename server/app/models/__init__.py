@@ -3,7 +3,6 @@ from app.models.team import Team
 from app.models.match import Match
 from app.models.ai_model import AIModel
 from app.models.prediction import Prediction
-from app.models.long_term_prediction import LongTermPrediction
 from app.models.user import User
 from app.models.user_vote import UserVote
 from app.models.head_to_head import HeadToHead
@@ -12,13 +11,15 @@ from app.models.vip_member import VipMember
 from app.models.cn_mapping import CnMapping
 from app.models.match_player_stat import MatchPlayerStat
 from app.models.data_detail import LeagueStanding, Player, PlayerSeasonStat
+from app.models.odds import Bookmaker, MatchOdd, OddsType
+from app.models.polymarket_event import PolymarketEvent, PolymarketMarket
+from app.models.polymarket_standalone import PolymarketStandaloneMarket
 
 __all__ = [
     "Team",
     "Match",
     "AIModel",
     "Prediction",
-    "LongTermPrediction",
     "User",
     "UserVote",
     "HeadToHead",
@@ -30,4 +31,10 @@ __all__ = [
     "LeagueStanding",
     "Player",
     "PlayerSeasonStat",
+    "Bookmaker",
+    "MatchOdd",
+    "OddsType",
+    "PolymarketEvent",
+    "PolymarketMarket",
+    "PolymarketStandaloneMarket",
 ]
