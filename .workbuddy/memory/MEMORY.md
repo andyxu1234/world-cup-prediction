@@ -38,6 +38,7 @@
 - **全局 SCSS 变量不自动注入**：各页面 scss 用了 `variables.scss` 的 `$bg-primary`/`$green` 等但没 `@use` 它，必须配 `sass: { resource: ['src/styles/variables.scss'] }`，否则报错 `Undefined variable`。
 - 注意：`global.scss` 自己已有 `@use "./variables" as *`；`sass.resource` 用 `@import` 注入同一文件不会与之冲突（实测可过）。
 - dev server 端口写死 `h5.devServer.port: 10086`（`dev:h5` 脚本），本机访问 `http://<lan-ip>:10086/`。
+- **LeaguePicker 弹窗首次不能滚动（2026-07-31 实测）**：`client/src/components/LeaguePicker/index.tsx` 内 `<ScrollView>` 用 `Math.min(leagues.length * 56 + 10, 420)px` 算高度，首次打开弹窗时 `fetchLeagues` 还没回来 → `leagues.length=0` → ScrollView 高度=10px → 看不到内容也不能滚。三处修：① ScrollView 加 `enhanced`(强制 Taro H5 better-scroll)；② 高度加 `Math.max(..., 240)` 保底；③ ScrollView 加 `key={pickerKey}` + `useEffect([pickerOpen, leagues.length])` 自增 key 强制重建，异步数据回来后 ScrollView 重挂载正确布局。
 
 ## 用户协作偏好
 - 中文、简洁直接；先方案→快决策→执行。

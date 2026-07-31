@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useLeagueStore } from '@/stores'
@@ -13,6 +13,13 @@ export default function LeaguePicker() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [tempSelected, setTempSelected] = useState<number[]>(selectedLeagueIds)
   const [triggerRect, setTriggerRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
+  // ScrollView 强制重建 key：弹窗打开期间或 leagues 变化时自增，
+  // 解决异步 fetchLeagues 还没回来时弹窗 ScrollView 高度=0 的 bug
+  const [pickerKey, setPickerKey] = useState(0)
+
+  useEffect(() => {
+    if (pickerOpen) setPickerKey(k => k + 1)
+  }, [pickerOpen, leagues.length])
 
   const currentLeague = leagues.find((l) => l.id === selectedLeagueIds[0]) || null
   const allSelected = leagues.length > 0 && selectedLeagueIds.length === leagues.length
@@ -67,9 +74,12 @@ export default function LeaguePicker() {
             onClick={(e) => e.stopPropagation()}
           >
             <ScrollView
+              key={pickerKey}
               scrollY
+              enhanced
+              showScrollbar={false}
               className='league-modal-list'
-              style={{ height: `${Math.min(leagues.length * 56 + 10, 420)}px` }}
+              style={{ height: `${Math.min(Math.max(leagues.length * 56 + 10, 240), 420)}px` }}
             >
               <View className='league-list'>
                 {leagues.map((lg) => {
