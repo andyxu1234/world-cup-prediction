@@ -56,7 +56,7 @@
   position: fixed;
   width: auto;
   max-width: 280px;
-  max-height: 340px;
+  max-height: 480px;
   background: #ffffff;
   border-radius: 16px;
   display: flex;
@@ -73,7 +73,8 @@
 }
 
 .league-modal-list {
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 6px 0 0;
 }
 

@@ -1,5 +1,5 @@
 /* 全局样式 — 世界杯活力亮色主题 */
-@use "./variables" as *;
+/* 注意：变量已由 Taro config 的 sass.resource 全局注入，此处不要再 @use variables，否则重复定义冲突 */
 
 page {
   background-color: $bg-primary;

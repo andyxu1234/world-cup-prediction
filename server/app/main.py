@@ -1,5 +1,13 @@
 """FastAPI 应用入口"""
 
+import sys
+import asyncio
+
+# Windows 默认 ProactorEventLoop 与 aiomysql 不兼容（表现为 2003 Can't connect），
+# 必须在创建事件循环前切到 SelectorEventLoop，aiomysql 才能连远程 MySQL。
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI

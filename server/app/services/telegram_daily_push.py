@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
-from typing import Any
+from typing import Any, List, Tuple
 
 from loguru import logger
 from sqlalchemy import select, and_, func
@@ -309,90 +309,101 @@ async def get_ai_leaderboard(session: AsyncSession, top_n: int = 10) -> list[dic
     return leaderboard
 
 
+def _channel_footer() -> str:
+    """公共频道每条消息末尾附带的合规免责声明（海外版：模型输出仅供参考）。"""
+    return (
+        "\n\n─ ─ ─\n"
+        "⚠️ _模型输出仅供参考，不构成任何投注建议。_"
+    )
+
+
+async def build_daily_messages() -> List[Tuple[str, str]]:
+    """构建每日推送消息列表（仅构建，不发送），供 daily_push 与预览接口复用。
+
+    Returns:
+        list[tuple[str, str]]: [(标题, 消息正文), ...]
+    """
+    async with async_session_factory() as session:
+        # 获取北京时间日期字符串
+        cn_tz = timezone(timedelta(hours=8))
+        now_cn = datetime.now(cn_tz)
+        date_str = now_cn.strftime("%Y年%m月%d日")
+
+        # 1. 获取今日比赛和预测
+        today_matches = await get_today_matches(session)
+        today_match_ids = [m["id"] for m in today_matches]
+        today_predictions = await get_match_predictions(session, today_match_ids)
+        today_message = format_daily_summary(today_matches, today_predictions, date_str)
+
+        # 2. 获取昨日赛果
+        yesterday_matches = await get_yesterday_finished_matches(session)
+        yesterday_message = format_finished_matches_summary(yesterday_matches)
+
+        # 3. 获取 AI 排行榜
+        leaderboard = await get_ai_leaderboard(session, top_n=5)
+        leaderboard_message = format_leaderboard_update(leaderboard, top_n=5)
+
+        messages: List[Tuple[str, str]] = []
+        if today_matches:
+            messages.append(("📅 今日比赛", today_message))
+        else:
+            messages.append(("📅 今日比赛", f"📅 *{date_str}*\n\n今日暂无比赛安排"))
+
+        if yesterday_matches:
+            messages.append(("📋 昨日赛果", yesterday_message))
+
+        if now_cn.weekday() == 0:  # 每周一推送排行榜
+            messages.append(("📊 AI 排行榜", leaderboard_message))
+
+        return messages
+
+
 async def daily_push():
     """每日推送任务
 
     推送内容：
-    1. 今日比赛和预测
-    2. 昨日赛果
-    3. AI 排行榜（可选）
+    1. 今日比赛和预测 → 公共频道 + 监控 Chat
+    2. 昨日赛果 → 公共频道 + 监控 Chat
+    3. AI 排行榜（每周一）→ 公共频道 + 监控 Chat
     """
     logger.info("开始执行 Telegram 每日推送任务")
 
     telegram = get_telegram_service()
 
-    # 检查配置
     if not telegram.settings.TELEGRAM_BOT_TOKEN:
         logger.warning("Telegram Bot Token 未配置，跳过推送")
         return
 
-    if not telegram.settings.TELEGRAM_CHAT_IDS:
-        logger.warning("Telegram Chat IDs 未配置，跳过推送")
-        return
-
     try:
-        async with async_session_factory() as session:
-            # 获取北京时间日期字符串
-            cn_tz = timezone(timedelta(hours=8))
-            now_cn = datetime.now(cn_tz)
-            date_str = now_cn.strftime("%Y年%m月%d日")
+        messages = await build_daily_messages()
 
-            # 1. 获取今日比赛和预测
-            today_matches = await get_today_matches(session)
-            today_match_ids = [m["id"] for m in today_matches]
-            today_predictions = await get_match_predictions(session, today_match_ids)
+        # 监控 Chat 广播（不含公共频道，避免重复）
+        if telegram.settings.TELEGRAM_CHAT_IDS:
+            for _title, message in messages:
+                await telegram.broadcast(message)
 
-            # 格式化今日比赛消息
-            today_message = format_daily_summary(
-                today_matches, today_predictions, date_str
-            )
+        # 公共频道自动化发帖（核心交付）
+        public_id = telegram.settings.TELEGRAM_PUBLIC_CHANNEL_ID
+        if public_id:
+            footer = _channel_footer()
+            channel_ok = 0
+            for _title, message in messages:
+                ok = await telegram.send_to_public_channel(message + footer)
+                if ok:
+                    channel_ok += 1
+            logger.info(f"公共频道发送完成: {channel_ok}/{len(messages)} 条")
+        else:
+            logger.warning("TELEGRAM_PUBLIC_CHANNEL_ID 未配置，跳过公共频道发送")
 
-            # 2. 获取昨日赛果
-            yesterday_matches = await get_yesterday_finished_matches(session)
-            yesterday_message = format_finished_matches_summary(yesterday_matches)
-
-            # 3. 获取 AI 排行榜
-            leaderboard = await get_ai_leaderboard(session, top_n=5)
-            leaderboard_message = format_leaderboard_update(leaderboard, top_n=5)
-
-            # 发送消息
-            messages = []
-
-            # 今日比赛预测
-            if today_matches:
-                messages.append(("📅 今日比赛", today_message))
-            else:
-                messages.append(("📅 今日比赛", f"📅 *{date_str}*\n\n今日暂无比赛安排"))
-
-            # 昨日赛果
-            if yesterday_matches:
-                messages.append(("📋 昨日赛果", yesterday_message))
-
-            # AI 排行榜（每周一推送）
-            if now_cn.weekday() == 0:  # 周一
-                messages.append(("📊 AI 排行榜", leaderboard_message))
-
-            # 逐条发送
-            success_count = 0
-            for title, message in messages:
-                result = await telegram.broadcast(message)
-                if result["success"] > 0:
-                    success_count += 1
-
-            logger.info(
-                f"Telegram 每日推送完成: {success_count}/{len(messages)} 条消息发送成功"
-            )
+        logger.info(f"Telegram 每日推送完成: 共 {len(messages)} 条消息")
 
     except Exception as e:
         logger.error(f"Telegram 每日推送失败: {e}")
-
-        # 尝试发送错误通知
         try:
             error_message = format_error_message(str(e))
             await telegram.broadcast(error_message)
         except Exception:
             pass
-
         raise
 
 

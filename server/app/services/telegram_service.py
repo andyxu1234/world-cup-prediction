@@ -57,13 +57,31 @@ class TelegramService:
                 if result.get("ok"):
                     logger.info(f"Telegram 消息发送成功 -> {chat_id}")
                     return True
-                else:
-                    error_code = result.get("error_code")
-                    description = result.get("description")
+
+                # Markdown 实体解析失败（400 can't parse entities）时，
+                # 降级为纯文本重试一次，保证消息至少能送达（丢掉格式）。
+                error_code = result.get("error_code")
+                description = result.get("description", "")
+                if error_code == 400 and "can't parse entities" in description:
+                    logger.warning(
+                        f"Markdown 解析失败，降级纯文本重试 -> {chat_id}"
+                    )
+                    payload["parse_mode"] = None
+                    retry = await client.post(url, json=payload, timeout=30)
+                    retry_result = retry.json()
+                    if retry_result.get("ok"):
+                        logger.info(f"Telegram 纯文本重试发送成功 -> {chat_id}")
+                        return True
                     logger.error(
-                        f"Telegram 消息发送失败: {error_code} - {description} -> {chat_id}"
+                        f"Telegram 纯文本重试失败: {retry_result.get('error_code')} "
+                        f"- {retry_result.get('description')} -> {chat_id}"
                     )
                     return False
+
+                logger.error(
+                    f"Telegram 消息发送失败: {error_code} - {description} -> {chat_id}"
+                )
+                return False
 
         except httpx.TimeoutException:
             logger.error(f"Telegram 消息发送超时 -> {chat_id}")
@@ -73,7 +91,7 @@ class TelegramService:
             return False
 
     async def broadcast(self, text: str, parse_mode: str = "Markdown") -> dict:
-        """广播消息到所有配置的 Chat
+        """广播消息到所有配置的监控 Chat（不含公共频道，避免重复）
 
         Args:
             text: 消息内容
@@ -86,11 +104,18 @@ class TelegramService:
             logger.warning("Telegram Chat IDs 未配置，跳过广播")
             return {"success": 0, "failed": 0, "total": 0}
 
-        chat_ids = [
+        raw_ids = [
             cid.strip()
             for cid in self.settings.TELEGRAM_CHAT_IDS.split(",")
             if cid.strip()
         ]
+        # 公共频道由专门路径发送，广播里排除，避免一条消息发两遍
+        public_id = str(self.settings.TELEGRAM_PUBLIC_CHANNEL_ID or "").strip()
+        chat_ids = [cid for cid in raw_ids if cid != public_id]
+
+        if not chat_ids:
+            logger.info("广播目标已去重（均为公共频道），跳过广播")
+            return {"success": 0, "failed": 0, "total": 0}
 
         success_count = 0
         failed_count = 0
@@ -112,6 +137,22 @@ class TelegramService:
             "failed": failed_count,
             "total": len(chat_ids),
         }
+
+    async def send_to_public_channel(
+        self,
+        text: str,
+        parse_mode: str = "Markdown",
+    ) -> bool:
+        """发送消息到配置的公共频道（自动化发帖主入口）
+
+        Returns:
+            bool: 发送是否成功
+        """
+        channel_id = self.settings.TELEGRAM_PUBLIC_CHANNEL_ID
+        if not channel_id:
+            logger.warning("TELEGRAM_PUBLIC_CHANNEL_ID 未配置，跳过公共频道发送")
+            return False
+        return await self.send_message(channel_id, text, parse_mode)
 
     async def get_me(self) -> dict | None:
         """获取 Bot 信息（用于验证 Token 是否有效）

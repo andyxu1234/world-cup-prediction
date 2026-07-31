@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from pydantic_settings import BaseSettings
 from functools import lru_cache
@@ -18,8 +19,11 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        # Windows 下 asyncmy 连远程 MySQL 会报 WinError 87，开发环境改用 aiomysql；
+        # Linux/Docker 部署仍走 asyncmy（性能更好且跨平台无此问题）。
+        driver = "mysql+aiomysql" if sys.platform == "win32" else "mysql+asyncmy"
         return (
-            f"mysql+asyncmy://{self.DB_USER}:{self.DB_PASSWORD}"
+            f"{driver}://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
 
@@ -130,7 +134,11 @@ class Settings(BaseSettings):
 
     # Telegram Bot 配置
     TELEGRAM_BOT_TOKEN: str = ""  # Telegram Bot Token（从 @BotFather 获取）
-    TELEGRAM_CHAT_IDS: str = ""  # 推送目标 Chat ID，多个用逗号分隔（支持个人和群组）
+    TELEGRAM_CHAT_IDS: str = ""  # 监控类 Chat ID（如管理员私聊），多个用逗号分隔；公共频道请改用下方专用字段
+    # 公共频道（公开引流频道）：自动化发帖的专门目标。
+    # 默认填你提供的频道 ID；如需更换，在 .env 覆盖 TELEGRAM_PUBLIC_CHANNEL_ID 即可。
+    # 注意：该 bot 必须被添加为该频道的管理员（具备发消息权限），否则发送会报 403。
+    TELEGRAM_PUBLIC_CHANNEL_ID: str = "@aifootball123"
 
     # 头像存储（微信临时 URL 需要下载转存）
     AVATAR_DIR: str = "avatars"  # 相对于项目根目录的子目录

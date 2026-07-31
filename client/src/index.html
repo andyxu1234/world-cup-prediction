@@ -7,6 +7,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="format-detection" content="telephone=no" />
   <title>World Cup Predictor</title>
+  <!-- Taro 4 H5 dev server 不再自动注入 pxtransform 的 <html> font-size,
+       这里手动按 designWidth=600/baseFontSize=28 注入 4.667vw，让所有 rem 字号随 viewport 缩放。
+       相比 750/28=3.733vw 整体放大约 25%（之前浏览器偏小的根因）。 -->
+  <style>html{font-size:4.667vw}</style>
 </head>
 <body>
   <div id="app"></div>

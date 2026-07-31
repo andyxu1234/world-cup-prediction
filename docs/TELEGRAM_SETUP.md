@@ -191,4 +191,54 @@ TELEGRAM_CHAT_IDS=
 
 ---
 
+## 11. 公共频道自动化发帖（重点）
+
+系统已内置"公共频道自动发帖"能力：每天 22:00，`daily_push` 会把**当日比赛预测 + 昨日赛果 + AI 排行榜（每周一）**自动发到配置的公开频道，并在每条末尾附合规免责声明。
+
+### 配置步骤
+
+1. **创建 Bot**：@BotFather → `/newbot` 拿到 `TELEGRAM_BOT_TOKEN`。
+2. **把 Bot 加进你的公开频道并设为管理员**（必须，否则发送报 403 Forbidden）：
+   - 频道 → 管理频道 → 管理员 → 添加管理员 → 搜你的 Bot → 给"发消息"权限。
+3. **配置 .env**（`server/.env`）：
+   ```bash
+   TELEGRAM_BOT_TOKEN=你的token
+   # 公共频道 ID（默认已填 -1002237821804，如需更换在此覆盖）
+   TELEGRAM_PUBLIC_CHANNEL_ID=-1002237821804
+   # 可选：管理员私聊监控（不会重复发到频道）
+   TELEGRAM_CHAT_IDS=你的私聊ChatID
+   ```
+4. **测试连通性**：
+   ```bash
+   python scripts/post_to_channel.py --test
+   ```
+5. **预览将发送的内容**（不实际发送）：
+   ```bash
+   python scripts/post_to_channel.py --preview
+   ```
+6. **实际发一次**（手动补发 / 验证排版）：
+   ```bash
+   python scripts/post_to_channel.py --push
+   ```
+   或调用接口：
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/admin/telegram/push_channel
+   ```
+
+### 接口速查
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/admin/telegram/channel_preview` | GET | 预览将发往频道的内容（不发送） |
+| `/admin/telegram/push_channel` | POST | 手动触发频道发帖 |
+| `/admin/telegram/push` | POST | 同 push_channel（每日推送） |
+| `/admin/telegram/status` | GET | 配置状态（含 public_channel_id） |
+
+### 注意事项
+- 公共频道内容由 `telegram_daily_push.build_daily_messages` 生成，与每日定时任务完全一致。
+- 消息末尾自动追加 `⚠️ 模型输出仅供参考，不构成任何投注建议。` 免责声明（海外合规）。
+- Bot Token / 频道 ID 切勿提交到 Git；定期 `/revoke` 轮换 Token。
+
+---
+
 如有问题，请查看日志或联系管理员。

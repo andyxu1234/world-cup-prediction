@@ -560,6 +560,46 @@ async def send_telegram_message(message: str):
         raise HTTPException(status_code=500, detail=f"消息发送失败: {e}")
 
 
+@router.post("/telegram/push_channel")
+async def trigger_channel_push():
+    """手动触发向公共频道发帖（与每日定时推送内容一致）
+
+    用于测试或补发。要求 TELEGRAM_BOT_TOKEN 与 TELEGRAM_PUBLIC_CHANNEL_ID 已配置，
+    且 bot 为该频道管理员。
+    """
+    from app.services.telegram_daily_push import daily_push
+
+    try:
+        await daily_push()
+        return {"status": "ok", "message": "公共频道发帖已执行"}
+    except Exception as e:
+        logger.error(f"公共频道发帖失败: {e}")
+        raise HTTPException(status_code=500, detail=f"公共频道发帖失败: {e}")
+
+
+@router.get("/telegram/channel_preview")
+async def preview_channel_post():
+    """预览将发往公共频道的内容（不实际发送）
+
+    返回每条消息拼接免责脚注后的完整文本，便于上线前核对排版与合规措辞。
+    """
+    from app.services.telegram_daily_push import build_daily_messages, _channel_footer
+
+    try:
+        messages = await build_daily_messages()
+        footer = _channel_footer()
+        settings = get_settings()
+        return {
+            "status": "ok",
+            "channel_id": settings.TELEGRAM_PUBLIC_CHANNEL_ID,
+            "count": len(messages),
+            "messages": [{"title": t, "text": m + footer} for t, m in messages],
+        }
+    except Exception as e:
+        logger.error(f"频道预览生成失败: {e}")
+        raise HTTPException(status_code=500, detail=f"预览生成失败: {e}")
+
+
 @router.get("/telegram/status")
 async def get_telegram_status():
     """获取 Telegram 推送配置状态
@@ -583,5 +623,6 @@ async def get_telegram_status():
             "bot_token_configured": has_token,
             "chat_ids_count": len(chat_ids),
             "chat_ids": chat_ids,  # Chat ID 不是敏感信息，可以显示
+            "public_channel_id": settings.TELEGRAM_PUBLIC_CHANNEL_ID,
         },
     }
