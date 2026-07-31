@@ -38,7 +38,8 @@
 - **全局 SCSS 变量不自动注入**：各页面 scss 用了 `variables.scss` 的 `$bg-primary`/`$green` 等但没 `@use` 它，必须配 `sass: { resource: ['src/styles/variables.scss'] }`，否则报错 `Undefined variable`。
 - 注意：`global.scss` 自己已有 `@use "./variables" as *`；`sass.resource` 用 `@import` 注入同一文件不会与之冲突（实测可过）。
 - dev server 端口写死 `h5.devServer.port: 10086`（`dev:h5` 脚本），本机访问 `http://<lan-ip>:10086/`。
-- **LeaguePicker 弹窗首次不能滚动（2026-07-31 实测）**：`client/src/components/LeaguePicker/index.tsx` 内 `<ScrollView>` 用 `Math.min(leagues.length * 56 + 10, 420)px` 算高度，首次打开弹窗时 `fetchLeagues` 还没回来 → `leagues.length=0` → ScrollView 高度=10px → 看不到内容也不能滚。三处修：① ScrollView 加 `enhanced`(强制 Taro H5 better-scroll)；② 高度加 `Math.max(..., 240)` 保底；③ ScrollView 加 `key={pickerKey}` + `useEffect([pickerOpen, leagues.length])` 自增 key 强制重建，异步数据回来后 ScrollView 重挂载正确布局。
+- **LeaguePicker 弹窗撑不开（2026-07-31 实测，修复 #2 10:00）**：`client/src/components/LeaguePicker/` 弹窗在 8 个联赛场景下只显示 5 个就被裁。原因不是首次异步问题，是双层裁切：① `.league-modal` `max-height:480` + `overflow:hidden`；② ScrollView `style.height` 上限 420 + 底部 ft ≈70 = 490 > 480 整体被裁。修法：`index.scss` max-height 480→600；`index.tsx` ScrollView `style.height` 上限 420→460（8×56+10=458 直接展开不滚）；**移除** `enhanced` 属性（Taro 4 H5 专属 better-scroll prop，微信原生 scroll-view 不识别）；保留 `key={pickerKey}` + `useEffect([pickerOpen, leagues.length])` 自增 key 重建。详见当日 memory。
+- **LeaguePicker 弹窗首次不能滚动（2026-07-31 早期误判，已纠正）**：之前误以为 `Math.min(...,420)` 缺保底导致异步场景下高度=0，实际修 #2 后**首次弹窗不能滚动**的根因是 `max-height:480` 裁掉了 ScrollView 底部 + ft 上沿；`enhanced` 之前被误归为"必须"修复，实测只对 H5 有意义，微信端不识别。修 #2 后 `Math.max(..., 240)` 保底可保留也可删（异步场景已由 `pickerKey` 重建机制兜底）。
 
 ## 用户协作偏好
 - 中文、简洁直接；先方案→快决策→执行。
