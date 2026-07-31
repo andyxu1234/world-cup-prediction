@@ -73,6 +73,11 @@
 }
 
 .league-modal-list {
+  // Taro 4 H5 端 ScrollView 编译成 Stencil 自定义元素 taro-scroll-view-core，
+  // inline style.height 在 React setProperty + Stencil connectedCallback 竞态时偶发不生效。
+  // 改用 CSS class 控制高度，强制 8 联赛(458) 溢出 98px → 触发原生滚动。
+  // 6 联赛(346) 装下不滚，7 联赛(392) 滚 32px，8+ 联赛 必滚。
+  height: 360px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 6px 0 0;

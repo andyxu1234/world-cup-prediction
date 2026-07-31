@@ -39,6 +39,7 @@
 - 注意：`global.scss` 自己已有 `@use "./variables" as *`；`sass.resource` 用 `@import` 注入同一文件不会与之冲突（实测可过）。
 - dev server 端口写死 `h5.devServer.port: 10086`（`dev:h5` 脚本），本机访问 `http://<lan-ip>:10086/`。
 - **LeaguePicker 弹窗撑不开（2026-07-31 实测，修复 #2 10:00）**：`client/src/components/LeaguePicker/` 弹窗在 8 个联赛场景下只显示 5 个就被裁。原因不是首次异步问题，是双层裁切：① `.league-modal` `max-height:480` + `overflow:hidden`；② ScrollView `style.height` 上限 420 + 底部 ft ≈70 = 490 > 480 整体被裁。修法：`index.scss` max-height 480→600；`index.tsx` ScrollView `style.height` 上限 420→460（8×56+10=458 直接展开不滚）；**移除** `enhanced` 属性（Taro 4 H5 专属 better-scroll prop，微信原生 scroll-view 不识别）；保留 `key={pickerKey}` + `useEffect([pickerOpen, leagues.length])` 自增 key 重建。详见当日 memory。
+- **LeaguePicker 弹窗仍只显示 5 个 + 不能滚动（修复 #3 10:10）**：修复 #2 之后用户截图仍只显示 5 个，且不能滚。**根因**：Taro 4 H5 端 ScrollView 编译产物是 Stencil 自定义元素 `<taro-scroll-view-core>`，React 端 inline `style.height` 偶发被 Stencil `connectedCallback` 覆盖/初始化清掉。**改用 CSS class 控制高度**：`index.scss` `.league-modal-list` 加 `height: 360px; overflow-y: auto;`（兼容全局 `.taro-scroll-view__scroll-y` 的 `overflow: scroll`）；删 `index.tsx` ScrollView 的 inline `style.height`。强制 8 联赛(458) 溢出 98px → 必滚。
 - **LeaguePicker 弹窗首次不能滚动（2026-07-31 早期误判，已纠正）**：之前误以为 `Math.min(...,420)` 缺保底导致异步场景下高度=0，实际修 #2 后**首次弹窗不能滚动**的根因是 `max-height:480` 裁掉了 ScrollView 底部 + ft 上沿；`enhanced` 之前被误归为"必须"修复，实测只对 H5 有意义，微信端不识别。修 #2 后 `Math.max(..., 240)` 保底可保留也可删（异步场景已由 `pickerKey` 重建机制兜底）。
 
 ## 用户协作偏好
