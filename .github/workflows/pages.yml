@@ -1,3 +1,13 @@
+# 部署 docs/demo.html 到 GitHub Pages
+#
+# 一次性前置条件（必须由仓库管理员在网页上完成，GITHUB_TOKEN 无权自动创建 Pages 站点）：
+#   Settings → Pages → Build and deployment → Source 选择 "GitHub Actions"
+# 注意：私有仓库需要 GitHub Pro/Team/Enterprise 才支持 Pages；Free 套餐下仓库必须为 public。
+#
+# 若希望由工作流自动启用 Pages，可改用 PAT：
+#   - 建一个带 pages:write（或 repo）权限的 PAT，存为仓库 Secret，例如 PAGES_TOKEN
+#   - 然后给 configure-pages 加回 enablement: true 与 token: ${{ secrets.PAGES_TOKEN }}
+
 name: Deploy demo to GitHub Pages
 
 on:
@@ -24,18 +34,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      - uses: actions/configure-pages@v6
 
       - name: Build static site
         run: python3 .github/scripts/build_pages.py site
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
+          include-hidden-files: true
 
   deploy:
     needs: build
@@ -45,4 +54,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
