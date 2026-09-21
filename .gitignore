@@ -4,12 +4,31 @@ server/.venv/
 
 # Build outputs
 #client/dist/
+# GitHub Pages 构建产物（由 .github/scripts/build_pages.py 生成）
+site/
 
-# IDE
+# AI 助手本地数据（工作记录/技能/自动化，不入库）
+.workbuddy/
+
+# IDE（.idea/ 已从版本库移除，本地保留）
 .vscode/
 .idea/
 .claude/
 .understand-anything/
+
+# 临时调试输出（脚本 stdout/stderr 落盘、误建文件名）
+_all_err.txt
+_all_out.json
+err_*.txt
+_err_*.txt
+*_stderr_*.txt
+*_stdout_*.txt
+c*andycodebase*
+docs/web&&AppServer
+
+# 个人向文档（简历 / 面试准备，不公开）
+docs/resume-project-desc.md
+docs/TECH_STACK_INTERVIEW.md
 
 # OS
 .DS_Store

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 720" width="1000" height="720">
+<style>text{font-family:'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;}</style>
+<defs><marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#2563eb"/></marker><marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#6b7280"/></marker><marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#16a34a"/></marker></defs>
+<rect width="1000" height="720" fill="#ffffff"/>
+<text x="500" y="34" fill="#111827" font-size="20" font-weight="700" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">部署拓扑图 · Network &amp; Deployment</text>
+<text x="500" y="56" fill="#6b7280" font-size="12" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">客户端 → 边缘 Nginx → 容器内 FastAPI → 远程 MySQL；外部 API 经 HTTPS / 代理调用</text>
+<rect x="60" y="80" width="540" height="92" rx="12" ry="12" fill="#fafafa" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="76" y="102" fill="#374151" font-size="14" font-weight="600" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">客户端区 (Client)</text>
+<rect x="80" y="116" width="160" height="46" rx="8" ry="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+<text x="160.0" y="143.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">微信小程序</text>
+<text x="160.0" y="150" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">Taro · 主入口</text>
+<rect x="255" y="116" width="160" height="46" rx="8" ry="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+<text x="335.0" y="143.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">H5 Web</text>
+<text x="335.0" y="150" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">端口 10086</text>
+<rect x="430" y="116" width="160" height="46" rx="8" ry="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+<text x="510.0" y="143.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">独立 APK</text>
+<text x="510.0" y="150" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">WebView 壳</text>
+<rect x="60" y="190" width="540" height="70" rx="12" ry="12" fill="#fafafa" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="76" y="212" fill="#374151" font-size="14" font-weight="600" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">边缘区 (Edge)</text>
+<rect x="80" y="216" width="500" height="38" rx="8" ry="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+<text x="330.0" y="235.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">Nginx 反向代理 + TLS + 健康检查</text>
+<rect x="60" y="280" width="540" height="112" rx="12" ry="12" fill="#fafafa" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="76" y="302" fill="#374151" font-size="14" font-weight="600" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">内部服务区 (Internal)</text>
+<rect x="80" y="310" width="500" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+<text x="330.0" y="349.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">Docker 容器</text>
+<text x="330.0" y="368" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">FastAPI + APScheduler(6 cron) + TTLCache</text>
+<rect x="60" y="412" width="540" height="112" rx="12" ry="12" fill="#fafafa" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="76" y="434" fill="#374151" font-size="14" font-weight="600" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">数据区 (Data Store)</text>
+<rect x="80" y="442" width="500" height="70" rx="8" ry="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+<text x="330.0" y="481.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">MySQL 8.0</text>
+<text x="330.0" y="500" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">阿里云远程实例 · 18 表</text>
+<rect x="640" y="80" width="300" height="470" rx="12" ry="12" fill="#fafafa" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="656" y="102" fill="#374151" font-size="14" font-weight="600" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">外部依赖区 (External)</text>
+<rect x="660" y="110" width="260" height="60" rx="8" ry="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+<text x="790.0" y="144.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">Highlightly API</text>
+<text x="790.0" y="158" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">比赛 / 积分榜数据</text>
+<rect x="660" y="200" width="260" height="60" rx="8" ry="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+<text x="790.0" y="234.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">Polymarket API</text>
+<text x="790.0" y="248" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">预测市场 · 本机代理</text>
+<rect x="660" y="300" width="260" height="60" rx="8" ry="8" fill="#faf5ff" stroke="#d8b4fe" stroke-width="1.5"/>
+<text x="790.0" y="334.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">OfoxAI / LLM 阵</text>
+<text x="790.0" y="348" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">10+ 模型推理</text>
+<rect x="660" y="400" width="260" height="60" rx="8" ry="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+<text x="790.0" y="434.0" fill="#111827" font-size="14" font-weight="600" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">Telegram</text>
+<text x="790.0" y="448" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">每日推送通道</text>
+<path d="M 330,172 L 330,190" stroke="#2563eb" stroke-width="1.8" fill="none" marker-end="url(#arrow-blue)"/>
+<text x="330" y="166" fill="#2563eb" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">HTTPS/TLS</text>
+<path d="M 330,260 L 330,280" stroke="#2563eb" stroke-width="1.8" fill="none" marker-end="url(#arrow-blue)"/>
+<text x="330" y="254" fill="#2563eb" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">反向代理 :8000</text>
+<path d="M 330,392 L 330,412" stroke="#16a34a" stroke-width="1.8" fill="none" marker-end="url(#arrow-blue)"/>
+<text x="330" y="386" fill="#16a34a" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">SQL 3306</text>
+<path d="M 580,330 L 620,330 L 620,140 L 640,140" stroke="#6b7280" stroke-width="1.8" fill="none" stroke-dasharray="5 3" marker-end="url(#arrow-gray)"/>
+<text x="620" y="134" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">GET 比赛</text>
+<path d="M 580,345 L 600,345 L 600,230 L 640,230" stroke="#6b7280" stroke-width="1.8" fill="none" stroke-dasharray="5 3" marker-end="url(#arrow-gray)"/>
+<text x="600" y="224" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">GET 市场</text>
+<path d="M 580,360 L 640,330" stroke="#9333ea" stroke-width="1.8" fill="none" marker-end="url(#arrow-blue)"/>
+<text x="580" y="354" fill="#9333ea" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">LLM API</text>
+<path d="M 580,375 L 660,430" stroke="#6b7280" stroke-width="1.8" fill="none" stroke-dasharray="5 3" marker-end="url(#arrow-gray)"/>
+<text x="580" y="369" fill="#6b7280" font-size="11" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">推送</text>
+<line x1="70" y1="672" x2="110" y2="672" stroke="#2563eb" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+<text x="116" y="676" fill="#6b7280" font-size="12" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">主链路 (HTTPS / 代理 / SQL)</text>
+<line x1="350" y1="672" x2="390" y2="672" stroke="#6b7280" stroke-width="1.8" stroke-dasharray="5 3" marker-end="url(#arrow-gray)"/>
+<text x="396" y="676" fill="#6b7280" font-size="12" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">外部 API 同步 (异步)</text>
+<line x1="640" y1="672" x2="680" y2="672" stroke="#9333ea" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+<text x="686" y="676" fill="#6b7280" font-size="12" font-family="'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif">LLM 推理调用</text>
+</svg>
