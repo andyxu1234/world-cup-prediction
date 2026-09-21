@@ -1,12 +1,18 @@
 # 部署 docs/demo.html 到 GitHub Pages
 #
-# 一次性前置条件（必须由仓库管理员在网页上完成，GITHUB_TOKEN 无权自动创建 Pages 站点）：
+# 一次性前置条件（必须由仓库管理员在网页上完成，GITHUB_TOKEN 无权创建 Pages 站点）：
 #   Settings → Pages → Build and deployment → Source 选择 "GitHub Actions"
 # 注意：私有仓库需要 GitHub Pro/Team/Enterprise 才支持 Pages；Free 套餐下仓库必须为 public。
 #
 # 若希望由工作流自动启用 Pages，可改用 PAT：
 #   - 建一个带 pages:write（或 repo）权限的 PAT，存为仓库 Secret，例如 PAGES_TOKEN
 #   - 然后给 configure-pages 加回 enablement: true 与 token: ${{ secrets.PAGES_TOKEN }}
+#
+# 常见报错对照：
+#   "Get Pages site failed ... Error: Not Found"
+#     → Pages 未启用，或 Source 不是 "GitHub Actions"（GET /repos/{owner}/{repo}/pages 返回 404）
+#   "Create Pages site failed. Resource not accessible by integration"
+#     → 用了 enablement: true 但 token 是默认的 github.token（该参数要求 PAT 或 GitHub App）
 
 name: Deploy demo to GitHub Pages
 
